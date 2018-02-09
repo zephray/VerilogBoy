@@ -6,6 +6,11 @@ iseconfig/
 tmp/
 top_*
 
+*.map
+*.obj
+*.rom
+*.sym
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
