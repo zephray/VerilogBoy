@@ -1,0 +1,13 @@
+run
+-ifmt VHDL
+-ent brom_exdes
+-p xc5vlx50t-ff1136-1
+-ifn xst.prj
+-write_timing_constraints No
+-iobuf YES
+-max_fanout 100
+-ofn brom_exdes 
+-ofmt NGC
+-bus_delimiter ()
+-hierarchy_separator /
+-case Maintain
