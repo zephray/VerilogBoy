@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 
 using namespace std;
@@ -24,12 +25,12 @@ int main(int argc, char * argv[])
 	ifstream inFile(argv[1], ios::in | ios::binary);
 	ofstream outFile(argv[2], ios::out | ios::trunc);
 	
-	uint8_t* buffer;
+	char * buffer;
 
-	buffer = (uint8_t *)malloc(size);
-	inFile.read((char *)buffer, size);
+	buffer = (char *)malloc(size);
+	inFile.read(buffer, size);
 	for (int i = 0; i < size; i++) {
-		outFile << std::hex << buffer[i] << endl;
+		outFile << hex << uppercase << setw(2) << setfill('0') << int((uint8_t)buffer[i]) << endl;
 	}
 
 	inFile.close();
