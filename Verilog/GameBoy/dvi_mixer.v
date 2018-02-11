@@ -21,13 +21,20 @@
 module dvi_mixer(
     input clk,
     input rst,
+    // GameBoy Image Input
     input gb_hs,
     input gb_vs,
     input gb_pclk,
     input gb_pdat,
+    // Debugger Char Input
+    output [6:0] dbg_x,
+    output [4:0] dbg_y,
+    input [6:0] dbg_char,
+    output dbg_sync,
+    // DVI signal Output
     output dvi_hs,
     output dvi_vs,
-	 output dvi_blank,
+    output dvi_blank,
     output reg [7:0] dvi_r,
     output reg [7:0] dvi_g,
     output reg [7:0] dvi_b
@@ -71,12 +78,15 @@ begin
 end
 
 //Font
-assign font_ascii[6:0] = dvi_x[9:3];
+assign dbg_x[6:0] = dvi_x[9:3];
+assign dbg_y[4:0] = dvi_y[8:4];
+assign font_ascii[6:0] = dbg_char[6:0];
 assign font_row[3:0] = dvi_y[3:0];
 assign font_col[2:0] = dvi_x[2:0];
 assign bg_r[7:0] = {8{font_pixel}};
 assign bg_g[7:0] = {8{font_pixel}};
 assign bg_b[7:0] = {8{font_pixel}};
+assign dbg_sync = dvi_vs;
 
 //Debug
 assign gb_r[7:0] = dvi_x[9:2];
@@ -100,6 +110,6 @@ vga_font vga_font(
   .row(font_row),
   .col(font_col),
   .pixel(font_pixel)
-);	 
-	 
+);    
+    
 endmodule

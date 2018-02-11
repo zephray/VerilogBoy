@@ -122,120 +122,210 @@ module top(
   input          CLK_27MHZ_FPGA
     );
 
-//Clock and Reset control   
-wire clk_33;
-wire clk_27;
-wire clk_27_90;
-wire clk_4;
-wire clk_100;
+    //Clock and Reset control   
+    wire clk_33;
+    wire clk_27;
+    wire clk_27_90;
+    wire clk_4;
+    wire clk_100;
 
-wire clk_gb;
-wire clk_dvi;
-wire clk_dvi_90;
+    wire clk_gb;
+    wire clk_dvi;
+    wire clk_dvi_90;
 
-wire reset_in;
-wire reset_pll;
-wire reset;
-wire locked_pll;
+    wire reset_in;
+    wire reset_pll;
+    wire reset;
+    wire locked_pll;
 
-assign clk_33 = CLK_33MHZ_FPGA;
-assign reset_in = ~FPGA_CPU_RESET_B;
+    assign clk_33 = CLK_33MHZ_FPGA;
+    assign reset_in = ~FPGA_CPU_RESET_B;
 
-assign clk_gb = clk_4;
-assign clk_dvi = clk_27;
-assign clk_dvi_90 = clk_27_90;
+    assign clk_gb = clk_4;
+    assign clk_dvi = clk_27;
+    assign clk_dvi_90 = clk_27_90;
 
-pll pll (
-  .CLKIN1_IN(clk_33), 
-  .RST_IN(reset_pll), 
-  .CLKOUT0_OUT(clk_4), 
-  .CLKOUT1_OUT(clk_100), 
-  .CLKOUT2_OUT(clk_27),
-  .CLKOUT3_OUT(clk_27_90),
-  .LOCKED_OUT(locked_pll)
-);
-
-debounce_rst debounce_rst(
-  .clk(clk_33),
-  .noisy_rst(reset_in),
-  .pll_locked(locked_pll),
-  .clean_pll_rst(reset_pll),
-  .clean_async_rst(reset)
-);
-//
-
-//Delay Control
-/*localparam IODELAY_GRP = "IODELAY_MIG";
-localparam RST_SYNC_NUM = 25;
-ddr2_idelay_ctrl_mod #(
-  .IODELAY_GRP(IODELAY_GRP),
-  .RST_SYNC_NUM(RST_SYNC_NUM)
-) ddr2_idelay_ctrl_mod (
-  .clk_100MHz(clk_100),
-  .rst(reset)
-);*/
-
-//DVI output
-wire dvi_hs;
-wire dvi_vs;
-wire dvi_blank;
-wire [7:0] dvi_r; 
-wire [7:0] dvi_g; 
-wire [7:0] dvi_b; 
-
-dvi_mixer dvi_mixer(
-  .clk(clk_dvi),
-  .rst(reset),
-  .gb_hs(),
-  .gb_vs(),
-  .gb_pclk(),
-  .gb_pdat(),
-  .dvi_hs(dvi_hs),
-  .dvi_vs(dvi_vs),
-  .dvi_blank(dvi_blank),
-  .dvi_r(dvi_r),
-  .dvi_g(dvi_g),
-  .dvi_b(dvi_b)
+    pll pll (
+        .CLKIN1_IN(clk_33), 
+        .RST_IN(reset_pll), 
+        .CLKOUT0_OUT(clk_4), 
+        .CLKOUT1_OUT(clk_100), 
+        .CLKOUT2_OUT(clk_27),
+        .CLKOUT3_OUT(clk_27_90),
+        .LOCKED_OUT(locked_pll)
     );
 
-wire iic_done;
+    debounce_rst debounce_rst(
+        .clk(clk_33),
+        .noisy_rst(reset_in),
+        .pll_locked(locked_pll),
+        .clean_pll_rst(reset_pll),
+        .clean_async_rst(reset)
+    );
+    //
 
-dvi_module dvi_module(  
-  //Outputs
-  .dvi_vs(DVI_V),        
-  .dvi_hs(DVI_H), 
-  .dvi_d(DVI_D), 
-  .dvi_xclk_p(DVI_XCLK_P), 
-  .dvi_xclk_n(DVI_XCLK_N),
-  .dvi_de(DVI_DE), 
-  .dvi_reset_b(DVI_RESET_B),  
-  .iic_done(iic_done), 
-  
-  //Inouts
-  .dvi_sda(IIC_SDA_VIDEO),
-  .dvi_scl(IIC_SCL_VIDEO),
-  
-  //Inputs
-  .pixel_clk(clk_dvi), 
-  .shift_clk(clk_dvi_90),
-  .gpuclk_rst(reset), 
-  .hsync(dvi_hs),
-  .vsync(dvi_vs),
-  .blank_b(dvi_blank),
-  .pixel_r(dvi_r),
-  .pixel_b(dvi_b),
-  .pixel_g(dvi_g)
-);
-//
+    //Delay Control
+    /*localparam IODELAY_GRP = "IODELAY_MIG";
+    localparam RST_SYNC_NUM = 25;
+    ddr2_idelay_ctrl_mod #(
+      .IODELAY_GRP(IODELAY_GRP),
+      .RST_SYNC_NUM(RST_SYNC_NUM)
+    ) ddr2_idelay_ctrl_mod (
+      .clk_100MHz(clk_100),
+      .rst(reset)
+    );*/
 
-//Debug output
-assign GPIO_LED_C = locked_pll;
-assign GPIO_LED_S = reset;
-assign GPIO_LED_W = iic_done;
-assign GPIO_LED_N = 0;
-assign GPIO_LED_E = 0;
+    // GAME BOY
+    wire gb_hs;
+    wire gb_vs;
+    wire gb_cpl;
+    wire [1:0] gb_pixel;
+    wire halt;
+    wire debug_halt;
+    wire [7:0] reg_a;
+    wire [7:0] reg_f;
+    wire [7:0] high_mem_data;
+    wire [15:0] high_mem_addr;
+    wire [7:0] instr;
+    wire [15:0] reg_bc;
+    wire [15:0] reg_de;
+    wire [15:0] reg_hl;
+    wire [15:0] reg_sp;
+    wire [15:0] reg_pc;
+    wire [4:0] reg_ie;
+    wire [4:0] reg_if;
+    wire [15:0] bp_addr;
+    wire bp_step;
+    wire bp_continue;
+    
+    gameboy gameboy(
+        .rst(reset), // Async Reset Input
+        .clk(clk_gb), // 4.19MHz Clock Input
+        .clk_mem(clk_100), // High Speed Memory Clock
+        //Cartridge interface
+        .a(), // Address Bus
+        .d(),  // Data Bus
+        .wr(), // Write Enable
+        .rd(), // Read Enable
+        .cs(), // External RAM Chip Select
+        //Keyboard input
+        .key(),
+        //LCD output
+        .hs(gb_hs), // Horizontal Sync Output
+        .vs(gb_vs), // Vertical Sync Output
+        .cpl(gb_cpl), // Pixel Data Latch
+        .pixel(gb_pixel), // Pixel Data
+        //Debug
+        .halt(halt), // not quite implemented
+        .debug_halt(debug_halt), // Debug mode status output
+        .A_data(reg_a), // Accumulator debug output
+        .F_data(reg_f), // Flags debug output
+        .IE_data(reg_ie),
+        .IF_data(reg_if),
+        .high_mem_data(high_mem_data), // Debug high mem data output
+        .high_mem_addr(high_mem_addr), // Debug high mem addr output
+        .instruction(instr), // Debug current instruction output
+        .regs_data({reg_bc, reg_de, reg_hl, reg_sp, reg_pc}), // Debug all reg data output
+        .bp_addr(bp_addr), // Debug breakpoint PC
+        .bp_step(bp_step), // Debug single step
+        .bp_continue(bp_continue) // Debug continue
+    );
+    
+    assign bp_addr[15:0] = 15'b0;
+    assign bp_step = 1'b0;
+    assign bp_continue = 1'b0;
+    
+    // Debugger
+    wire [6:0] dbg_x; // Col address, 0-79
+    wire [4:0] dbg_y; // Row address, 0-29
+    wire [6:0] dbg_char; // Char display output
+    wire dbg_clk;
 
-assign GPIO_LED[7:0] = 8'h0;
-//
+    debugger debugger(
+        .rst(reset),
+        .clk(dbg_clk), // Do we need clock?
+        .x(dbg_x), // Current Screen Cursor X
+        .y(dbg_y), // Current Screen Cursor Y
+        .chr(dbg_char), // Current Char Output
+        .instr(instr),
+        .reg_a(reg_a),
+        .reg_f(reg_f),
+        .reg_bc(reg_bc),
+        .reg_de(reg_de),
+        .reg_hl(reg_hl),
+        .reg_sp(reg_sp),
+        .reg_pc(reg_pc),
+        .reg_ie(reg_ie),
+        .reg_if(reg_if)
+    );
+
+    // DVI output
+    wire dvi_hs;
+    wire dvi_vs;
+    wire dvi_blank;
+    wire [7:0] dvi_r; 
+    wire [7:0] dvi_g; 
+    wire [7:0] dvi_b; 
+
+    dvi_mixer dvi_mixer(
+        .clk(clk_dvi),
+        .rst(reset),
+        // GameBoy Image Input
+        .gb_hs(),
+        .gb_vs(),
+        .gb_pclk(),
+        .gb_pdat(),
+        // Debugger Char Input
+        .dbg_x(dbg_x),
+        .dbg_y(dbg_y),
+        .dbg_char(dbg_char),
+        .dbg_sync(dbg_clk),
+        // DVI signal Output
+        .dvi_hs(dvi_hs),
+        .dvi_vs(dvi_vs),
+        .dvi_blank(dvi_blank),
+        .dvi_r(dvi_r),
+        .dvi_g(dvi_g),
+        .dvi_b(dvi_b));
+
+    wire iic_done;
+
+    dvi_module dvi_module(  
+        //Outputs
+        .dvi_vs(DVI_V),        
+        .dvi_hs(DVI_H), 
+        .dvi_d(DVI_D), 
+        .dvi_xclk_p(DVI_XCLK_P), 
+        .dvi_xclk_n(DVI_XCLK_N),
+        .dvi_de(DVI_DE), 
+        .dvi_reset_b(DVI_RESET_B),  
+        .iic_done(iic_done), 
+      
+        //Inouts
+        .dvi_sda(IIC_SDA_VIDEO),
+        .dvi_scl(IIC_SCL_VIDEO),
+      
+        //Inputs
+        .pixel_clk(clk_dvi), 
+        .shift_clk(clk_dvi_90),
+        .gpuclk_rst(reset), 
+        .hsync(dvi_hs),
+        .vsync(dvi_vs),
+        .blank_b(dvi_blank),
+        .pixel_r(dvi_r),
+        .pixel_b(dvi_b),
+        .pixel_g(dvi_g)
+    );
+    //
+
+    //Debug output
+    assign GPIO_LED_C = locked_pll;
+    assign GPIO_LED_S = reset;
+    assign GPIO_LED_W = iic_done;
+    assign GPIO_LED_N = 0;
+    assign GPIO_LED_E = 0;
+
+    assign GPIO_LED[7:0] = 8'h0;
+    //
 
 endmodule
