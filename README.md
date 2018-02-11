@@ -29,6 +29,10 @@ Board Related:
 
 For fun, also trying to learn Verilog with this project.
 
+# How to use
+
+See INSTALL.md
+
 # Acknowledge
 
 This project reused codes from several other projects. A great thanks to their efforts!
