@@ -75,7 +75,11 @@ module top(
   input          VGA_IN_SOGOUT,*/
   
   //SW
-  input  [4:0]   GPIO_COMPSW,
+  input          GPIO_SW_C,
+  input          GPIO_SW_W,
+  input          GPIO_SW_E,
+  input          GPIO_SW_S,
+  input          GPIO_SW_N,
   input  [7:0]   GPIO_DIP_SW,
 
   //LED
@@ -232,8 +236,8 @@ module top(
     );
     
     assign bp_addr[15:0] = 15'b0;
-    assign bp_step = 1'b0;
-    assign bp_continue = 1'b0;
+    //assign bp_step = 1'b0;
+    //assign bp_continue = 1'b0;
     
     // Debugger
     wire [6:0] dbg_x; // Col address, 0-79
@@ -319,13 +323,46 @@ module top(
     //
 
     //Debug output
-    assign GPIO_LED_C = locked_pll;
-    assign GPIO_LED_S = reset;
-    assign GPIO_LED_W = iic_done;
-    assign GPIO_LED_N = 0;
-    assign GPIO_LED_E = 0;
+    //assign GPIO_LED_C = locked_pll;
+    //assign GPIO_LED_S = reset;
+    //assign GPIO_LED_W = iic_done;
+    assign GPIO_LED_N = locked_pll;
+    //assign GPIO_LED_E = 0;
 
     assign GPIO_LED[7:0] = 8'h0;
     //
+    
+    //Keys
+    button button_c(
+        .pressed(bp_step), 
+        .pressed_disp(GPIO_LED_C),
+        .button_input(GPIO_SW_C),
+        .clock(clk_gb),
+        .reset(reset)
+    );
+    
+    button button_w(
+        .pressed(), 
+        .pressed_disp(GPIO_LED_W),
+        .button_input(GPIO_SW_W),
+        .clock(clk_gb),
+        .reset(reset)
+    );
+    
+    button button_e(
+        .pressed(), 
+        .pressed_disp(GPIO_LED_E),
+        .button_input(GPIO_SW_E),
+        .clock(clk_gb),
+        .reset(reset)
+    );
+    
+    button button_s(
+        .pressed(bp_continue), 
+        .pressed_disp(GPIO_LED_S),
+        .button_input(GPIO_SW_S),
+        .clock(clk_gb),
+        .reset(reset)
+    );
 
 endmodule

@@ -1,0 +1,8 @@
+INTSTYLE=impact
+INFILE=C:\Users\ZephRay\Documents\GitHub\GameBoy\Verilog\GameBoy\impact.xsl
+OUTFILE=C:\Users\ZephRay\Documents\GitHub\GameBoy\Verilog\GameBoy\impact.xsl
+FAMILY=Multiple
+PART=Multiple
+WORKINGDIR=C:\Users\ZephRay\Documents\GitHub\GameBoy\Verilog\GameBoy
+LICENSE=iMPACT
+USER_INFO=iMPACT
