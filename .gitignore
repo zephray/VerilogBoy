@@ -10,6 +10,7 @@ top_*
 *.obj
 *.rom
 *.sym
+*.mif
 
 # Windows image file caches
 Thumbs.db
