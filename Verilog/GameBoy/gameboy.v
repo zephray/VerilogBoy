@@ -56,6 +56,7 @@ module gameboy(
     // Bus & Memory Signals
     wire [15:0] addr_ext; // Main Address Bus
     wire [7:0]  data_ext; // Main Data Bus
+    wire [7:0]  do_video; // PPU & VRAM & OAM Data Output
     
     wire mem_we; //Bus Master Memory Write Enable
     wire mem_re; //Bus Master Memory Read Enable
@@ -77,14 +78,15 @@ module gameboy(
     wire addr_in_brom;
     wire addr_in_cart;
     wire addr_in_cram;
+    wire addr_in_ppu;
+    wire addr_in_vram;
+    wire addr_in_oamram;
     
     wire brom_tri_en; // Allow BROM output to the Data bus
     wire wram_tri_en; // Allow WRAM
     wire junk_tri_en; // Undefined
     wire sound_tri_en; // Allow Sound Registers
-    wire video_tri_en; // Allow PPU Registers
-    wire vram_tri_en; // Allow VRAM
-    wire oam_tri_en; // Allow OAM RAM
+    wire video_tri_en; // Allow PPU (including VRAM and OAM)
     wire bootstrap_tri_en; // Allow BROM enable reg
     wire cart_tri_en; // Allow Cartridge
     wire ie_tri_en; // Allow Interrupt Enable
@@ -131,7 +133,7 @@ module gameboy(
     assign IE_load = 1'b0;
     assign IE_in = 5'd0;
     
-    //CPU
+    // CPU
     cpu cpu(
         .mem_we(cpu_mem_we),
         .mem_re(cpu_mem_re),
@@ -157,27 +159,40 @@ module gameboy(
         .bp_addr(bp_addr),
         .bp_step(bp_step),
         .bp_continue(bp_continue));
+        
+    // PPU
+    ppu ppu(
+        .clk(clk),
+        .rst(rst),
+        .a(addr_ext),
+        .d_rd(),
+        .d_wr(data_ext),
+        .rd(do_video), // VRAM & OAM RW goes through PPU
+        .wr(),
+        .int_req(),
+        .int_ack(),
+        .cpl(cpl), // Pixel clock
+        .pixel(pixel), // Pixel Data (2bpp)
+        .hs(hs), // Horizontal Sync, Low Active
+        .vs(vs) // Vertical Sync, Low Active
+    );
    
     // Memory related
     assign addr_in_brom = (bootstrap_reg_data[0]) ? 1'b0 : addr_ext < 16'h103;
     assign addr_in_bootstrap = addr_ext == `MMIO_BOOTSTRAP;
-    assign addr_in_echo = (`MEM_ECHO_START <= addr_ext) & 
-                          (addr_ext <= `MEM_ECHO_END);
-    assign addr_in_wram = (`MEM_WRAM_START <= addr_ext) & 
-                          (addr_ext <= `MEM_WRAM_END);
-    assign addr_in_dma = addr_ext == `MMIO_DMA;
-    assign addr_in_tima = (addr_ext == `MMIO_DIV) |
-                          (addr_ext == `MMIO_TMA) |
-                          (addr_ext == `MMIO_TIMA) |
-                          (addr_ext == `MMIO_TAC);
-    assign addr_in_audio = ((addr_ext >= 16'hFF10 && addr_ext <= 16'hFF1E) ||
-                          (addr_ext >= 16'hFF30 && addr_ext <= 16'hFF3F) ||
-                          (addr_ext >= 16'hFF20 && addr_ext <= 16'hFF26));
-    assign addr_in_junk = ~addr_in_brom & ~addr_in_audio &
-                          ~addr_in_tima & ~addr_in_wram &
-                          ~addr_in_dma & ~addr_in_tima & 
-                          ~addr_in_cart & ~addr_in_echo & 
-                          ~addr_in_IE & ~addr_in_IF;
+    assign addr_in_echo   = (addr_ext >= `MEM_ECHO_START) & (addr_ext <= `MEM_ECHO_END);
+    assign addr_in_wram   = (addr_ext >= `MEM_WRAM_START) & (addr_ext <= `MEM_WRAM_END);
+    assign addr_in_dma    =  addr_ext == `MMIO_DMA;
+    assign addr_in_tima   = (addr_ext == `MMIO_DIV) |
+                            (addr_ext == `MMIO_TMA) |
+                            (addr_ext == `MMIO_TIMA) |
+                            (addr_ext == `MMIO_TAC);
+    assign addr_in_audio  =((addr_ext >= 16'hFF10 && addr_ext <= 16'hFF1E) ||
+                            (addr_ext >= 16'hFF30 && addr_ext <= 16'hFF3F) ||
+                            (addr_ext >= 16'hFF20 && addr_ext <= 16'hFF26));
+    assign addr_in_ppu    = (addr_ext >= 16'hFF40 && addr_ext <= 16'hFF4B && addr_ext != `MMIO_DMA);
+    assign addr_in_vram   = (addr_ext >= 16'h8000 && addr_ext <= 16'h9FFF);
+    assign addr_in_oamram = (addr_ext >= 16'hFE00 && addr_ext <= 16'hFE9F);
     assign addr_in_cram = ((`MEM_CRAM_START <= addr_ext) && 
                           (addr_ext <= `MEM_CRAM_END));
     assign addr_in_cart = (bootstrap_reg_data[0]) ?
@@ -189,6 +204,13 @@ module gameboy(
                           (((16'h104 <= addr_ext) && (addr_ext <= `MEM_CART_END)) |
                           // OR cart RAM
                           addr_in_cram);
+    assign addr_in_junk = ~addr_in_brom & ~addr_in_audio &
+                          ~addr_in_tima & ~addr_in_wram &
+                          ~addr_in_dma & ~addr_in_tima & 
+                          ~addr_in_ppu & ~addr_in_vram &
+                          ~addr_in_oamram &
+                          ~addr_in_cart & ~addr_in_echo & 
+                          ~addr_in_IE & ~addr_in_IF;
     /*assign addr_in_junk = ~addr_in_brom & ~addr_in_audio &
                           ~addr_in_tima & ~addr_in_wram &
                           ~addr_in_dma & ~addr_in_tima & 
@@ -233,9 +255,7 @@ module gameboy(
     assign wram_tri_en = (addr_in_wram | addr_in_echo) & ~mem_we & mem_re;
     assign junk_tri_en = addr_in_junk & ~mem_we;
     //assign sound_tri_en = reg_w_enable&~mem_we;
-    //assign video_tri_en = video_reg_w_enable&~mem_we;
-    //assign vram_tri_en = video_vram_w_enable&~mem_we;
-    //assign oam_tri_en = video_oam_w_enable&~mem_we;
+    assign video_tri_en = (addr_in_ppu | addr_in_vram | addr_in_oamram) & ~mem_we;
     assign cart_tri_en = addr_in_cart & ~mem_we;
     assign ie_tri_en = addr_in_IE & mem_re;
     assign if_tri_en = addr_in_IF & mem_re;
@@ -256,22 +276,14 @@ module gameboy(
         .out(data_ext),
         .in(8'h00),
         .en(junk_tri_en));
+    tristate #(8) gating_video_regs(
+        .out(data_ext),
+        .in(do_video),
+        .en(video_tri_en));
     /*tristate #(8) gating_sound_regs(
         .out(data_ext),
         .in(reg_data_in), //FIX THIS: regs need output
-        .en(sound_tri_en));
-    tristate #(8) gating_video_regs(
-        .out(data_ext),
-        .in(do_video),//video_reg_data_out),
-        .en(video_tri_en));
-    tristate #(8) gating_video_vram(
-        .out(data_ext),
-        .in(do_video),//video_vram_data_out),
-        .en(vram_tri_en));
-    tristate #(8) gating_video_oam(
-        .out(data_ext),
-        .in(do_video),//video_oam_data_out),
-        .en(oam_tri_en));*/
+        .en(sound_tri_en));*/
     tristate #(8) gating_IE(
         .out(data_ext),
         .in({3'd0, IE_data}),
