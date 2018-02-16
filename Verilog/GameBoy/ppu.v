@@ -20,6 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 module ppu(
     input clk,
+    input clk_mem,
     input rst,
     input [15:0] a,
     output reg [7:0] d_rd,
@@ -70,12 +71,46 @@ module ppu(
     `define PPU_MODE_OAM_SEARCH 2'b10
     `define PPU_MODE_PIX_TRANS 2'b11
     
+    `define PPU_PAL_BG  2'b00
+    `define PPU_PAL_OB0 2'b01
+    `define PPU_PAL_OB1 2'b10
+    
+    wire [12:0] vram_addr_int;
+    wire [12:0] vram_addr_ext;
+    
     wire addr_in_ppu    = (a >= 16'hFF40 && a <= 16'hFF4B);
     wire addr_in_vram   = (a >= 16'h8000 && a <= 16'h9FFF);
     wire addr_in_oamram = (a >= 16'hFE00 && a <= 16'hFE9F);
     
+    wire vram_access_ext = ((reg_mode_flag == PPU_MODE_H_BLANK)||
+                            (reg_mode_flag == PPU_MODE_V_BLANK)||
+                            (reg_mode_flag == PPU_MODE_OAM_SEARCH));
+    wire vram_access_int = ~vram_access_ext;
+    wire oamram_access_ext = ((reg_mode_flag == PPU_MODE_H_BLANK)||
+                              (reg_mode_flag == PPU_MODE_V_BLANK));
+    wire oamram_access_int = ~oamram_access_int;
+    
+    // PPU Memories
+    wire        vram_we;
+    wire [12:0] vram_addr;
+    wire [7:0]  vram_data_in;
+    wire [7:0]  vram_data_out;
+    
+    reg [7:0] oamram [0: 159];
+    
+    blockram8192 br_vram(
+        .clka(clk_mem),
+        .wea(vram_we),
+        .addra(vram_addr),
+        .dina(vram_data_in),
+        .douta(vram_data_out));
+        
+    assign vram_addr_ext = a[12:0];
+    assign vram_addr = (vram_access_ext) ? (vram_addr_ext) : (vram_addr_int);
     
     // Pixel Pipeline
+    
+    
     
     // The pixel FIFO: 16 pixels, 4 bits each (2 bits color index, 2 bits palette index)
     // Since in and out are 8 pixels aligned, it can be modeled as a ping-pong buffer
@@ -86,11 +121,32 @@ module ppu(
     wire [63:0] pf_group;
     wire [31:0] pf_group_first;
     wire [31:0] pf_group_last;
-    reg pf_empty = 1; 
+    reg pf_full = 0; 
     // If LastGrp if full, means that we have at least 8 pixels in the pipeline,
     //   shift out is enabled.
     // When all pixels in FirstGrp is shifted out, swap and mark full to 0, means
     //   it can no longer shift out data.
+    wire [1:0] pf_output_pixel;
+    wire [7:0] pf_output_palette;
+    wire [1:0] pf_output_pixel_id;
+    wire [1:0] pf_output_palette_id;
+    assign {pf_output_pixel_id, pf_output_palette_id} = pf_group_first[31:28];
+    assign pf_output_palette = (pf_palette_id == `PPU_PAL_BG)  ? (reg_bgp)  :
+                               (pf_palette_id == `PPU_PAL_OB0) ? (reg_obp0) :
+                               (pf_palette_id == `PPU_PAL_OB1) ? (reg_obp1) : (8'hFF);
+    assign pf_output_pixel = (pf_output_pixel_id == 2'b11) ? (pf_output_palette[7:6]) :
+                             (pf_output_pixel_id == 2'b10) ? (pf_output_palette[5:4]) :
+                             (pf_output_pixel_id == 2'b01) ? (pf_output_palette[3:2]) :
+                             (pf_output_pixel_id == 2'b00) ? (pf_output_palette[1:0]) : (8'h00);
+    
+    wire pf_clk;
+    assign pf_clk = (pf_full) & clk;
+    assign cpl = ~pf_clk;
+    
+    always @(posedge pf_clk)
+    begin
+        pixel[1:0] <= pf_output_pixel[1:0];
+    end
     
     assign pf_group = (pf_group_select) ? {pf_group2, pf_group1} : {pf_group1, pf_group2};
     assign pf_group_first = pf_group[63:32];
@@ -133,11 +189,9 @@ module ppu(
                 end
                 else
                 if (addr_in_vram) begin
-                    if ((reg_mode == PPU_MODE_H_BLANK)||
-                        (reg_mode == PPU_MODE_V_BLANK)||
-                        (reg_mode == PPU_MODE_OAM_SEARCH))
+                    if (vram_access_ext)
                     begin
-                        //Access good
+                        d_rd <= vram_data_out;
                     end
                     else
                     begin
@@ -146,10 +200,9 @@ module ppu(
                 end
                 else
                 if (addr_in_oamram) begin
-                    if ((reg_mode == PPU_MODE_H_BLANK)||
-                        (reg_mode == PPU_MODE_V_BLANK))
+                    if (oamram_access_ext)
                     begin
-                        //Access good
+                        // Access Good
                     end
                     else
                     begin
@@ -176,22 +229,9 @@ module ppu(
                     endcase
                 end
                 else
-                if (addr_in_vram) begin
-                    if ((reg_mode == PPU_MODE_H_BLANK)||
-                        (reg_mode == PPU_MODE_V_BLANK)||
-                        (reg_mode == PPU_MODE_OAM_SEARCH))
-                    begin
-                        // Access good
-                    end
-                    else
-                    begin
-                        // Do nothing
-                    end
-                end
-                else
+                // VRAM access should be completed automatically 
                 if (addr_in_oamram) begin
-                    if ((reg_mode == PPU_MODE_H_BLANK)||
-                        (reg_mode == PPU_MODE_V_BLANK))
+                    if (oamram_access_ext)
                     begin
                         // Access good
                     end

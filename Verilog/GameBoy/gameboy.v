@@ -163,6 +163,7 @@ module gameboy(
     // PPU
     ppu ppu(
         .clk(clk),
+        .clk_mem(clk_mem),
         .rst(rst),
         .a(addr_ext),
         .d_rd(),

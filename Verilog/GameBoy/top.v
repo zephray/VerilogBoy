@@ -350,7 +350,7 @@ module top(
     );
     
     button button_e(
-        .pressed(), 
+        .pressed(bp_continue), 
         .pressed_disp(GPIO_LED_E),
         .button_input(GPIO_SW_E),
         .clock(clk_gb),
@@ -358,7 +358,7 @@ module top(
     );
     
     button button_s(
-        .pressed(bp_continue), 
+        .pressed(), 
         .pressed_disp(GPIO_LED_S),
         .button_input(GPIO_SW_S),
         .clock(clk_gb),
