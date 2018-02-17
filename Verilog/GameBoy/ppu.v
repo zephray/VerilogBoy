@@ -29,10 +29,11 @@ module ppu(
     input wr,
     output int_req,
     input int_ack,
-    output cpl,
-    output [1:0] pixel,
-    output hs,
-    output vs
+    output cpl, // Pixel Clock, = ~clk
+    output reg [1:0] pixel, // Pixel Output
+    output reg valid, // Pixel Vaild
+    output hs, // Horizontal Sync, High Vaild
+    output vs // Vertical Sync, High Vaild
     );
     
     // Global Wires ?
@@ -51,14 +52,14 @@ module ppu(
     reg [7:0] reg_wy;   //$FF4A Window Y Position (R/W)
     reg [7:0] reg_wx;   //$FF4B Window X Position (R/W)
     
-    wire reg_lcd_en = reg_lcdc[7];
-    wire reg_win_disp_sel = reg_lcdc[6];
-    wire reg_win_en = reg_lcdc[5];
-    wire reg_bg_win_data_sel = reg_lcdc[4];
-    wire reg_bg_disp_sel = reg_lcdc[3];
-    wire reg_obj_size = reg_lcdc[2];
-    wire reg_obj_en = reg_lcdc[1];
-    wire reg_bg_disp = reg_lcdc[0];
+    wire reg_lcd_en = reg_lcdc[7];          //0=Off, 1=On
+    wire reg_win_disp_sel = reg_lcdc[6];    //0=9800-9BFF, 1=9C00-9FFF
+    wire reg_win_en = reg_lcdc[5];          //0=Off, 1=On
+    wire reg_bg_win_data_sel = reg_lcdc[4]; //0=8800-97FF, 1=8000-8FFF
+    wire reg_bg_disp_sel = reg_lcdc[3];     //0=9800-9BFF, 1=9C00-9FFF
+    wire reg_obj_size = reg_lcdc[2];        //0=8x8, 1=8x16
+    wire reg_obj_en = reg_lcdc[1];          //0=Off, 1=On
+    wire reg_bg_disp = reg_lcdc[0];         //0=Off, 1=On
     wire reg_lyc_int = reg_stat[6];
     wire reg_oam_int = reg_stat[5];
     wire reg_vblank_int = reg_stat[4];
@@ -122,6 +123,9 @@ module ppu(
     wire [31:0] pf_group_first;
     wire [31:0] pf_group_last;
     reg pf_full = 0; 
+    assign pf_group = (pf_group_select) ? {pf_group2, pf_group1} : {pf_group1, pf_group2};
+    assign pf_group_first = pf_group[63:32];
+    assign pf_group_last = pf_group[31:0];
     // If LastGrp if full, means that we have at least 8 pixels in the pipeline,
     //   shift out is enabled.
     // When all pixels in FirstGrp is shifted out, swap and mark full to 0, means
@@ -139,19 +143,163 @@ module ppu(
                              (pf_output_pixel_id == 2'b01) ? (pf_output_palette[3:2]) :
                              (pf_output_pixel_id == 2'b00) ? (pf_output_palette[1:0]) : (8'h00);
     
-    wire pf_clk;
-    assign pf_clk = (pf_full) & clk;
-    assign cpl = ~pf_clk;
+    assign cpl = ~clk;
+    assign pixel = pf_output_pixel;
+    assign valid = pf_full;
     
-    always @(posedge pf_clk)
+    // Pixel Shift
+    always @(posedge clk)
     begin
-        pixel[1:0] <= pf_output_pixel[1:0];
+        if (pf_full)
+        begin
+            pf_group <= {pf_group[59:0], 4'b0000};
+        end
     end
     
-    assign pf_group = (pf_group_select) ? {pf_group2, pf_group1} : {pf_group1, pf_group2};
-    assign pf_group_first = pf_group[63:32];
-    assign pf_group_last = pf_group[31:0];
+    // HV Timing
+    `define PPU_H_FRONT  9'd76
+    `define PPU_H_SYNC   9'd4    // So front porch + sync = OAM search
+    `define PPU_H_TOTAL  9'd456
+    `define PPU_V_ACTIVE 8'd144
+    `define PPU_V_BACK   8'd6
+    `define PPU_V_SYNC   8'd4    // Make sync back instead of front so v_count is line count
+    `define PPU_V_TOTAL  8'd154
+    reg [8:0] h_count;
+    reg [7:0] v_count;
     
+    // H counter
+    always @(posedge clk)
+    begin
+        if (rst) begin
+            h_count <= 0;
+            hs <= 0;
+        end
+        else
+        begin
+            if(h_count < H_TOTAL)
+                h_count <= h_count + 1'b1;
+            else
+                h_count <= 0;
+            if(h_count == H_FRONT - 1)
+                hs <= 1;
+            if(h_count == H_FRONT + H_SYNC - 1)
+                hs <= 0;
+        end 
+    end
+    
+    // V counter
+    wire hclk = (h_count == 9'b0);
+    always@(posedge hclk)
+    begin
+        if(rst)
+        begin
+            v_count <= 0;
+            vs <= 0;
+        end
+        else
+        begin
+            if(v_count < V_TOTAL)
+                v_count <= v_count + 1'b1;
+            else
+                v_count <= 0;
+            if(v_count == V_ACTIVE + V_BACK - 1)
+                vs <= 1;
+            if(v_count == V_ACTIVE + V_BACK + V_SYNC - 1)
+                vs <= 0;
+        end
+    end
+    
+    // Render FSM
+    `define S_VBLANK    4'd0
+    `define S_HBLANK    4'd1
+    `define S_OAMX      4'd2  // OAM Search X check
+    `define S_OAMY      4'd3  // OAM Search Y check
+    `define S_FTIDA     4'd4  // Fetch Read Tile ID Stage A (Address Setup)
+    `define S_FTIDB     4'd5  // Fetch Read Tile ID Stage B (Data Read)
+    `define S_FRD0A     4'd6  // Fetch Read Data 0 Stage A
+    `define S_FRD0B     4'd7  // Fetch Read Data 0 Stage B
+    `define S_FRD1A     4'd8  // Fetch Read Data 1 Stage A
+    `define S_FRD1B     4'd9  // Fetch Read Data 1 Stage B
+    `define S_FWAITA    4'd10 // Fetch Wait Stage A (Idle)
+    `define S_FWAITB    4'd11 // Fetch Wait Stage B (Load to FIFO?)
+    
+    reg [7:0] h_pix = 0;
+    reg [3:0] r_state = 0;
+    reg [3:0] r_next_state;
+    
+    always @(posedge clk)
+    begin
+        if (rst) begin
+            r_state <= 0;
+        end
+        else
+        begin
+            r_state <= r_next_state;
+        end
+    end
+    
+    always @(*)
+    begin
+        // next state logic
+    end
+    
+    always @(posedge clk)
+    begin
+        if (!rst) begin
+            case (r_state)
+                `S_VBLANK: 
+                begin
+                
+                end
+                `S_HBLANK: 
+                begin
+                
+                end
+                `S_OAMX: 
+                begin
+                
+                end
+                `S_OAMY: 
+                begin
+                
+                end
+                `S_FTIDA: 
+                begin
+                
+                end
+                `S_FTIDB: 
+                begin
+                
+                end
+                `S_FRD0A: 
+                begin
+                
+                end
+                `S_FRD0B: 
+                begin
+                
+                end
+                `S_FRD1A: 
+                begin
+                
+                end
+                `S_FRD1B: 
+                begin
+                
+                end
+                `S_FWAITA: 
+                begin
+                
+                end
+                `S_FWAITB: 
+                begin
+                
+                end
+            endcase
+        end
+    end
+    
+    // Bus RW
     always @(posedge clk)
     begin
         if (rst) begin
