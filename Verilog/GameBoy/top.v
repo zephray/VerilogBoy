@@ -184,6 +184,7 @@ module top(
     wire gb_vs;
     wire gb_cpl;
     wire [1:0] gb_pixel;
+    wire gb_valid;
     wire halt;
     wire debug_halt;
     wire [7:0] reg_a;
@@ -219,6 +220,7 @@ module top(
         .vs(gb_vs), // Vertical Sync Output
         .cpl(gb_cpl), // Pixel Data Latch
         .pixel(gb_pixel), // Pixel Data
+        .valid(gb_valid), // Pixel Valid
         //Debug
         .halt(halt), // not quite implemented
         .debug_halt(debug_halt), // Debug mode status output
@@ -275,10 +277,11 @@ module top(
         .clk(clk_dvi),
         .rst(reset),
         // GameBoy Image Input
-        .gb_hs(),
-        .gb_vs(),
-        .gb_pclk(),
-        .gb_pdat(),
+        .gb_hs(gb_hs),
+        .gb_vs(gb_vs),
+        .gb_pclk(gb_cpl),
+        .gb_pdat(gb_pixel),
+        .gb_valid(gb_valid),
         // Debugger Char Input
         .dbg_x(dbg_x),
         .dbg_y(dbg_y),

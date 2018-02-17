@@ -37,6 +37,7 @@ module gameboy(
     output vs, // Vertical Sync Output
     output cpl, // Pixel Data Latch
     output [1:0] pixel, // Pixel Data
+    output valid,
     //Debug
     output halt, // not quite implemented?
     output debug_halt, // Debug mode status output
@@ -166,14 +167,15 @@ module gameboy(
         .clk_mem(clk_mem),
         .rst(rst),
         .a(addr_ext),
-        .d_rd(),
+        .d_rd(do_video), // VRAM & OAM RW goes through PPU
         .d_wr(data_ext),
-        .rd(do_video), // VRAM & OAM RW goes through PPU
-        .wr(),
-        .int_req(),
+        .rd(mem_re), 
+        .wr(mem_we),
+        //.int_req(),
         .int_ack(),
         .cpl(cpl), // Pixel clock
         .pixel(pixel), // Pixel Data (2bpp)
+        .valid(valid),
         .hs(hs), // Horizontal Sync, Low Active
         .vs(vs) // Vertical Sync, Low Active
     );

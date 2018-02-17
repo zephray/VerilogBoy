@@ -27,13 +27,13 @@ module ppu(
     input [7:0] d_wr,
     input rd,
     input wr,
-    output int_req,
+    //output int_req,
     input int_ack,
     output cpl, // Pixel Clock, = ~clk
-    output reg [1:0] pixel, // Pixel Output
-    output reg valid, // Pixel Vaild
-    output hs, // Horizontal Sync, High Vaild
-    output vs // Vertical Sync, High Vaild
+    output [1:0] pixel, // Pixel Output
+    output reg valid, // Pixel Valid
+    output reg hs, // Horizontal Sync, High Valid
+    output reg vs // Vertical Sync, High Valid
     );
     
     // Global Wires ?
@@ -67,16 +67,16 @@ module ppu(
     wire reg_coin_flag = reg_stat[2];
     wire [1:0] reg_mode_flag = reg_stat[1:0];
     
-    `define PPU_MODE_H_BLANK 2'b00
-    `define PPU_MODE_V_BLANK 2'b01
-    `define PPU_MODE_OAM_SEARCH 2'b10
-    `define PPU_MODE_PIX_TRANS 2'b11
+    localparam PPU_MODE_H_BLANK    = 2'b00;
+    localparam PPU_MODE_V_BLANK    = 2'b01;
+    localparam PPU_MODE_OAM_SEARCH = 2'b10;
+    localparam PPU_MODE_PIX_TRANS  = 2'b11;
     
-    `define PPU_PAL_BG  2'b00
-    `define PPU_PAL_OB0 2'b01
-    `define PPU_PAL_OB1 2'b10
+    localparam PPU_PAL_BG  = 2'b00;
+    localparam PPU_PAL_OB0 = 2'b01;
+    localparam PPU_PAL_OB1 = 2'b10;
     
-    wire [12:0] vram_addr_int;
+    reg [12:0] vram_addr_int;
     wire [12:0] vram_addr_ext;
     
     wire addr_in_ppu    = (a >= 16'hFF40 && a <= 16'hFF4B);
@@ -90,6 +90,10 @@ module ppu(
     wire oamram_access_ext = ((reg_mode_flag == PPU_MODE_H_BLANK)||
                               (reg_mode_flag == PPU_MODE_V_BLANK));
     wire oamram_access_int = ~oamram_access_int;
+    
+    wire [12:0] window_map_addr = (reg_win_disp_sel) ? (13'h1C00) : (13'h1800);
+    wire [12:0] bg_map_addr = (reg_bg_disp_sel) ? (13'h1C00) : (13'h1800);
+    wire [12:0] bg_window_tile_addr = (reg_bg_win_data_sel) ? (13'h0000) : (13'h0800);
     
     // PPU Memories
     wire        vram_we;
@@ -108,6 +112,8 @@ module ppu(
         
     assign vram_addr_ext = a[12:0];
     assign vram_addr = (vram_access_ext) ? (vram_addr_ext) : (vram_addr_int);
+    assign vram_data_in = d_wr;
+    assign vram_we = (addr_in_vram)&(wr);
     
     // Pixel Pipeline
     
@@ -116,28 +122,15 @@ module ppu(
     // The pixel FIFO: 16 pixels, 4 bits each (2 bits color index, 2 bits palette index)
     // Since in and out are 8 pixels aligned, it can be modeled as a ping-pong buffer
     // of two 32 bits (8 pixels * 4 bits) group
-    reg [31:0] pf_group1; // pf = Pixel FIFO
-    reg [31:0] pf_group2;
-    reg pf_group_select; // 0: {pf_group2 : pf_group1} 1: (pf_group2, pf_group1)
-    wire [63:0] pf_group;
-    wire [31:0] pf_group_first;
-    wire [31:0] pf_group_last;
-    reg pf_full = 0; 
-    assign pf_group = (pf_group_select) ? {pf_group2, pf_group1} : {pf_group1, pf_group2};
-    assign pf_group_first = pf_group[63:32];
-    assign pf_group_last = pf_group[31:0];
-    // If LastGrp if full, means that we have at least 8 pixels in the pipeline,
-    //   shift out is enabled.
-    // When all pixels in FirstGrp is shifted out, swap and mark full to 0, means
-    //   it can no longer shift out data.
+    reg [63:0] pf_data; // Pixel FIFO Data
     wire [1:0] pf_output_pixel;
     wire [7:0] pf_output_palette;
     wire [1:0] pf_output_pixel_id;
     wire [1:0] pf_output_palette_id;
-    assign {pf_output_pixel_id, pf_output_palette_id} = pf_group_first[31:28];
-    assign pf_output_palette = (pf_palette_id == `PPU_PAL_BG)  ? (reg_bgp)  :
-                               (pf_palette_id == `PPU_PAL_OB0) ? (reg_obp0) :
-                               (pf_palette_id == `PPU_PAL_OB1) ? (reg_obp1) : (8'hFF);
+    assign {pf_output_pixel_id, pf_output_palette_id} = pf_data[63:60];
+    assign pf_output_palette = (pf_output_palette_id == PPU_PAL_BG)  ? (reg_bgp)  :
+                               (pf_output_palette_id == PPU_PAL_OB0) ? (reg_obp0) :
+                               (pf_output_palette_id == PPU_PAL_OB1) ? (reg_obp1) : (8'hFF);
     assign pf_output_pixel = (pf_output_pixel_id == 2'b11) ? (pf_output_palette[7:6]) :
                              (pf_output_pixel_id == 2'b10) ? (pf_output_palette[5:4]) :
                              (pf_output_pixel_id == 2'b01) ? (pf_output_palette[3:2]) :
@@ -145,25 +138,18 @@ module ppu(
     
     assign cpl = ~clk;
     assign pixel = pf_output_pixel;
-    assign valid = pf_full;
-    
-    // Pixel Shift
-    always @(posedge clk)
-    begin
-        if (pf_full)
-        begin
-            pf_group <= {pf_group[59:0], 4'b0000};
-        end
-    end
     
     // HV Timing
-    `define PPU_H_FRONT  9'd76
-    `define PPU_H_SYNC   9'd4    // So front porch + sync = OAM search
-    `define PPU_H_TOTAL  9'd456
-    `define PPU_V_ACTIVE 8'd144
-    `define PPU_V_BACK   8'd6
-    `define PPU_V_SYNC   8'd4    // Make sync back instead of front so v_count is line count
-    `define PPU_V_TOTAL  8'd154
+    localparam PPU_H_FRONT  = 9'd76;
+    localparam PPU_H_SYNC   = 9'd4;    // So front porch + sync = OAM search
+    localparam PPU_H_TOTAL  = 9'd456;
+    localparam PPU_H_PIXEL  = 8'd160;
+    localparam PPU_V_ACTIVE = 8'd144;
+    localparam PPU_V_FRONT  = 8'd6;
+    localparam PPU_V_SYNC   = 8'd4;  
+    localparam PPU_V_BLANK  = 8'd10;
+    localparam PPU_V_TOTAL  = 8'd154;
+   
     reg [8:0] h_count;
     reg [7:0] v_count;
     
@@ -174,15 +160,14 @@ module ppu(
             h_count <= 0;
             hs <= 0;
         end
-        else
-        begin
-            if(h_count < H_TOTAL)
+        else begin
+            if(h_count < PPU_H_TOTAL)
                 h_count <= h_count + 1'b1;
             else
                 h_count <= 0;
-            if(h_count == H_FRONT - 1)
+            if(h_count == PPU_H_FRONT - 1)
                 hs <= 1;
-            if(h_count == H_FRONT + H_SYNC - 1)
+            if(h_count == PPU_H_FRONT + PPU_H_SYNC - 1)
                 hs <= 0;
         end 
     end
@@ -191,42 +176,164 @@ module ppu(
     wire hclk = (h_count == 9'b0);
     always@(posedge hclk)
     begin
-        if(rst)
-        begin
+        if(rst) begin
             v_count <= 0;
             vs <= 0;
         end
-        else
-        begin
-            if(v_count < V_TOTAL)
+        else begin
+            if(v_count < PPU_V_TOTAL)
                 v_count <= v_count + 1'b1;
             else
                 v_count <= 0;
-            if(v_count == V_ACTIVE + V_BACK - 1)
+            if(v_count == PPU_V_FRONT - 1)
                 vs <= 1;
-            if(v_count == V_ACTIVE + V_BACK + V_SYNC - 1)
+            if(v_count == PPU_V_FRONT + PPU_V_SYNC - 1)
                 vs <= 0;
         end
     end
     
     // Render FSM
-    `define S_VBLANK    4'd0
-    `define S_HBLANK    4'd1
-    `define S_OAMX      4'd2  // OAM Search X check
-    `define S_OAMY      4'd3  // OAM Search Y check
-    `define S_FTIDA     4'd4  // Fetch Read Tile ID Stage A (Address Setup)
-    `define S_FTIDB     4'd5  // Fetch Read Tile ID Stage B (Data Read)
-    `define S_FRD0A     4'd6  // Fetch Read Data 0 Stage A
-    `define S_FRD0B     4'd7  // Fetch Read Data 0 Stage B
-    `define S_FRD1A     4'd8  // Fetch Read Data 1 Stage A
-    `define S_FRD1B     4'd9  // Fetch Read Data 1 Stage B
-    `define S_FWAITA    4'd10 // Fetch Wait Stage A (Idle)
-    `define S_FWAITB    4'd11 // Fetch Wait Stage B (Load to FIFO?)
+    localparam S_IDLE     = 4'd0; 
+    localparam S_BLANK    = 4'd1;  // H Blank and V Blank
+    localparam S_OAMX     = 4'd2;  // OAM Search X check
+    localparam S_OAMY     = 4'd3;  // OAM Search Y check
+    localparam S_FTIDA    = 4'd4;  // Fetch Read Tile ID Stage A (Address Setup)
+    localparam S_FTIDB    = 4'd5;  // Fetch Read Tile ID Stage B (Data Read)
+    localparam S_FRD0A    = 4'd6;  // Fetch Read Data 0 Stage A
+    localparam S_FRD0B    = 4'd7;  // Fetch Read Data 0 Stage B
+    localparam S_FRD1A    = 4'd8;  // Fetch Read Data 1 Stage A
+    localparam S_FRD1B    = 4'd9;  // Fetch Read Data 1 Stage B
+    localparam S_FWAITA   = 4'd10; // Fetch Wait Stage A (Idle)
+    localparam S_FWAITB   = 4'd11; // Fetch Wait Stage B (Load to FIFO?)
+    localparam S_SWW      = 4'd12; // Fetch Switch to Window
     
+    localparam PPU_OAM_SEARCH_LENGTH = 6'd40;
+
     reg [7:0] h_pix = 0;
+    wire [7:0] v_pix = v_count - PPU_V_BLANK;
+    wire [7:0] v_pix_in_map = v_pix + reg_scy;
     reg [3:0] r_state = 0;
     reg [3:0] r_next_state;
+    wire is_in_v_blank = ((v_count >= 0) && (v_count < PPU_V_BLANK));
     
+    wire render_window_or_bg = ((h_pix - reg_scx) >= reg_wx) ? 1 : 0;
+    wire [12:0] current_map_address = ((render_window_or_bg) ? (window_map_addr) : (bg_map_addr)) + (v_pix + reg_scy) * 32 + h_pix;
+    reg [7:0] current_tile_id;
+    wire [2:0] line_to_tile_v_offset = v_pix_in_map[2:0];
+    wire [12:0] current_tile_address_0 = (bg_window_tile_addr) + current_tile_id * 16 + line_to_tile_v_offset * 2;
+    wire [12:0] current_tile_address_1 = (current_tile_address_0) | 13'h0001;
+    reg [7:0] current_tile_data_0;
+    reg [7:0] current_tile_data_1;
+    // Data that will be pushed into pixel FIFO
+    // Organized in pixels
+    wire [31:0] current_fetch_result = { 
+        current_tile_data_0[7], current_tile_data_1[7], PPU_PAL_BG,
+        current_tile_data_0[6], current_tile_data_1[6], PPU_PAL_BG,
+        current_tile_data_0[5], current_tile_data_1[5], PPU_PAL_BG,
+        current_tile_data_0[4], current_tile_data_1[4], PPU_PAL_BG,
+        current_tile_data_0[3], current_tile_data_1[3], PPU_PAL_BG,
+        current_tile_data_0[2], current_tile_data_1[2], PPU_PAL_BG,
+        current_tile_data_0[1], current_tile_data_1[1], PPU_PAL_BG,
+        current_tile_data_0[0], current_tile_data_1[0], PPU_PAL_BG
+        };
+
+    reg [5:0] oam_search_count;
+
+    // Modify all state related synchonize registers
+    always @(negedge clk)
+    begin
+        // OAM counter
+        if (r_state == S_OAMY) begin
+            oam_search_count <= oam_search_count + 1'b1;
+        end
+        else
+        if (r_state == S_BLANK) begin
+            oam_search_count <= 6'b0;
+        end
+        
+        // FSM Logic
+        case (r_state)
+            S_IDLE: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_V_BLANK;
+                //?
+            end
+            S_BLANK: 
+            begin
+                if (is_in_v_blank)
+                    reg_stat[1:0] <= PPU_MODE_V_BLANK;
+                else
+                    reg_stat[1:0] <= PPU_MODE_H_BLANK;
+                h_pix <= 8'b0;
+            end
+            S_OAMX: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
+                //
+            end
+            S_OAMY: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
+                //
+            end
+            S_FTIDA: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                vram_addr_int <= current_map_address;
+                h_pix <= h_pix + 1'b1;
+                pf_data <= {pf_data[59:0], 4'b0000};
+            end
+            S_FTIDB: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                current_tile_id <= vram_data_out;
+                h_pix <= h_pix + 1'b1;
+                pf_data <= {pf_data[59:0], 4'b0000};
+            end
+            S_FRD0A: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                vram_addr_int <= current_tile_address_0;
+                h_pix <= h_pix + 1'b1;
+                pf_data <= {pf_data[59:0], 4'b0000};
+            end
+            S_FRD0B: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                current_tile_data_0 <= vram_data_out;
+                h_pix <= h_pix + 1'b1;
+                pf_data <= {pf_data[59:0], 4'b0000};
+            end
+            S_FRD1A: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                vram_addr_int <= current_tile_address_1;
+                h_pix <= h_pix + 1'b1;
+                pf_data <= {pf_data[59:0], 4'b0000};
+            end
+            S_FRD1B: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                current_tile_data_1 <= vram_data_out;
+                h_pix <= h_pix + 1'b1;
+                pf_data <= {pf_data[59:0], 4'b0000};
+            end
+            S_FWAITA: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                h_pix <= h_pix + 1'b1;
+                pf_data <= {pf_data[59:0], 4'b0000};
+            end
+            S_FWAITB: 
+            begin
+                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                h_pix <= h_pix + 1'b1;
+                pf_data <= {pf_data[59:28], current_fetch_result};
+            end
+        endcase
+    end
+    
+    // Enter Next State
     always @(posedge clk)
     begin
         if (rst) begin
@@ -238,73 +345,37 @@ module ppu(
         end
     end
     
+    // Next State Logic
     always @(*)
     begin
-        // next state logic
+        case (r_state)
+            S_IDLE: r_next_state = ((reg_lcd_en)&(is_in_v_blank)) ? (S_BLANK) : (S_IDLE);
+            S_BLANK: r_next_state = (is_in_v_blank) ? 
+                ((v_count == (PPU_V_TOTAL - 1)) ? (S_OAMX) : (S_BLANK)) :
+                ((h_count == (PPU_H_TOTAL - 1)) ? ((v_count == (PPU_V_TOTAL - 1)) ? (S_BLANK) : (S_OAMX)) : (S_BLANK));
+            S_OAMX: r_next_state = S_OAMY;
+            S_OAMY: r_next_state = (oam_search_count == (PPU_OAM_SEARCH_LENGTH - 1)) ? (S_FTIDA) : (S_OAMX);
+            S_FTIDA: r_next_state = S_FTIDB;
+            S_FTIDB: r_next_state = S_FRD0A;
+            S_FRD0A: r_next_state = S_FRD0B;
+            S_FRD0B: r_next_state = S_FRD1A;
+            S_FRD1A: r_next_state = S_FRD1B;
+            S_FRD1B: r_next_state = S_FWAITA;
+            S_FWAITA: r_next_state = S_FWAITB;
+            S_FWAITB: r_next_state = (h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : S_FTIDB;
+            default: r_next_state = S_IDLE;
+        endcase
     end
     
-    always @(posedge clk)
-    begin
-        if (!rst) begin
-            case (r_state)
-                `S_VBLANK: 
-                begin
-                
-                end
-                `S_HBLANK: 
-                begin
-                
-                end
-                `S_OAMX: 
-                begin
-                
-                end
-                `S_OAMY: 
-                begin
-                
-                end
-                `S_FTIDA: 
-                begin
-                
-                end
-                `S_FTIDB: 
-                begin
-                
-                end
-                `S_FRD0A: 
-                begin
-                
-                end
-                `S_FRD0B: 
-                begin
-                
-                end
-                `S_FRD1A: 
-                begin
-                
-                end
-                `S_FRD1B: 
-                begin
-                
-                end
-                `S_FWAITA: 
-                begin
-                
-                end
-                `S_FWAITB: 
-                begin
-                
-                end
-            endcase
-        end
-    end
+    // Interrupt
+    //assign int_req = 0;
     
     // Bus RW
     always @(posedge clk)
     begin
         if (rst) begin
             reg_lcdc <= 8'h00;
-            reg_stat <= 8'h00;
+            reg_stat[7:2] <= 6'h00;
             reg_scy  <= 8'h00;
             reg_scx  <= 8'h00;
             reg_ly   <= 8'h00;
@@ -363,7 +434,7 @@ module ppu(
                 if (addr_in_ppu) begin
                     case (a)
                         16'hFF40: reg_lcdc <= d_wr;
-                        16'hFF41: reg_stat <= d_wr;
+                        16'hFF41: reg_stat[7:2] <= d_wr[7:2];
                         16'hFF42: reg_scy <= d_wr;
                         16'hFF43: reg_scx <= d_wr;
                         16'hFF44: reg_ly <= d_wr;
