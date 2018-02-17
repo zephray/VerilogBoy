@@ -121,12 +121,74 @@ Wenting Zhang, [14.02.18 21:09]
 Wenting Zhang, [14.02.18 21:09]
 被骗了（
 
+Wenting Zhang, [15.02.18 23:12]
+目前而言的话是在实现PPU，今天晚上实现的内容是VRAM读写的逻辑和像素调色板查找输出，像素FIFO的串出起了个头
 
-ZephRay 2018/2/14 21:43:54
-现在感觉整个DMA得改啊
+Wenting Zhang, [15.02.18 23:14]
+因为不想用到超过4M的时钟 但是gating似乎又很不安全 为此加了一个valid信号 用来标示像素是否有效 这个信号应该在dvi_mixer内部的gameboy line buffer中处理
 
-ZephRay 2018/2/14 21:44:04
-也无所谓其实
+Wenting Zhang, [15.02.18 23:15]
+整个像素流水线的话 主要是两个部分 FIFO和Fetch 首先不考虑精灵的情况
 
-ZephRay 2018/2/14 21:44:18
-DMA现在挂在总线上，应该是要放在PPU里面的。而且因为某些原因DMA复制只需要320个时钟，但是实机需要640时钟，那就640比较好。
+Wenting Zhang, [15.02.18 23:16]
+Fetch是一个FSM，4步一共走8个时钟，可以用8个state来描述
+
+Wenting Zhang, [15.02.18 23:17]
+FIFO的装填也应该由这个FSM来控制
+
+Wenting Zhang, [15.02.18 23:19]
+假设在S0的第一个时钟上升沿之前 FIFO是满的 那么第一个时钟上升沿之后FIFO就有1个空位了，也就是8个上升沿后FIFO有8个空位
+
+Wenting Zhang, [15.02.18 23:20]
+但是如果说要等到下一个S0再去装填数据 就已经来不及了 下一个S0时FIFO会因为数据不足被暂停一个时钟 因此最好的办法是在S7的上升沿就装入数据
+
+Wenting Zhang, [15.02.18 23:21]
+这样单纯考虑BG的话应该是可以了
+
+Wenting Zhang, [15.02.18 23:21]
+然而如果存在精灵
+
+Wenting Zhang, [15.02.18 23:22]
+等等 还没考虑初始情况
+
+Wenting Zhang, [15.02.18 23:23]
+一开始的时候FIFO是全空的，Fetch必须走两次S0-S7才能把它装满 能够开始串出数据
+
+Wenting Zhang, [15.02.18 23:26]
+但是有个问题 这样的初始装填 占用12个时钟还是16个？
+
+Wenting Zhang, [15.02.18 23:30]
+是12个时钟 只需要走S0-S5
+
+Wenting Zhang, [15.02.18 23:31]
+回到精灵的问题 精灵操作需要“暂停”Fetch
+
+Wenting Zhang, [15.02.18 23:32]
+并且让Fetch暂时去干别的事情
+
+Wenting Zhang, [15.02.18 23:34]
+不如就做两个fetch
+
+Wenting Zhang, [15.02.18 23:36]
+然后让另外一个fsm来控制第一个fsm能否运行（数据流复用一下
+
+Wenting Zhang, [15.02.18 23:38]
+不想了 睡了
+
+Wenting Zhang, [16.02.18 16:27]
+而且这个信号应该是combinational的？
+
+Wenting Zhang, [16.02.18 16:31]
+然后来考虑FSM的事情
+
+Wenting Zhang, [16.02.18 17:58]
+OAM内存一共160字节，OAM Search过程一共使用80周期
+
+Wenting Zhang, [16.02.18 18:00]
+或者说一共可以执行20次内存读写，因为内存速度是1MHz
+
+Wenting Zhang, [16.02.18 18:05]
+并不，OAM的速度必须为4MHz，这样才能够在80周期内完成对80个字节的读写，一个周期X check一个周期Y check
+
+Wenting Zhang, [16.02.18 18:06]
+逻辑为(oam.x != 0)&&((LY+16)>=oam.y)&&((LY+16)<(oam.y+h))
