@@ -202,11 +202,13 @@ module top(
     wire [15:0] bp_addr;
     wire bp_step;
     wire bp_continue;
+    wire [7:0] reg_scx;
+    wire [7:0] reg_scy;
     
     gameboy gameboy(
         .rst(reset), // Async Reset Input
         .clk(clk_gb), // 4.19MHz Clock Input
-        .clk_mem(clk_100), // High Speed Memory Clock
+        .clk_mem(clk_27), // High Speed Memory Clock
         //Cartridge interface
         .a(), // Address Bus
         .d(),  // Data Bus
@@ -234,7 +236,9 @@ module top(
         .regs_data({reg_bc, reg_de, reg_hl, reg_sp, reg_pc}), // Debug all reg data output
         .bp_addr(bp_addr), // Debug breakpoint PC
         .bp_step(bp_step), // Debug single step
-        .bp_continue(bp_continue) // Debug continue
+        .bp_continue(bp_continue), // Debug continue
+        .scx(reg_scx),
+        .scy(reg_scy)
     );
     
     assign bp_addr[15:0] = 15'b0;
@@ -262,7 +266,9 @@ module top(
         .reg_sp(reg_sp),
         .reg_pc(reg_pc),
         .reg_ie(reg_ie),
-        .reg_if(reg_if)
+        .reg_if(reg_if),
+        .reg_scx(reg_scx),
+        .reg_scy(reg_scy)
     );
 
     // DVI output

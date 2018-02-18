@@ -42,9 +42,9 @@ parameter H_BLANK = H_FRONT+H_SYNC+H_BACK; //总空白
 parameter H_TOTAL = H_FRONT+H_SYNC+H_BACK+H_ACT; //总行长
 
 //垂直
-parameter V_FRONT = 11; //前肩 
+parameter V_FRONT = 9;  //前肩 
 parameter V_SYNC  = 2;  //同步
-parameter V_BACK  = 31; //后肩
+parameter V_BACK  = 30; //后肩
 parameter V_ACT   = 480;//有效像素
 parameter V_BLANK = V_FRONT+V_SYNC+V_BACK; //总空白
 parameter V_TOTAL = V_FRONT+V_SYNC+V_BACK+V_ACT; //总场长
@@ -128,7 +128,7 @@ assign gb_en = (x >= 11'd80)&&(x < 11'd560)&&(y >= 11'd24)&&(y <= 11'd456);
 assign gb_x = (gb_en) ? (gb_x_count - 8'd80) : (8'h0);
 assign gb_y = (gb_en) ? (gb_y_count - 8'd23) : (8'h0);
 assign address = y * H_ACT + x;
-assign enable = (((h_count >  H_BLANK) && (h_count <= H_TOTAL))&&
+assign enable = (((h_count > H_BLANK + 1) && (h_count <= H_TOTAL + 1))&&
                  ((v_count >= V_BLANK) && (v_count < V_TOTAL)));  //One pixel shift
 
 

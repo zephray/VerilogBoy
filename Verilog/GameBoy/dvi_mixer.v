@@ -98,7 +98,7 @@ module dvi_mixer(
     reg [7:0] gb_h_counter;
     
     reg [1:0] gb_buffer [0:23039];
-    wire [14:0] gb_wr_addr = gb_v_counter * 160 + gb_h_counter;
+    wire [14:0] gb_wr_addr = ((gb_v_counter > 8'd4)?(gb_v_counter - 8'd5):8'd0) * 160 + ((gb_h_counter > 8'd8)?(gb_h_counter - 8'd9):(8'd0));
     
     reg gb_vs_last;
     reg gb_hs_last;
@@ -122,10 +122,10 @@ module dvi_mixer(
             gb_h_counter <= 0;
         end
         else begin
-            if ((gb_vs_last == 0)&&(gb_vs == 1)) begin
+            if ((gb_vs_last == 1)&&(gb_vs == 0)) begin
                 gb_v_counter <= 0;
             end
-            else if ((gb_hs_last == 0)&&(gb_hs == 1)) begin
+            else if ((gb_hs_last == 1)&&(gb_hs == 0)) begin
                 gb_h_counter <= 0;
                 gb_v_counter <= gb_v_counter + 1'b1;
             end 
@@ -139,9 +139,9 @@ module dvi_mixer(
     // Debug
     wire [14:0] gb_rd_addr = gb_y * 160 + gb_x;
     
-    assign gb_r[7:0] = (gb_buffer[gb_rd_addr] == 2'b11) ? (8'hFF) : 
-                      ((gb_buffer[gb_rd_addr] == 2'b10) ? (8'hAA) : 
-                      ((gb_buffer[gb_rd_addr] == 2'b10) ? (8'h55) : (8'h00)));
+    assign gb_r[7:0] = (gb_buffer[gb_rd_addr] == 2'b11) ? (8'h00) : 
+                      ((gb_buffer[gb_rd_addr] == 2'b10) ? (8'h55) : 
+                      ((gb_buffer[gb_rd_addr] == 2'b10) ? (8'hAA) : (8'hFF)));
     assign gb_g[7:0] = gb_r[7:0];
     assign gb_b[7:0] = gb_r[7:0];
     //assign gb_g[7:0] = gb_x[7:0];

@@ -153,7 +153,7 @@ module ppu(
     localparam PPU_H_TOTAL  = 9'd456;
     localparam PPU_H_PIXEL  = 8'd160;
     localparam PPU_V_ACTIVE = 8'd144;
-    localparam PPU_V_FRONT  = 8'd9;
+    localparam PPU_V_BACK   = 8'd9;
     localparam PPU_V_SYNC   = 8'd1;  
     localparam PPU_V_BLANK  = 8'd10;
     localparam PPU_V_TOTAL  = 8'd154;
@@ -169,7 +169,7 @@ module ppu(
             hs <= 0;
         end
         else begin
-            if(h_count < PPU_H_TOTAL)
+            if(h_count < PPU_H_TOTAL - 1)
                 h_count <= h_count + 1'b1;
             else
                 h_count <= 0;
@@ -188,13 +188,13 @@ module ppu(
             vs <= 0;
         end
         else begin
-            if(v_count < PPU_V_TOTAL)
+            if(v_count < PPU_V_TOTAL - 1)
                 v_count <= v_count + 1'b1;
             else
                 v_count <= 0;
-            if(v_count == PPU_V_FRONT - 1)
+            if(v_count == PPU_V_ACTIVE + PPU_V_BACK - 1)
                 vs <= 1;
-            if(v_count == PPU_V_FRONT + PPU_V_SYNC - 1)
+            if(v_count == PPU_V_ACTIVE + PPU_V_BACK + PPU_V_SYNC - 1)
                 vs <= 0;
         end
     end
@@ -217,11 +217,11 @@ module ppu(
     localparam PPU_OAM_SEARCH_LENGTH = 6'd40;
 
     reg [7:0] h_pix = 0;
-    wire [7:0] v_pix = v_count - PPU_V_BLANK;
+    wire [7:0] v_pix = v_count;
     wire [7:0] v_pix_in_map = v_pix + reg_scy;
     reg [3:0] r_state = 0;
     reg [3:0] r_next_state;
-    wire is_in_v_blank = ((v_count >= 0) && (v_count < PPU_V_BLANK));
+    wire is_in_v_blank = ((v_count >= PPU_V_ACTIVE) && (v_count < PPU_V_ACTIVE + PPU_V_BLANK));
     
     wire [2:0] line_to_tile_v_offset = v_pix_in_map[2:0];
     wire [4:0] line_in_tile_v = v_pix_in_map[7:3];
@@ -283,12 +283,14 @@ module ppu(
             S_OAMX: 
             begin
                 reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
+                h_pix <= 8'b0;
                 valid <= 0;
                 //
             end
             S_OAMY: 
             begin
                 reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
+                h_pix <= 8'b0;
                 valid <= 0;
                 //
             end
@@ -298,7 +300,7 @@ module ppu(
                 vram_addr_int <= current_map_address;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= 1;
+                valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FTIDB: 
             begin
@@ -306,7 +308,7 @@ module ppu(
                 current_tile_id <= vram_data_out;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= 1;
+                valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FRD0A: 
             begin
@@ -314,7 +316,7 @@ module ppu(
                 vram_addr_int <= current_tile_address_0;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= 1;
+                valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FRD0B: 
             begin
@@ -322,7 +324,7 @@ module ppu(
                 current_tile_data_0 <= vram_data_out;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= 1;
+                valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FRD1A: 
             begin
@@ -330,7 +332,7 @@ module ppu(
                 vram_addr_int <= current_tile_address_1;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= 1;
+                valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FRD1B: 
             begin
@@ -338,21 +340,21 @@ module ppu(
                 current_tile_data_1 <= vram_data_out;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= 1;
+                valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FWAITA: 
             begin
                 reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= 1;
+                valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FWAITB: 
             begin
                 reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:28], current_fetch_result};
-                valid <= 1;
+                valid <= (h_pix < 8'd8) ? 0 : 1;
             end
         endcase
     end
@@ -395,6 +397,43 @@ module ppu(
     //assign int_req = 0;
     
     // Bus RW
+    // Bus RW - Combinational Read
+    always @(*)
+    begin
+        d_rd = 8'hFF;
+        if (addr_in_ppu) begin
+            case (a)
+                16'hFF40: d_rd = reg_lcdc;
+                16'hFF41: d_rd = reg_stat;
+                16'hFF42: d_rd = reg_scy;
+                16'hFF43: d_rd = reg_scx;
+                16'hFF44: d_rd = reg_ly;
+                16'hFF45: d_rd = reg_lyc;
+                16'hFF46: d_rd = reg_dma;
+                16'hFF47: d_rd = reg_bgp;
+                16'hFF48: d_rd = reg_obp0;
+                16'hFF49: d_rd = reg_obp1;
+                16'hFF4A: d_rd = reg_wy;
+                16'hFF4B: d_rd = reg_wx;
+            endcase
+        end
+        else
+        if (addr_in_vram) begin
+            if (vram_access_ext)
+            begin
+                d_rd = vram_data_out;
+            end
+        end
+        else
+        if (addr_in_oamram) begin
+            if (oamram_access_ext)
+            begin
+                // Access Good
+            end
+        end
+    end
+    
+    // Bus RW - Sequential Write
     always @(posedge clk)
     begin
         if (rst) begin
@@ -412,47 +451,6 @@ module ppu(
         end
         else
         begin
-            if (rd) begin
-                if (addr_in_ppu) begin
-                    case (a)
-                        16'hFF40: d_rd <= reg_lcdc;
-                        16'hFF41: d_rd <= reg_stat;
-                        16'hFF42: d_rd <= reg_scy;
-                        16'hFF43: d_rd <= reg_scx;
-                        16'hFF44: d_rd <= reg_ly;
-                        16'hFF45: d_rd <= reg_lyc;
-                        16'hFF46: d_rd <= reg_dma;
-                        16'hFF47: d_rd <= reg_bgp;
-                        16'hFF48: d_rd <= reg_obp0;
-                        16'hFF49: d_rd <= reg_obp1;
-                        16'hFF4A: d_rd <= reg_wy;
-                        16'hFF4B: d_rd <= reg_wx;
-                    endcase
-                end
-                else
-                if (addr_in_vram) begin
-                    if (vram_access_ext)
-                    begin
-                        d_rd <= vram_data_out;
-                    end
-                    else
-                    begin
-                        d_rd <= 8'hFF;
-                    end
-                end
-                else
-                if (addr_in_oamram) begin
-                    if (oamram_access_ext)
-                    begin
-                        // Access Good
-                    end
-                    else
-                    begin
-                        d_rd <= 8'hFF;
-                    end
-                end
-            end
-            else
             if (wr) begin
                 if (addr_in_ppu) begin
                     case (a)
