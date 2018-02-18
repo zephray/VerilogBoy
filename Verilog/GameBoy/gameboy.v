@@ -19,6 +19,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 `include "cpu.vh"
+`default_nettype wire
 
 module gameboy(
     input rst, // Async Reset Input
@@ -51,7 +52,9 @@ module gameboy(
     output [79:0] regs_data, // Debug all reg data output
     input [15:0] bp_addr, // Debug breakpoint PC
     input bp_step, // Debug single step
-    input bp_continue // Debug continue
+    input bp_continue, // Debug continue
+    output [7:0] scx,
+    output [7:0] scy
     );
     
     // Bus & Memory Signals
@@ -177,7 +180,10 @@ module gameboy(
         .pixel(pixel), // Pixel Data (2bpp)
         .valid(valid),
         .hs(hs), // Horizontal Sync, Low Active
-        .vs(vs) // Vertical Sync, Low Active
+        .vs(vs), // Vertical Sync, Low Active
+        //Debug
+        .scx(scx),
+        .scy(scy)
     );
    
     // Memory related

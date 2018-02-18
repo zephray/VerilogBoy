@@ -34,7 +34,10 @@ module ppu(
     output [1:0] pixel, // Pixel Output
     output reg valid, // Pixel Valid
     output reg hs, // Horizontal Sync, High Valid
-    output reg vs // Vertical Sync, High Valid
+    output reg vs, // Vertical Sync, High Valid
+    //Debug output
+    output [7:0] scx,
+    output [7:0] scy
     );
     
     // Global Wires ?
@@ -116,6 +119,10 @@ module ppu(
     assign vram_data_in = d_wr;
     assign vram_we = (addr_in_vram)&(wr);
     
+    // Debug Outputs
+    assign scx = reg_scx;
+    assign scy = reg_scy;
+    
     // Pixel Pipeline
     
     
@@ -174,8 +181,7 @@ module ppu(
     end
     
     // V counter
-    wire hclk = (h_count == 9'b0);
-    always@(posedge hclk)
+    always@(posedge hs)
     begin
         if(rst) begin
             v_count <= 0;
@@ -452,8 +458,8 @@ module ppu(
                     case (a)
                         16'hFF40: reg_lcdc <= d_wr;
                         16'hFF41: reg_stat[7:2] <= d_wr[7:2];
-                        //16'hFF42: reg_scy <= d_wr;
-                        //16'hFF43: reg_scx <= d_wr;
+                        16'hFF42: reg_scy <= d_wr;
+                        16'hFF43: reg_scx <= d_wr;
                         //16'hFF44: reg_ly <= d_wr;
                         16'hFF45: reg_lyc <= d_wr;
                         16'hFF46: reg_dma <= d_wr;

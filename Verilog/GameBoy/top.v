@@ -332,7 +332,11 @@ module top(
     assign GPIO_LED_N = locked_pll;
     //assign GPIO_LED_E = 0;
 
-    assign GPIO_LED[7:0] = 8'h0;
+    assign GPIO_LED[7] = gb_hs;
+    assign GPIO_LED[6] = gb_vs;
+    assign GPIO_LED[5] = gb_valid;
+    assign GPIO_LED[4:3] = gb_pixel;
+    assign GPIO_LED[2:0] = 3'b0;
     //
     
     //Keys

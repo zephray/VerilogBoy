@@ -33,7 +33,9 @@ module debugger(
     input [15:0] reg_sp,
     input [15:0] reg_pc,
     input [3:0] reg_ie,
-    input [3:0] reg_if
+    input [3:0] reg_if,
+    input [7:0] reg_scx,
+    input [7:0] reg_scy
     );
     
     reg [7:0] line1 [0:79];
@@ -71,6 +73,10 @@ module debugger(
     wire [7:0] reg_pc_d;
     wire [7:0] instr_a;
     wire [7:0] instr_b;
+    wire [7:0] reg_scx_a;
+    wire [7:0] reg_scx_b;
+    wire [7:0] reg_scy_a;
+    wire [7:0] reg_scy_b;
     
     int_to_hex reg_a_a_disp  (reg_a [ 7: 4], reg_a_a);
     int_to_hex reg_a_b_disp  (reg_a [ 3: 0], reg_a_b);
@@ -96,6 +102,11 @@ module debugger(
     int_to_hex reg_pc_d_disp (reg_pc[ 3: 0], reg_pc_d);
     int_to_hex instr_a_disp  (instr [ 7: 4], instr_a);
     int_to_hex instr_b_disp  (instr [ 3: 0], instr_b);
+    int_to_hex reg_scx_a_disp(reg_scx[7: 4], reg_scx_a);
+    int_to_hex reg_scx_b_disp(reg_scx[3: 0], reg_scx_b);
+    int_to_hex reg_scy_a_disp(reg_scy[7: 4], reg_scy_a);
+    int_to_hex reg_scy_b_disp(reg_scy[3: 0], reg_scy_b);
+    
     
     always @(posedge clk)
     begin
@@ -123,6 +134,10 @@ module debugger(
         line2[43] = reg_pc_d;
         line2[47] = instr_a;
         line2[48] = instr_b;
+        line1[4]  = reg_scx_a;
+        line1[5]  = reg_scx_b;
+        line1[11] = reg_scy_a;
+        line1[12] = reg_scy_b;
     end
 
     //assign screen_buffer[0][23] = "G";
