@@ -23,7 +23,7 @@ Addr_0007:
     LD A,$fc              ; $001d  Setup BG palette
     LD [$FF00+$47],A      ; $001f  11 11 11 00
 
-    LD DE,$00A8           ; $0021  Convert and load logo data from cart into Video RAM
+    LD DE,$0104           ; $0021  Convert and load logo data from cart into Video RAM
     LD HL,$8010           ; $0024  Target VRAM
 Addr_0027:
     LD A,[DE]             ; $0027  Load byte from Logo
@@ -31,7 +31,7 @@ Addr_0027:
     CALL Addr_0096        ; $002b
     INC DE                ; $002e  Next Byte
     LD A,E                ; $002f  
-    CP $D8                ; $0030  Have we finished the Logo?
+    CP $34                ; $0030  Have we finished the Logo?
     JR NZ, Addr_0027      ; $0032  If not go back to next byte
 
     LD DE,$00D8           ; $0034  Load (R) icon into Video RAM

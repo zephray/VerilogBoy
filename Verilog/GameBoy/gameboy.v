@@ -27,7 +27,8 @@ module gameboy(
     input clk_mem, // High Speed Memory Clock
     //Cartridge interface
     output [15:0] a, // Address Bus
-    output [7:0] d,  // Data Bus
+    output [7:0] dout,  // Data Bus
+    input  [7:0] din,
     output wr, // Write Enable
     output rd, // Read Enable
     output cs, // External RAM Chip Select
@@ -241,11 +242,15 @@ module gameboy(
     assign wram_addr = wram_addr_long[12:0]; // 8192 elts 
 
     blockram8192 br_wram(
-        .clka(clk),//cpu_clock),
+        // Write Port
+        .clka(clk),
         .wea(wram_we),
         .addra(wram_addr),
         .dina(wram_data_in),
-        .douta(wram_data_out));
+        // Read Port
+        .clkb(clk_mem),
+        .addrb(wram_addr),
+        .doutb(wram_data_out));
              
     // BROM
     register #(8) bootstrap_reg(
@@ -259,6 +264,11 @@ module gameboy(
         .d(brom_data));
         
     // Bus
+    assign dout = data_ext;
+    assign a = addr_ext;
+    assign wr = mem_we;
+    assign rd = mem_re;
+    
     assign brom_tri_en = addr_in_brom & ~mem_we;
     assign bootstrap_tri_en = addr_in_bootstrap & ~mem_we;
     assign wram_tri_en = (addr_in_wram | addr_in_echo) & ~mem_we & mem_re;
@@ -289,6 +299,10 @@ module gameboy(
         .out(data_ext),
         .in(do_video),
         .en(video_tri_en));
+    tristate #(8) gating_cart(
+        .out(data_ext),
+        .in(din),
+        .en(cart_tri_en));
     /*tristate #(8) gating_sound_regs(
         .out(data_ext),
         .in(reg_data_in), //FIX THIS: regs need output
