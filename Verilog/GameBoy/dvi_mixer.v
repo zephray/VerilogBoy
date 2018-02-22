@@ -102,20 +102,23 @@ module dvi_mixer(
     
     reg gb_vs_last;
     reg gb_hs_last;
+    reg gb_pclk_last;
     
-    always @(negedge gb_pclk)
+    always @(posedge clk)
     begin
         if (rst) begin
             gb_vs_last <= 0;
             gb_hs_last <= 0;
+            gb_pclk_last <= 0;
         end
         else begin
             gb_vs_last <= gb_vs;
             gb_hs_last <= gb_hs;
+            gb_pclk_last <= gb_pclk;
         end
     end
     
-    always @(posedge gb_pclk)
+    always @(posedge clk)
     begin
         if (rst) begin
             gb_v_counter <= 0;
@@ -130,8 +133,10 @@ module dvi_mixer(
                 gb_v_counter <= gb_v_counter + 1'b1;
             end 
             else if (gb_valid) begin
-                gb_h_counter <= gb_h_counter + 1'b1;
-                gb_buffer[gb_wr_addr] <= gb_pdat;
+                if ((gb_pclk_last == 0)&&(gb_pclk == 1)) begin
+                    gb_h_counter <= gb_h_counter + 1'b1;
+                    gb_buffer[gb_wr_addr] <= gb_pdat;
+                end
             end
         end
     end
