@@ -52,7 +52,9 @@ blockram8192 your_instance_name (
   .wea(wea), // input [0 : 0] wea
   .addra(addra), // input [12 : 0] addra
   .dina(dina), // input [7 : 0] dina
-  .douta(douta) // output [7 : 0] douta
+  .clkb(clkb), // input clkb
+  .addrb(addrb), // input [12 : 0] addrb
+  .doutb(doutb) // output [7 : 0] doutb
 );
 // INST_TAG_END ------ End INSTANTIATION Template ---------
 

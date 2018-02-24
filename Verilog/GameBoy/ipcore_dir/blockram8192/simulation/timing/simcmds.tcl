@@ -57,6 +57,8 @@ wave add /blockram8192_tb/status
       wave add  /blockram8192_tb/blockram8192_synth_inst/BMG_PORT/ADDRA
       wave add  /blockram8192_tb/blockram8192_synth_inst/BMG_PORT/DINA
       wave add  /blockram8192_tb/blockram8192_synth_inst/BMG_PORT/WEA
-      wave add  /blockram8192_tb/blockram8192_synth_inst/BMG_PORT/DOUTA
+      wave add  /blockram8192_tb/blockram8192_synth_inst/BMG_PORT/CLKB
+      wave add  /blockram8192_tb/blockram8192_synth_inst/BMG_PORT/ADDRB
+      wave add  /blockram8192_tb/blockram8192_synth_inst/BMG_PORT/DOUTB
 run all
 quit

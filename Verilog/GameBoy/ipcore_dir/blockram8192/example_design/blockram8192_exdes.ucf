@@ -51,7 +51,11 @@
 # Tx Core Period Constraint. This constraint can be modified, and is
 # valid as long as it is met after place and route.
 NET "CLKA"  TNM_NET     = "CLKA";
+  
+NET "CLKB"  TNM_NET     = "CLKB";
 
 TIMESPEC "TS_CLKA"      = PERIOD "CLKA"  25 MHZ;
+  
+TIMESPEC "TS_CLKB"      = PERIOD "CLKB"  25 MHZ;
 
 ################################################################################

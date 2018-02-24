@@ -41,14 +41,18 @@ module blockram8192(
   wea,
   addra,
   dina,
-  douta
+  clkb,
+  addrb,
+  doutb
 );
 
 input clka;
 input [0 : 0] wea;
 input [12 : 0] addra;
 input [7 : 0] dina;
-output [7 : 0] douta;
+input clkb;
+input [12 : 0] addrb;
+output [7 : 0] doutb;
 
 // synthesis translate_off
 
@@ -86,7 +90,7 @@ output [7 : 0] douta;
     .C_INITB_VAL("0"),
     .C_INTERFACE_TYPE(0),
     .C_LOAD_INIT_FILE(0),
-    .C_MEM_TYPE(0),
+    .C_MEM_TYPE(1),
     .C_MUX_PIPELINE_STAGES(0),
     .C_PRIM_TYPE(1),
     .C_READ_DEPTH_A(8192),
@@ -120,18 +124,18 @@ output [7 : 0] douta;
     .WEA(wea),
     .ADDRA(addra),
     .DINA(dina),
-    .DOUTA(douta),
+    .CLKB(clkb),
+    .ADDRB(addrb),
+    .DOUTB(doutb),
     .RSTA(),
     .ENA(),
     .REGCEA(),
-    .CLKB(),
+    .DOUTA(),
     .RSTB(),
     .ENB(),
     .REGCEB(),
     .WEB(),
-    .ADDRB(),
     .DINB(),
-    .DOUTB(),
     .INJECTSBITERR(),
     .INJECTDBITERR(),
     .SBITERR(),

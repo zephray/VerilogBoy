@@ -28,8 +28,10 @@ module ppu(
     input [7:0] d_wr,
     input rd,
     input wr,
-    //output int_req,
-    input int_ack,
+    output reg int_vblank_req,
+    output reg int_lcdc_req,
+    input int_vblank_ack,
+    input int_lcdc_ack,
     output cpl, // Pixel Clock, = ~clk
     output [1:0] pixel, // Pixel Output
     output reg valid, // Pixel Valid
@@ -108,11 +110,15 @@ module ppu(
     reg [7:0] oamram [0: 159];
     
     blockram8192 br_vram(
-        .clka(clk_mem),
+        // Write Port
+        .clka(clk),
         .wea(vram_we),
         .addra(vram_addr),
         .dina(vram_data_in),
-        .douta(vram_data_out));
+        // Read Port
+        .clkb(clk_mem),
+        .addrb(vram_addr),
+        .doutb(vram_data_out));
         
     assign vram_addr_ext = a[12:0];
     assign vram_addr = (vram_access_ext) ? (vram_addr_ext) : (vram_addr_int);
@@ -144,7 +150,7 @@ module ppu(
                              (pf_output_pixel_id == 2'b01) ? (pf_output_palette[3:2]) :
                              (pf_output_pixel_id == 2'b00) ? (pf_output_palette[1:0]) : (8'h00);
     
-    assign cpl = ~clk;
+    assign cpl = clk;
     assign pixel = pf_output_pixel;
     
     // HV Timing
@@ -247,7 +253,10 @@ module ppu(
         };
 
     reg [5:0] oam_search_count;
-
+    
+    reg [7:0] reg_ly_next;
+    reg [1:0] reg_mode_next;
+    
     // Modify all state related synchonize registers
     always @(negedge clk)
     begin
@@ -261,42 +270,42 @@ module ppu(
         end
         
         // Update Registers
-        reg_ly[7:0] <= v_pix[7:0];
+        reg_ly_next[7:0] <= v_pix[7:0];
         
         // FSM Logic
         case (r_state)
             S_IDLE: 
             begin
-                reg_stat[1:0] <= PPU_MODE_V_BLANK;
+                reg_mode_next <= PPU_MODE_V_BLANK;
                 valid <= 0;
                 //?
             end
             S_BLANK: 
             begin
                 if (is_in_v_blank)
-                    reg_stat[1:0] <= PPU_MODE_V_BLANK;
+                    reg_mode_next <= PPU_MODE_V_BLANK;
                 else
-                    reg_stat[1:0] <= PPU_MODE_H_BLANK;
+                    reg_mode_next <= PPU_MODE_H_BLANK;
                 h_pix <= 8'b0;
                 valid <= 0;
             end
             S_OAMX: 
             begin
-                reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
+                reg_mode_next <= PPU_MODE_OAM_SEARCH;
                 h_pix <= 8'b0;
                 valid <= 0;
                 //
             end
             S_OAMY: 
             begin
-                reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
+                reg_mode_next <= PPU_MODE_OAM_SEARCH;
                 h_pix <= 8'b0;
                 valid <= 0;
                 //
             end
             S_FTIDA: 
             begin
-                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_map_address;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
@@ -304,7 +313,7 @@ module ppu(
             end
             S_FTIDB: 
             begin
-                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_id <= vram_data_out;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
@@ -312,7 +321,7 @@ module ppu(
             end
             S_FRD0A: 
             begin
-                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_0;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
@@ -320,7 +329,7 @@ module ppu(
             end
             S_FRD0B: 
             begin
-                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_0 <= vram_data_out;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
@@ -328,7 +337,7 @@ module ppu(
             end
             S_FRD1A: 
             begin
-                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_1;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
@@ -336,7 +345,7 @@ module ppu(
             end
             S_FRD1B: 
             begin
-                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_1 <= vram_data_out;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
@@ -344,14 +353,14 @@ module ppu(
             end
             S_FWAITA: 
             begin
-                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FWAITB: 
             begin
-                reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:28], current_fetch_result};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
@@ -394,7 +403,33 @@ module ppu(
     end
     
     // Interrupt
-    //assign int_req = 0;
+    always @(posedge clk)
+    begin
+        if (rst) begin
+            int_vblank_req <= 0;
+            int_lcdc_req <= 0;
+            reg_ly[7:0] <= 0;
+            reg_stat[2] <= 0;
+            reg_stat[1:0] <= PPU_MODE_V_BLANK;
+        end
+        else
+        begin
+            if ((reg_mode_next == PPU_MODE_V_BLANK)&&(reg_mode_flag != PPU_MODE_V_BLANK))
+                int_vblank_req <= 1;
+            if (((reg_lyc_int == 1'b1)&&(reg_ly_next == reg_lyc)&&(reg_ly != reg_lyc))||
+                ((reg_oam_int == 1'b1)&&(reg_mode_next == PPU_MODE_OAM_SEARCH)&&(reg_mode_flag != PPU_MODE_OAM_SEARCH))||
+                ((reg_vblank_int == 1'b1)&&(reg_mode_next == PPU_MODE_V_BLANK)&&(reg_mode_flag != PPU_MODE_V_BLANK))||
+                ((reg_hblank_int == 1'b1)&&(reg_mode_next == PPU_MODE_H_BLANK)&&(reg_mode_flag != PPU_MODE_H_BLANK)))
+                int_lcdc_req <= 1;
+            if (int_vblank_ack)
+                int_vblank_req <= 0;
+            if (int_lcdc_ack)
+                int_lcdc_req <= 0;
+            reg_stat[2] <= (reg_ly_next == reg_lyc) ? 1 : 0;
+            reg_ly <= reg_ly_next;
+            reg_stat[1:0] <= reg_mode_next;
+        end
+    end
     
     // Bus RW
     // Bus RW - Combinational Read
@@ -438,7 +473,7 @@ module ppu(
     begin
         if (rst) begin
             reg_lcdc <= 8'h00;
-            reg_stat[7:2] <= 6'h00;
+            reg_stat[7:3] <= 5'h00;
             reg_scy  <= 8'h00;
             reg_scx  <= 8'h00;
             reg_lyc  <= 8'h00;
@@ -455,7 +490,7 @@ module ppu(
                 if (addr_in_ppu) begin
                     case (a)
                         16'hFF40: reg_lcdc <= d_wr;
-                        16'hFF41: reg_stat[7:2] <= d_wr[7:2];
+                        16'hFF41: reg_stat[7:3] <= d_wr[7:3];
                         16'hFF42: reg_scy <= d_wr;
                         16'hFF43: reg_scx <= d_wr;
                         //16'hFF44: reg_ly <= d_wr;

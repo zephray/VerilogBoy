@@ -81,7 +81,7 @@
 --    C_AXI_TYPE                  :  1 
 --    C_AXI_SLAVE_TYPE            :  0 
 --    C_AXI_ID_WIDTH              :  4 
---    C_MEM_TYPE                  :  0 
+--    C_MEM_TYPE                  :  1 
 --    C_BYTE_SIZE                 :  9 
 --    C_ALGORITHM                 :  1 
 --    C_PRIM_TYPE                 :  1 
@@ -236,11 +236,15 @@ ARCHITECTURE xilinx OF blockram8192_prod IS
     ADDRA          : IN STD_LOGIC_VECTOR(12 DOWNTO 0);
   
     DINA           : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+
   
-    DOUTA          : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    CLKA       : IN STD_LOGIC;
 
-    CLKA       : IN STD_LOGIC
-
+  
+      --Port B
+    ADDRB          : IN STD_LOGIC_VECTOR(12 DOWNTO 0);
+    DOUTB          : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    CLKB           : IN STD_LOGIC
 
 
 
@@ -257,10 +261,13 @@ BEGIN
       ADDRA      => ADDRA,
   
       DINA       => DINA,
-  
-      DOUTA      => DOUTA,
 
-      CLKA       => CLKA
+      CLKA       => CLKA,
+  
+      --Port B
+      ADDRB      => ADDRB,
+      DOUTB      => DOUTB,
+      CLKB       => CLKB
 
 
 

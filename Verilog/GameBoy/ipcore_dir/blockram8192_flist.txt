@@ -1,4 +1,5 @@
 # Output products list for <blockram8192>
+_xmsgs\pn_parser.xmsgs
 blockram8192.asy
 blockram8192.gise
 blockram8192.ngc
