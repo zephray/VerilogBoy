@@ -385,19 +385,19 @@ module ppu(
     begin
         case (r_state)
             S_IDLE: r_next_state = ((reg_lcd_en)&(is_in_v_blank)) ? (S_BLANK) : (S_IDLE);
-            S_BLANK: r_next_state = (is_in_v_blank) ? 
+            S_BLANK: r_next_state = (reg_lcd_en) ? ((is_in_v_blank) ? 
                 ((v_count == (PPU_V_TOTAL - 1)) ? (S_OAMX) : (S_BLANK)) :
-                ((h_count == (PPU_H_TOTAL - 1)) ? ((v_count == (PPU_V_TOTAL - 1)) ? (S_BLANK) : (S_OAMX)) : (S_BLANK));
-            S_OAMX: r_next_state = S_OAMY;
-            S_OAMY: r_next_state = (oam_search_count == (PPU_OAM_SEARCH_LENGTH - 1)) ? (S_FTIDA) : (S_OAMX);
-            S_FTIDA: r_next_state = (h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : S_FTIDB;
-            S_FTIDB: r_next_state = (h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : S_FRD0A;
-            S_FRD0A: r_next_state = (h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : S_FRD0B;
-            S_FRD0B: r_next_state = (h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : S_FRD1A;
-            S_FRD1A: r_next_state = (h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : S_FRD1B;
-            S_FRD1B: r_next_state = (h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : S_FWAITA;
-            S_FWAITA: r_next_state = (h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : S_FWAITB;
-            S_FWAITB: r_next_state = (h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : S_FTIDA;
+                ((h_count == (PPU_H_TOTAL - 1)) ? ((v_count == (PPU_V_TOTAL - 1)) ? (S_BLANK) : (S_OAMX)) : (S_BLANK))) : (S_IDLE);
+            S_OAMX: r_next_state = (reg_lcd_en) ? (S_OAMY) : (S_IDLE);
+            S_OAMY: r_next_state = (reg_lcd_en) ? ((oam_search_count == (PPU_OAM_SEARCH_LENGTH - 1)) ? (S_FTIDA) : (S_OAMX)) : (S_IDLE);
+            S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FTIDB)) : (S_IDLE);
+            S_FTIDB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FRD0A)) : (S_IDLE);
+            S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FRD0B)) : (S_IDLE);
+            S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FRD1A)) : (S_IDLE);
+            S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FRD1B)) : (S_IDLE);
+            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FWAITA)) : (S_IDLE);
+            S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FWAITB)) : (S_IDLE);
+            S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
             default: r_next_state = S_IDLE;
         endcase
     end

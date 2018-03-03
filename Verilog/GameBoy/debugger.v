@@ -32,10 +32,11 @@ module debugger(
     input [15:0] reg_hl,
     input [15:0] reg_sp,
     input [15:0] reg_pc,
-    input [3:0] reg_ie,
-    input [3:0] reg_if,
+    input [4:0] reg_ie,
+    input [4:0] reg_if,
     input [7:0] reg_scx,
-    input [7:0] reg_scy
+    input [7:0] reg_scy,
+    input [15:0] bp_addr
     );
     
     reg [7:0] line1 [0:79];
@@ -77,6 +78,10 @@ module debugger(
     wire [7:0] reg_scx_b;
     wire [7:0] reg_scy_a;
     wire [7:0] reg_scy_b;
+    wire [7:0] bp_addr_a;
+    wire [7:0] bp_addr_b;
+    wire [7:0] bp_addr_c;
+    wire [7:0] bp_addr_d;
     
     int_to_hex reg_a_a_disp  (reg_a [ 7: 4], reg_a_a);
     int_to_hex reg_a_b_disp  (reg_a [ 3: 0], reg_a_b);
@@ -106,7 +111,10 @@ module debugger(
     int_to_hex reg_scx_b_disp(reg_scx[3: 0], reg_scx_b);
     int_to_hex reg_scy_a_disp(reg_scy[7: 4], reg_scy_a);
     int_to_hex reg_scy_b_disp(reg_scy[3: 0], reg_scy_b);
-    
+    int_to_hex bp_addr_a_disp(bp_addr[15:12],bp_addr_a);
+    int_to_hex bp_addr_b_disp(bp_addr[11: 8],bp_addr_b);
+    int_to_hex bp_addr_c_disp(bp_addr[ 7: 4],bp_addr_c);
+    int_to_hex bp_addr_d_disp(bp_addr[ 3: 0],bp_addr_d);
     
     always @(posedge clk)
     begin
@@ -134,6 +142,24 @@ module debugger(
         line2[43] = reg_pc_d;
         line2[47] = instr_a;
         line2[48] = instr_b;
+        line2[50] = (reg_f[7]) ? "Z" : " ";
+        line2[51] = (reg_f[6]) ? "N" : " ";
+        line2[52] = (reg_f[5]) ? "H" : " ";
+        line2[53] = (reg_f[4]) ? "C" : " ";
+        line2[58] = (reg_ie[4]) ? "H" : " ";
+        line2[59] = (reg_ie[3]) ? "S" : " ";
+        line2[60] = (reg_ie[2]) ? "T" : " ";
+        line2[61] = (reg_ie[1]) ? "L" : " ";
+        line2[62] = (reg_ie[0]) ? "V" : " ";
+        line2[67] = (reg_if[4]) ? "H" : " ";
+        line2[68] = (reg_if[3]) ? "S" : " ";
+        line2[69] = (reg_if[2]) ? "T" : " ";
+        line2[70] = (reg_if[1]) ? "L" : " ";
+        line2[71] = (reg_if[0]) ? "V" : " ";
+        line2[76] = bp_addr_a;
+        line2[77] = bp_addr_b;
+        line2[78] = bp_addr_c;
+        line2[79] = bp_addr_d;
         line1[4]  = reg_scx_a;
         line1[5]  = reg_scx_b;
         line1[11] = reg_scy_a;

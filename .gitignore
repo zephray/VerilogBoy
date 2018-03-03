@@ -11,6 +11,10 @@ top_*
 *.rom
 *.sym
 *.mif
+*.mcs
+*.cfi
+*.hex
+*.prm
 
 # Windows image file caches
 Thumbs.db

@@ -122,7 +122,7 @@
 `define MMIO_TMA 16'hff06
 `define MMIO_TAC 16'hff07
 `define MMIO_BOOTSTRAP 16'hff50
-`define MMIO_CONTROLLER 16'hff00
+`define MMIO_JOYSTICK 16'hff00
 `define MMIO_SB 16'hff01
 `define MMIO_SC 16'hff02
   

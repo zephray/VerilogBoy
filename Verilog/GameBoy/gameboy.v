@@ -86,6 +86,7 @@ module gameboy(
     wire addr_in_ppu;
     wire addr_in_vram;
     wire addr_in_oamram;
+    wire addr_in_joystick;
     
     wire brom_tri_en; // Allow BROM output to the Data bus
     wire wram_tri_en; // Allow WRAM
@@ -96,8 +97,10 @@ module gameboy(
     wire cart_tri_en; // Allow Cartridge
     wire ie_tri_en; // Allow Interrupt Enable
     wire if_tri_en; // Allow Interrupt Flag
+    wire joystick_tri_en; // Allow Joystick Register
     
     wire [7:0] bootstrap_reg_data;
+    wire [7:0] joystick_reg_data;
     wire [7:0] brom_data;
     
     // Debug signals
@@ -209,6 +212,15 @@ module gameboy(
         .scx(scx),
         .scy(scy)
     );
+    
+    // Joystick
+    register #(4) joystick_reg(
+        .d(data_ext[7:4]),
+        .q(joystick_reg_data[7:4]),
+        .load(addr_in_joystick & mem_we),
+        .reset(rst),
+        .clock(clk));
+    assign joystick_reg_data[3:0] = 4'hF; // No keys are pressed
    
     // Memory related
     assign addr_in_brom = (bootstrap_reg_data[0]) ? 1'b0 : addr_ext < 16'h103;
@@ -237,11 +249,12 @@ module gameboy(
                           (((16'h104 <= addr_ext) && (addr_ext <= `MEM_CART_END)) |
                           // OR cart RAM
                           addr_in_cram);
+    assign addr_in_joystick = (addr_ext == `MMIO_JOYSTICK);
     assign addr_in_junk = ~addr_in_brom & ~addr_in_audio &
                           ~addr_in_tima & ~addr_in_wram &
                           ~addr_in_dma & ~addr_in_tima & 
                           ~addr_in_ppu & ~addr_in_vram &
-                          ~addr_in_oamram &
+                          ~addr_in_oamram & ~addr_in_joystick &
                           ~addr_in_cart & ~addr_in_echo & 
                           ~addr_in_IE & ~addr_in_IF;
     /*assign addr_in_junk = ~addr_in_brom & ~addr_in_audio &
@@ -299,9 +312,10 @@ module gameboy(
     //assign sound_tri_en = reg_w_enable&~mem_we;
     assign video_tri_en = (addr_in_ppu | addr_in_vram | addr_in_oamram) & ~mem_we;
     assign cart_tri_en = addr_in_cart & ~mem_we;
+    assign joystick_tri_en = addr_in_joystick & ~mem_we;
     assign ie_tri_en = addr_in_IE & mem_re;
     assign if_tri_en = addr_in_IF & mem_re;
-
+    
     tristate #(8) gating_brom(
         .out(data_ext),
         .in(brom_data),
@@ -326,6 +340,10 @@ module gameboy(
         .out(data_ext),
         .in(din),
         .en(cart_tri_en));
+    tristate #(8) gating_joystick(
+        .out(data_ext),
+        .in(joystick_reg_data),
+        .en(joystick_tri_en));
     /*tristate #(8) gating_sound_regs(
         .out(data_ext),
         .in(reg_data_in), //FIX THIS: regs need output

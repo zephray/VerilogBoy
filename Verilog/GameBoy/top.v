@@ -131,7 +131,7 @@ module top(
     wire clk_27;
     wire clk_27_90;
     wire clk_4;
-    wire clk_100;
+    wire clk_16;
 
     wire clk_gb;
     wire clk_dvi;
@@ -153,7 +153,7 @@ module top(
         .CLKIN1_IN(clk_33), 
         .RST_IN(reset_pll), 
         .CLKOUT0_OUT(clk_4), 
-        .CLKOUT1_OUT(clk_100), 
+        .CLKOUT1_OUT(clk_16), 
         .CLKOUT2_OUT(clk_27),
         .CLKOUT3_OUT(clk_27_90),
         .LOCKED_OUT(locked_pll)
@@ -199,11 +199,14 @@ module top(
     wire [15:0] reg_pc;
     wire [4:0] reg_ie;
     wire [4:0] reg_if;
-    wire [15:0] bp_addr;
+    reg [15:0] bp_addr;
     wire bp_step;
     wire bp_continue;
     wire [7:0] reg_scx;
     wire [7:0] reg_scy;
+    
+    wire bp_change;
+    reg bp_write;
     
     wire [15:0] gb_a;
     wire [7:0] gb_dout;
@@ -214,7 +217,7 @@ module top(
     gameboy gameboy(
         .rst(reset), // Async Reset Input
         .clk(clk_gb), // 4.19MHz Clock Input
-        .clk_mem(clk_gb), // High Speed Memory Clock
+        .clk_mem(clk_16), // High Speed Memory Clock
         //Cartridge interface
         .a(gb_a), // Address Bus
         .dout(gb_dout),  // Data Bus
@@ -248,14 +251,10 @@ module top(
         .scy(reg_scy)
     );
     
-    assign bp_addr[15:0] = 15'b0;
-    //assign bp_step = 1'b0;
-    //assign bp_continue = 1'b0;
-    
     // Cartridge
-    assign SRAM_FLASH_A[15:0] = gb_a[14:0] + 16'h104;
-    assign SRAM_FLASH_A[30:16] = 16'b0;
-    assign gb_din[7:0] = SRAM_FLASH_D[7:0];
+    assign SRAM_FLASH_A[13:0] = gb_a[14:1];
+    assign SRAM_FLASH_A[30:14] = 18'b0;
+    assign gb_din[7:0] = gb_a[0] ? (SRAM_FLASH_D[15:8]) : (SRAM_FLASH_D[7:0]);
     assign SRAM_FLASH_WE_B = 1;
     assign FLASH_CE_B = 0;
     assign FLASH_OE_B = 0;
@@ -285,7 +284,8 @@ module top(
         .reg_ie(reg_ie),
         .reg_if(reg_if),
         .reg_scx(reg_scx),
-        .reg_scy(reg_scy)
+        .reg_scy(reg_scy),
+        .bp_addr(bp_addr)
     );
 
     // DVI output
@@ -372,7 +372,7 @@ module top(
     );
     
     button button_w(
-        .pressed(), 
+        .pressed(bp_change), 
         .pressed_disp(GPIO_LED_W),
         .button_input(GPIO_SW_W),
         .clock(clk_gb),
@@ -394,5 +394,21 @@ module top(
         .clock(clk_gb),
         .reset(reset)
     );
+    
+    wire [7:0] dip_sw = {GPIO_DIP_SW[0], GPIO_DIP_SW[1], GPIO_DIP_SW[2], GPIO_DIP_SW[3], GPIO_DIP_SW[4], GPIO_DIP_SW[5], GPIO_DIP_SW[6], GPIO_DIP_SW[7]};
+    
+    always@(posedge bp_change, posedge reset)
+    begin
+        if (reset) begin
+            bp_write <= 0;
+        end
+        else begin
+            if (bp_write)
+                bp_addr[15:8] <= dip_sw[7:0];
+            else
+                bp_addr[7:0] <= dip_sw[7:0];
+            bp_write <= ~bp_write;
+        end
+    end
 
 endmodule

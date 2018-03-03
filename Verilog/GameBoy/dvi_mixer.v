@@ -98,7 +98,7 @@ module dvi_mixer(
     reg [7:0] gb_h_counter;
     
     reg [1:0] gb_buffer [0:23039];
-    wire [14:0] gb_wr_addr = ((gb_v_counter > 8'd4)?(gb_v_counter - 8'd5):8'd0) * 160 + ((gb_h_counter > 8'd8)?(gb_h_counter - 8'd9):(8'd0));
+    wire [14:0] gb_wr_addr = ((gb_v_counter > 8'd1)?(gb_v_counter - 8'd2):8'd0) * 160 + ((gb_h_counter > 8'd7)?(gb_h_counter - 8'd8):(8'd0));
     
     reg gb_vs_last;
     reg gb_hs_last;
