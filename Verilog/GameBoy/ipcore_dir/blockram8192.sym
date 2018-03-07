@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <symbol version="7" name="blockram8192">
     <symboltype>BLOCK</symboltype>
-    <timestamp>2018-2-20T0:25:9</timestamp>
+    <timestamp>2018-3-7T1:6:10</timestamp>
     <pin polarity="Input" x="0" y="80" name="addra[12:0]" />
     <pin polarity="Input" x="0" y="112" name="dina[7:0]" />
     <pin polarity="Input" x="0" y="208" name="wea[0:0]" />
     <pin polarity="Input" x="0" y="272" name="clka" />
-    <pin polarity="Input" x="0" y="432" name="addrb[12:0]" />
-    <pin polarity="Input" x="0" y="624" name="clkb" />
-    <pin polarity="Output" x="576" y="368" name="doutb[7:0]" />
+    <pin polarity="Output" x="576" y="80" name="douta[7:0]" />
     <graph>
         <text style="fontsize:40;fontname:Arial" x="32" y="32">blockram8192</text>
         <rect width="512" x="32" y="32" height="1344" />
@@ -20,11 +18,7 @@
         <attrtext style="fontsize:24;fontname:Arial" attrname="PinName" x="36" y="208" type="pin wea[0:0]" />
         <line x2="32" y1="272" y2="272" x1="0" />
         <attrtext style="fontsize:24;fontname:Arial" attrname="PinName" x="36" y="272" type="pin clka" />
-        <line x2="32" y1="432" y2="432" style="linewidth:W" x1="0" />
-        <attrtext style="fontsize:24;fontname:Arial" attrname="PinName" x="36" y="432" type="pin addrb[12:0]" />
-        <line x2="32" y1="624" y2="624" x1="0" />
-        <attrtext style="fontsize:24;fontname:Arial" attrname="PinName" x="36" y="624" type="pin clkb" />
-        <line x2="544" y1="368" y2="368" style="linewidth:W" x1="576" />
-        <attrtext style="alignment:RIGHT;fontsize:24;fontname:Arial" attrname="PinName" x="540" y="368" type="pin doutb[7:0]" />
+        <line x2="544" y1="80" y2="80" style="linewidth:W" x1="576" />
+        <attrtext style="alignment:RIGHT;fontsize:24;fontname:Arial" attrname="PinName" x="540" y="80" type="pin douta[7:0]" />
     </graph>
 </symbol>

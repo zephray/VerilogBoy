@@ -15,9 +15,7 @@ quietly WaveActivateNextPane {} 0
       add wave -noupdate /blockram8192_tb/blockram8192_synth_inst/bmg_port/ADDRA
       add wave -noupdate /blockram8192_tb/blockram8192_synth_inst/bmg_port/DINA
       add wave -noupdate /blockram8192_tb/blockram8192_synth_inst/bmg_port/WEA
-      add wave -noupdate /blockram8192_tb/blockram8192_synth_inst/bmg_port/CLKB
-      add wave -noupdate /blockram8192_tb/blockram8192_synth_inst/bmg_port/ADDRB
-      add wave -noupdate /blockram8192_tb/blockram8192_synth_inst/bmg_port/DOUTB
+      add wave -noupdate /blockram8192_tb/blockram8192_synth_inst/bmg_port/DOUTA
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {0 ps} 0}
 configure wave -namecolwidth 150

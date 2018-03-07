@@ -83,14 +83,16 @@ module dvi_mixer(
     end
 
     // Font
+    localparam font_fg_color = 8'hFF;
+    localparam font_bg_color = 8'h20;
     assign dbg_x[6:0] = dvi_x[9:3];
     assign dbg_y[4:0] = dvi_y[8:4];
     assign font_ascii[6:0] = dbg_char[6:0];
     assign font_row[3:0] = dvi_y[3:0];
     assign font_col[2:0] = dvi_x[2:0];
-    assign bg_r[7:0] = {8{font_pixel}};
-    assign bg_g[7:0] = {8{font_pixel}};
-    assign bg_b[7:0] = {8{font_pixel}};
+    assign bg_r[7:0] = (font_pixel) ? (font_fg_color) : (font_bg_color);
+    assign bg_g[7:0] = (font_pixel) ? (font_fg_color) : (font_bg_color);
+    assign bg_b[7:0] = (font_pixel) ? (font_fg_color) : (font_bg_color);
     assign dbg_sync = dvi_vs;
 
     // Gameboy Input
@@ -98,7 +100,8 @@ module dvi_mixer(
     reg [7:0] gb_h_counter;
     
     reg [1:0] gb_buffer [0:23039];
-    wire [14:0] gb_wr_addr = ((gb_v_counter > 8'd1)?(gb_v_counter - 8'd2):8'd0) * 160 + ((gb_h_counter > 8'd7)?(gb_h_counter - 8'd8):(8'd0));
+    wire gb_wr_valid = (gb_v_counter > 8'd0) && (gb_h_counter > 8'd6);
+    wire [14:0] gb_wr_addr = ((gb_v_counter > 8'd0)?(gb_v_counter - 8'd1):8'd0) * 160 + ((gb_h_counter > 8'd6)?(gb_h_counter - 8'd7):(8'd0));
     
     reg gb_vs_last;
     reg gb_hs_last;
@@ -135,7 +138,8 @@ module dvi_mixer(
             else if (gb_valid) begin
                 if ((gb_pclk_last == 0)&&(gb_pclk == 1)) begin
                     gb_h_counter <= gb_h_counter + 1'b1;
-                    gb_buffer[gb_wr_addr] <= gb_pdat;
+                    if (gb_wr_valid)
+                        gb_buffer[gb_wr_addr] <= gb_pdat;
                 end
             end
         end
@@ -146,7 +150,7 @@ module dvi_mixer(
     
     assign gb_r[7:0] = (gb_buffer[gb_rd_addr] == 2'b11) ? (8'h00) : 
                       ((gb_buffer[gb_rd_addr] == 2'b10) ? (8'h55) : 
-                      ((gb_buffer[gb_rd_addr] == 2'b10) ? (8'hAA) : (8'hFF)));
+                      ((gb_buffer[gb_rd_addr] == 2'b01) ? (8'hAA) : (8'hFF)));
     assign gb_g[7:0] = gb_r[7:0];
     assign gb_b[7:0] = gb_r[7:0];
     //assign gb_g[7:0] = gb_x[7:0];

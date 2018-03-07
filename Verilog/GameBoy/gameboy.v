@@ -278,15 +278,11 @@ module gameboy(
     assign wram_addr = wram_addr_long[12:0]; // 8192 elts 
 
     blockram8192 br_wram(
-        // Write Port
-        .clka(clk),
+        .clka(clk_mem),
         .wea(wram_we),
         .addra(wram_addr),
         .dina(wram_data_in),
-        // Read Port
-        .clkb(clk_mem),
-        .addrb(wram_addr),
-        .doutb(wram_data_out));
+        .douta(wram_data_out));
              
     // BROM
     register #(8) bootstrap_reg(

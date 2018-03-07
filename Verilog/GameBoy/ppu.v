@@ -110,15 +110,11 @@ module ppu(
     reg [7:0] oamram [0: 159];
     
     blockram8192 br_vram(
-        // Write Port
-        .clka(clk),
+        .clka(clk_mem),
         .wea(vram_we),
         .addra(vram_addr),
         .dina(vram_data_in),
-        // Read Port
-        .clkb(clk_mem),
-        .addrb(vram_addr),
-        .doutb(vram_data_out));
+        .douta(vram_data_out));
         
     assign vram_addr_ext = a[12:0];
     assign vram_addr = (vram_access_ext) ? (vram_addr_ext) : (vram_addr_int);
@@ -158,6 +154,7 @@ module ppu(
     localparam PPU_H_SYNC   = 9'd4;    // So front porch + sync = OAM search
     localparam PPU_H_TOTAL  = 9'd456;
     localparam PPU_H_PIXEL  = 8'd160;
+    localparam PPU_H_FIFO   = 8'd176;  // 8 pixel empty for first fetch, 8 pixels in the front for objects which have x < 8
     localparam PPU_V_ACTIVE = 8'd144;
     localparam PPU_V_BACK   = 8'd9;
     localparam PPU_V_SYNC   = 8'd1;  
@@ -167,18 +164,29 @@ module ppu(
     reg [8:0] h_count;
     reg [7:0] v_count;
     
-    // H counter
+    // HV counter
     always @(posedge clk)
     begin
         if (rst) begin
             h_count <= 0;
             hs <= 0;
+            v_count <= 0;
+            vs <= 0;
         end
         else begin
             if(h_count < PPU_H_TOTAL - 1)
                 h_count <= h_count + 1'b1;
-            else
+            else begin
                 h_count <= 0;
+                if(v_count < PPU_V_TOTAL - 1)
+                    v_count <= v_count + 1'b1;
+                else
+                    v_count <= 0;
+                if(v_count == PPU_V_ACTIVE + PPU_V_BACK - 1)
+                    vs <= 1;
+                if(v_count == PPU_V_ACTIVE + PPU_V_BACK + PPU_V_SYNC - 1)
+                    vs <= 0;
+            end
             if(h_count == PPU_H_FRONT - 1)
                 hs <= 1;
             if(h_count == PPU_H_FRONT + PPU_H_SYNC - 1)
@@ -186,47 +194,35 @@ module ppu(
         end 
     end
     
-    // V counter
-    always@(posedge hs)
-    begin
-        if(rst) begin
-            v_count <= 0;
-            vs <= 0;
-        end
-        else begin
-            if(v_count < PPU_V_TOTAL - 1)
-                v_count <= v_count + 1'b1;
-            else
-                v_count <= 0;
-            if(v_count == PPU_V_ACTIVE + PPU_V_BACK - 1)
-                vs <= 1;
-            if(v_count == PPU_V_ACTIVE + PPU_V_BACK + PPU_V_SYNC - 1)
-                vs <= 0;
-        end
-    end
-    
     // Render FSM
-    localparam S_IDLE     = 4'd0; 
-    localparam S_BLANK    = 4'd1;  // H Blank and V Blank
-    localparam S_OAMX     = 4'd2;  // OAM Search X check
-    localparam S_OAMY     = 4'd3;  // OAM Search Y check
-    localparam S_FTIDA    = 4'd4;  // Fetch Read Tile ID Stage A (Address Setup)
-    localparam S_FTIDB    = 4'd5;  // Fetch Read Tile ID Stage B (Data Read)
-    localparam S_FRD0A    = 4'd6;  // Fetch Read Data 0 Stage A
-    localparam S_FRD0B    = 4'd7;  // Fetch Read Data 0 Stage B
-    localparam S_FRD1A    = 4'd8;  // Fetch Read Data 1 Stage A
-    localparam S_FRD1B    = 4'd9;  // Fetch Read Data 1 Stage B
-    localparam S_FWAITA   = 4'd10; // Fetch Wait Stage A (Idle)
-    localparam S_FWAITB   = 4'd11; // Fetch Wait Stage B (Load to FIFO?)
-    localparam S_SWW      = 4'd12; // Fetch Switch to Window
+    localparam S_IDLE     = 5'd0; 
+    localparam S_BLANK    = 5'd1;  // H Blank and V Blank
+    localparam S_OAMX     = 5'd2;  // OAM Search X check
+    localparam S_OAMY     = 5'd3;  // OAM Search Y check
+    localparam S_FTIDA    = 5'd4;  // Fetch Read Tile ID Stage A (Address Setup)
+    localparam S_FTIDB    = 5'd5;  // Fetch Read Tile ID Stage B (Data Read)
+    localparam S_FRD0A    = 5'd6;  // Fetch Read Data 0 Stage A
+    localparam S_FRD0B    = 5'd7;  // Fetch Read Data 0 Stage B
+    localparam S_FRD1A    = 5'd8;  // Fetch Read Data 1 Stage A
+    localparam S_FRD1B    = 5'd9;  // Fetch Read Data 1 Stage B
+    localparam S_FWAITA   = 5'd10; // Fetch Wait Stage A (Idle)
+    localparam S_FWAITB   = 5'd11; // Fetch Wait Stage B (Load to FIFO?)
+    localparam S_SWW      = 5'd12; // Fetch Switch to Window
+    localparam S_OFTID    = 5'd13; // Object Fetch Read Tile ID (OAM RAM is Single Cycle Access)
+    localparam S_OFRD0A   = 5'd14; // Object Fetch Read Data 0 Stage A
+    localparam S_OFRD0B   = 5'd15; // Object Fetch Read Data 0 Stage B
+    localparam S_OFRD1A   = 5'd16; // Object Fetch Read Data 1 Stage A
+    localparam S_OFRD1B   = 5'd17; // Object Fetch Read Data 1 Stage B
+    //We do not need a merge stage(state), do we?
     
     localparam PPU_OAM_SEARCH_LENGTH = 6'd40;
 
     reg [7:0] h_pix = 0;
     wire [7:0] v_pix = v_count;
     wire [7:0] v_pix_in_map = v_pix + reg_scy;
-    reg [3:0] r_state = 0;
-    reg [3:0] r_next_state;
+    reg [4:0] r_state = 0;
+    reg [4:0] r_state_backup;
+    reg [4:0] r_next_state;
     wire is_in_v_blank = ((v_count >= PPU_V_ACTIVE) && (v_count < PPU_V_ACTIVE + PPU_V_BLANK));
     
     wire [2:0] line_to_tile_v_offset = v_pix_in_map[2:0];
@@ -239,6 +235,7 @@ module ppu(
     wire [12:0] current_tile_address_1 = (current_tile_address_0) | 13'h0001;
     reg [7:0] current_tile_data_0;
     reg [7:0] current_tile_data_1;
+    reg [12:0] current_address_backup;
     // Data that will be pushed into pixel FIFO
     // Organized in pixels
     wire [31:0] current_fetch_result = { 
@@ -253,22 +250,35 @@ module ppu(
         };
 
     reg [5:0] oam_search_count;
+    reg oam_search_satisfy_y;
+    reg [5:0] oam_visible_list [0:9];
+    reg [7:0] oam_trigger_list [0:9];
+    reg [3:0] oam_visible_count;
     
     reg [7:0] reg_ly_next;
     reg [1:0] reg_mode_next;
     
+    wire [7:0] oam_search_x = oamram[(oam_search_count << 2)];
+    wire [7:0] oam_search_y = oamram[(oam_search_count << 2) | 1'b1];
+    wire [7:0] obj_size_h = (reg_obj_size == 1'b1) ? (8'd16) : (8'd8);
+    wire [7:0] oam_h_upper_boundary = (v_pix + 8'd16);
+    wire [7:0] oam_h_lower_boundary = oam_h_upper_boundary - obj_size_h;
+
+    wire oam_trigger = (
+        (h_pix == oam_trigger_list[0]) ||
+        (h_pix == oam_trigger_list[1]) ||
+        (h_pix == oam_trigger_list[2]) ||
+        (h_pix == oam_trigger_list[3]) ||
+        (h_pix == oam_trigger_list[4]) ||
+        (h_pix == oam_trigger_list[5]) ||
+        (h_pix == oam_trigger_list[6]) ||
+        (h_pix == oam_trigger_list[7]) ||
+        (h_pix == oam_trigger_list[8]) ||
+        (h_pix == oam_trigger_list[9])) ? 1 : 0;
+    
     // Modify all state related synchonize registers
     always @(negedge clk)
     begin
-        // OAM counter
-        if (r_state == S_OAMY) begin
-            oam_search_count <= oam_search_count + 1'b1;
-        end
-        else
-        if (r_state == S_BLANK) begin
-            oam_search_count <= 6'b0;
-        end
-        
         // Update Registers
         reg_ly_next[7:0] <= v_pix[7:0];
         
@@ -288,26 +298,39 @@ module ppu(
                     reg_mode_next <= PPU_MODE_H_BLANK;
                 h_pix <= 8'b0;
                 valid <= 0;
+                oam_search_count <= 6'b0;
+                oam_visible_count <= 4'b0;
             end
             S_OAMX: 
             begin
                 reg_mode_next <= PPU_MODE_OAM_SEARCH;
                 h_pix <= 8'b0;
                 valid <= 0;
-                //
+                oam_search_satisfy_y <= 
+                    (
+                        ((oam_search_y)<=(oam_h_upper_boundary))&&
+                        ((oam_search_y)>(oam_h_lower_boundary))
+                    ) ? 1 : 0;
             end
             S_OAMY: 
             begin
                 reg_mode_next <= PPU_MODE_OAM_SEARCH;
                 h_pix <= 8'b0;
                 valid <= 0;
-                //
+                if ((oam_search_satisfy_y)&&(oam_search_y)) begin
+                    if (oam_visible_count < 4'd10) begin
+                        oam_visible_list[oam_visible_count] <= oam_search_count;
+                        oam_trigger_list[oam_visible_count] <= oam_search_y;
+                        oam_visible_count <= oam_visible_count + 1'b1;
+                    end
+                end    
+                oam_search_count <= oam_search_count + 1'b1;
             end
             S_FTIDA: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_map_address;
-                h_pix <= h_pix + 1'b1;
+                h_pix <= (h_pix + 1'b1);
                 pf_data <= {pf_data[59:0], 4'b0000};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
             end
@@ -315,7 +338,7 @@ module ppu(
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_id <= vram_data_out;
-                h_pix <= h_pix + 1'b1;
+                h_pix <= (h_pix + 1'b1);
                 pf_data <= {pf_data[59:0], 4'b0000};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
             end
@@ -323,7 +346,7 @@ module ppu(
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_0;
-                h_pix <= h_pix + 1'b1;
+                h_pix <= (h_pix + 1'b1);
                 pf_data <= {pf_data[59:0], 4'b0000};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
             end
@@ -331,7 +354,7 @@ module ppu(
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_0 <= vram_data_out;
-                h_pix <= h_pix + 1'b1;
+                h_pix <= (h_pix + 1'b1);
                 pf_data <= {pf_data[59:0], 4'b0000};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
             end
@@ -339,7 +362,7 @@ module ppu(
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_1;
-                h_pix <= h_pix + 1'b1;
+                h_pix <= (h_pix + 1'b1);
                 pf_data <= {pf_data[59:0], 4'b0000};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
             end
@@ -347,21 +370,21 @@ module ppu(
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_1 <= vram_data_out;
-                h_pix <= h_pix + 1'b1;
+                h_pix <= (h_pix + 1'b1);
                 pf_data <= {pf_data[59:0], 4'b0000};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FWAITA: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
-                h_pix <= h_pix + 1'b1;
+                h_pix <= (h_pix + 1'b1);
                 pf_data <= {pf_data[59:0], 4'b0000};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
             end
             S_FWAITB: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
-                h_pix <= h_pix + 1'b1;
+                h_pix <= (h_pix + 1'b1);
                 pf_data <= {pf_data[59:28], current_fetch_result};
                 valid <= (h_pix < 8'd8) ? 0 : 1;
             end
@@ -381,23 +404,24 @@ module ppu(
     end
     
     // Next State Logic
+    // Since new state get updated during posedge
     always @(*)
     begin
         case (r_state)
             S_IDLE: r_next_state = ((reg_lcd_en)&(is_in_v_blank)) ? (S_BLANK) : (S_IDLE);
             S_BLANK: r_next_state = (reg_lcd_en) ? ((is_in_v_blank) ? 
-                ((v_count == (PPU_V_TOTAL - 1)) ? (S_OAMX) : (S_BLANK)) :
-                ((h_count == (PPU_H_TOTAL - 1)) ? ((v_count == (PPU_V_TOTAL - 1)) ? (S_BLANK) : (S_OAMX)) : (S_BLANK))) : (S_IDLE);
+                (((v_count == (PPU_V_TOTAL - 1))&&(h_count == (PPU_H_TOTAL - 1))) ? (S_OAMX) : (S_BLANK)) :
+                ((h_count == (PPU_H_TOTAL - 1)) ? ((v_count == (PPU_V_ACTIVE - 1)) ? (S_BLANK) : (S_OAMX)) : (S_BLANK))) : (S_IDLE);
             S_OAMX: r_next_state = (reg_lcd_en) ? (S_OAMY) : (S_IDLE);
-            S_OAMY: r_next_state = (reg_lcd_en) ? ((oam_search_count == (PPU_OAM_SEARCH_LENGTH - 1)) ? (S_FTIDA) : (S_OAMX)) : (S_IDLE);
-            S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FTIDB)) : (S_IDLE);
-            S_FTIDB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FRD0A)) : (S_IDLE);
-            S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FRD0B)) : (S_IDLE);
-            S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FRD1A)) : (S_IDLE);
-            S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FRD1B)) : (S_IDLE);
-            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FWAITA)) : (S_IDLE);
-            S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FWAITB)) : (S_IDLE);
-            S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_PIXEL - 1)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
+            S_OAMY: r_next_state = (reg_lcd_en) ? ((oam_search_count == (PPU_OAM_SEARCH_LENGTH)) ? (S_FTIDA) : (S_OAMX)) : (S_IDLE);
+            S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FTIDB)) : (S_IDLE);
+            S_FTIDB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD0A)) : (S_IDLE);
+            S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD0B)) : (S_IDLE);
+            S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD1A)) : (S_IDLE);
+            S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD1B)) : (S_IDLE);
+            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FWAITA)) : (S_IDLE);
+            S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FWAITB)) : (S_IDLE);
+            S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
             default: r_next_state = S_IDLE;
         endcase
     end
@@ -509,6 +533,7 @@ module ppu(
                     if (oamram_access_ext)
                     begin
                         // Access good
+                        oamram[a[7:0]] <= d_wr;
                     end
                     else
                     begin
