@@ -445,6 +445,7 @@ module cpu(/*AUTOARG*/
                       .clock            (clock),
                       .reset            (reset));
 
+    /*
    // synthesis translate_off
    integer fd;
    always @(posedge clock) begin
@@ -455,7 +456,7 @@ module cpu(/*AUTOARG*/
       end
    end
    // synthesis translate_on
-   
+   */
 endmodule // cpu
 
 /**

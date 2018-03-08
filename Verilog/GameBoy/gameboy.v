@@ -246,7 +246,8 @@ module gameboy(
                           // OR cart RAM
                           addr_in_cram) :
                           // Cart ROM minus the bootstrap
-                          (((16'h104 <= addr_ext) && (addr_ext <= `MEM_CART_END)) |
+                          // Should the start be 100 or 104?
+                          (((16'h100 <= addr_ext) && (addr_ext <= `MEM_CART_END)) |
                           // OR cart RAM
                           addr_in_cram);
     assign addr_in_joystick = (addr_ext == `MMIO_JOYSTICK);

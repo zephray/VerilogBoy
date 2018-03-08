@@ -122,6 +122,7 @@ module regfile(/*AUTOARG*/
    assign data_out8 = (hi_out) ? mem[ri_out][15:8] : mem[ri_out][7:0];
    assign regfile_data_out = (full_out) ? mem[ri_out] : {8'd0, data_out8};
 
+    /*
    // synthesis translate_off
    integer fd;
    always @(posedge clock) begin
@@ -136,5 +137,6 @@ module regfile(/*AUTOARG*/
       end
    end
    // synthesis translate_on
+   */
    
 endmodule // regfile

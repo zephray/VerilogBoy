@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Wenting Zhang
 // 
 // Create Date:    18:48:36 02/14/2018 
 // Design Name: 
@@ -33,16 +33,18 @@ module ppu(
     input int_vblank_ack,
     input int_lcdc_ack,
     output cpl, // Pixel Clock, = ~clk
-    output [1:0] pixel, // Pixel Output
+    output reg [1:0] pixel, // Pixel Output
     output reg valid, // Pixel Valid
     output reg hs, // Horizontal Sync, High Valid
     output reg vs, // Vertical Sync, High Valid
     //Debug output
     output [7:0] scx,
-    output [7:0] scy
+    output [7:0] scy,
+    output [4:0] state
     );
     
     // Global Wires ?
+    integer i;
     
     // PPU registers
     reg [7:0] reg_lcdc; //$FF40 LCD Control (R/W)
@@ -121,13 +123,7 @@ module ppu(
     assign vram_data_in = d_wr;
     assign vram_we = (addr_in_vram)&(wr);
     
-    // Debug Outputs
-    assign scx = reg_scx;
-    assign scy = reg_scy;
-    
     // Pixel Pipeline
-    
-    
     
     // The pixel FIFO: 16 pixels, 4 bits each (2 bits color index, 2 bits palette index)
     // Since in and out are 8 pixels aligned, it can be modeled as a ping-pong buffer
@@ -145,9 +141,10 @@ module ppu(
                              (pf_output_pixel_id == 2'b10) ? (pf_output_palette[5:4]) :
                              (pf_output_pixel_id == 2'b01) ? (pf_output_palette[3:2]) :
                              (pf_output_pixel_id == 2'b00) ? (pf_output_palette[1:0]) : (8'h00);
+    reg [4:0] pf_empty;
     
     assign cpl = clk;
-    assign pixel = pf_output_pixel;
+    //assign pixel = pf_output_pixel;
     
     // HV Timing
     localparam PPU_H_FRONT  = 9'd76;
@@ -208,20 +205,20 @@ module ppu(
     localparam S_FWAITA   = 5'd10; // Fetch Wait Stage A (Idle)
     localparam S_FWAITB   = 5'd11; // Fetch Wait Stage B (Load to FIFO?)
     localparam S_SWW      = 5'd12; // Fetch Switch to Window
-    localparam S_OFTID    = 5'd13; // Object Fetch Read Tile ID (OAM RAM is Single Cycle Access)
-    localparam S_OFRD0A   = 5'd14; // Object Fetch Read Data 0 Stage A
-    localparam S_OFRD0B   = 5'd15; // Object Fetch Read Data 0 Stage B
-    localparam S_OFRD1A   = 5'd16; // Object Fetch Read Data 1 Stage A
-    localparam S_OFRD1B   = 5'd17; // Object Fetch Read Data 1 Stage B
-    //We do not need a merge stage(state), do we?
+    localparam S_OFRD0A   = 5'd13; // Object Fetch Read Data 0 Stage A
+    localparam S_OFRD0B   = 5'd14; // Object Fetch Read Data 0 Stage B
+    localparam S_OFRD1A   = 5'd15; // Object Fetch Read Data 1 Stage A
+    localparam S_OFRD1B   = 5'd16; // Object Fetch Read Data 1 Stage B
+    localparam S_OWB      = 5'd17; // Object Write Back
     
     localparam PPU_OAM_SEARCH_LENGTH = 6'd40;
 
     reg [7:0] h_pix = 0;
+    wire [7:0] h_pix_obj = h_pix - 8'd8;
     wire [7:0] v_pix = v_count;
     wire [7:0] v_pix_in_map = v_pix + reg_scy;
     reg [4:0] r_state = 0;
-    reg [4:0] r_state_backup;
+    reg [4:0] r_next_backup;
     reg [4:0] r_next_state;
     wire is_in_v_blank = ((v_count >= PPU_V_ACTIVE) && (v_count < PPU_V_ACTIVE + PPU_V_BLANK));
     
@@ -236,6 +233,7 @@ module ppu(
     reg [7:0] current_tile_data_0;
     reg [7:0] current_tile_data_1;
     reg [12:0] current_address_backup;
+   
     // Data that will be pushed into pixel FIFO
     // Organized in pixels
     wire [31:0] current_fetch_result = { 
@@ -251,30 +249,100 @@ module ppu(
 
     reg [5:0] oam_search_count;
     reg oam_search_satisfy_y;
-    reg [5:0] oam_visible_list [0:9];
-    reg [7:0] oam_trigger_list [0:9];
+    reg [5:0] obj_visible_list [0:9];
+    reg [7:0] obj_trigger_list [0:9];
+    reg obj_valid_list [0:9];
     reg [3:0] oam_visible_count;
     
     reg [7:0] reg_ly_next;
     reg [1:0] reg_mode_next;
     
-    wire [7:0] oam_search_x = oamram[(oam_search_count << 2)];
-    wire [7:0] oam_search_y = oamram[(oam_search_count << 2) | 1'b1];
+    wire [7:0] oam_search_x = oamram[oam_search_count * 4 + 1];
+    wire [7:0] oam_search_y = oamram[oam_search_count * 4];
     wire [7:0] obj_size_h = (reg_obj_size == 1'b1) ? (8'd16) : (8'd8);
-    wire [7:0] oam_h_upper_boundary = (v_pix + 8'd16);
-    wire [7:0] oam_h_lower_boundary = oam_h_upper_boundary - obj_size_h;
+    wire [7:0] obj_h_upper_boundary = (v_pix + 8'd16);
+    wire [7:0] obj_h_lower_boundary = obj_h_upper_boundary - obj_size_h;
 
-    wire oam_trigger = (
-        (h_pix == oam_trigger_list[0]) ||
-        (h_pix == oam_trigger_list[1]) ||
-        (h_pix == oam_trigger_list[2]) ||
-        (h_pix == oam_trigger_list[3]) ||
-        (h_pix == oam_trigger_list[4]) ||
-        (h_pix == oam_trigger_list[5]) ||
-        (h_pix == oam_trigger_list[6]) ||
-        (h_pix == oam_trigger_list[7]) ||
-        (h_pix == oam_trigger_list[8]) ||
-        (h_pix == oam_trigger_list[9])) ? 1 : 0;
+    reg [3:0] obj_trigger_id;
+        
+    localparam obj_trigger_not_found = 4'd15; 
+    wire [3:0] obj_trigger_id_start_from_8 = ((h_pix_obj == obj_trigger_list[9])&&(obj_valid_list[9])) ? (4'd9) : (obj_trigger_not_found);
+    wire [3:0] obj_trigger_id_start_from_7 = ((h_pix_obj == obj_trigger_list[8])&&(obj_valid_list[8])) ? (4'd8) : (obj_trigger_id_start_from_8);
+    wire [3:0] obj_trigger_id_start_from_6 = ((h_pix_obj == obj_trigger_list[7])&&(obj_valid_list[7])) ? (4'd7) : (obj_trigger_id_start_from_7);
+    wire [3:0] obj_trigger_id_start_from_5 = ((h_pix_obj == obj_trigger_list[6])&&(obj_valid_list[6])) ? (4'd6) : (obj_trigger_id_start_from_6);
+    wire [3:0] obj_trigger_id_start_from_4 = ((h_pix_obj == obj_trigger_list[5])&&(obj_valid_list[5])) ? (4'd5) : (obj_trigger_id_start_from_5);
+    wire [3:0] obj_trigger_id_start_from_3 = ((h_pix_obj == obj_trigger_list[4])&&(obj_valid_list[4])) ? (4'd4) : (obj_trigger_id_start_from_4);
+    wire [3:0] obj_trigger_id_start_from_2 = ((h_pix_obj == obj_trigger_list[3])&&(obj_valid_list[3])) ? (4'd3) : (obj_trigger_id_start_from_3);
+    wire [3:0] obj_trigger_id_start_from_1 = ((h_pix_obj == obj_trigger_list[2])&&(obj_valid_list[2])) ? (4'd2) : (obj_trigger_id_start_from_2);
+    wire [3:0] obj_trigger_id_start_from_0 = ((h_pix_obj == obj_trigger_list[1])&&(obj_valid_list[1])) ? (4'd1) : (obj_trigger_id_start_from_1);
+    wire [3:0] obj_trigger_id_all          = ((h_pix_obj == obj_trigger_list[0])&&(obj_valid_list[0])) ? (4'd0) : (obj_trigger_id_start_from_0);
+    wire [3:0] obj_trigger_id_next =
+        (obj_trigger_id == 4'd15) ? (obj_trigger_id_all) : (
+        (obj_trigger_id == 4'd0) ? (obj_trigger_id_start_from_0) : (
+        (obj_trigger_id == 4'd1) ? (obj_trigger_id_start_from_1) : (
+        (obj_trigger_id == 4'd2) ? (obj_trigger_id_start_from_2) : (
+        (obj_trigger_id == 4'd3) ? (obj_trigger_id_start_from_3) : (
+        (obj_trigger_id == 4'd4) ? (obj_trigger_id_start_from_4) : (
+        (obj_trigger_id == 4'd5) ? (obj_trigger_id_start_from_5) : (
+        (obj_trigger_id == 4'd6) ? (obj_trigger_id_start_from_6) : (
+        (obj_trigger_id == 4'd7) ? (obj_trigger_id_start_from_7) : (obj_trigger_id_start_from_8)))))))));
+    wire obj_trigger = ((reg_obj_en)&&(obj_trigger_id_next != obj_trigger_not_found)) ? 1 : 0;
+    
+    wire [5:0] obj_triggered = obj_visible_list[obj_trigger_id];
+    wire [7:0] current_obj_y = oamram[obj_triggered * 4]; // This should always equals to h_pix (h_pix is offseted by 8 to match object position)
+    wire [7:0] current_obj_x = oamram[obj_triggered * 4 + 1]; // This indicate the start position, need to be minus 16 to get the actual position
+    wire [7:0] current_obj_tile_id_raw = oamram[obj_triggered * 4 + 2]; // Tile ID without considering the object size
+    wire [7:0] current_obj_flags = oamram[obj_triggered * 4 + 3]; // Flags
+    wire current_obj_to_bg_priority = current_obj_flags[7];
+    wire current_obj_y_flip = current_obj_flags[6];
+    wire current_obj_x_flip = current_obj_flags[5];
+    wire current_obj_pal_number = current_obj_flags[4];
+    wire [1:0] current_obj_pal= (current_obj_pal_number) ? (PPU_PAL_OB1) : (PPU_PAL_OB0);
+    wire [7:0] line_to_obj_v_offset_raw = (v_pix + 8'd16 - current_obj_y); // Compensate 16 pixel offset and truncate to 3 bits
+    wire [7:0] current_obj_tile_id = (reg_obj_size == 1'b1) ? 
+        ({current_obj_tile_id_raw[7:1], (((line_to_obj_v_offset_raw[3])^(current_obj_y_flip)) ? 1'b1 : 1'b0)}) : // Select Hi or Lo tile
+        (current_obj_tile_id_raw); // Use tile ID directly
+    wire [2:0] line_to_obj_v_offset = (current_obj_y_flip) ? (~line_to_obj_v_offset_raw[2:0]) : (line_to_obj_v_offset_raw[2:0]);
+    
+    wire [12:0] current_obj_address_0 = current_obj_tile_id * 16 + line_to_obj_v_offset * 2;
+    wire [12:0] current_obj_address_1 = current_obj_address_0 | 13'h0001;
+    reg [7:0] current_obj_tile_data_0;
+    reg [7:0] current_obj_tile_data_1;
+    // Data that will be merged into pixel FIFO
+    // Organized in pixels
+    wire [15:0] current_obj_fetch_result = { 
+        current_obj_tile_data_0[7], current_obj_tile_data_1[7],
+        current_obj_tile_data_0[6], current_obj_tile_data_1[6],
+        current_obj_tile_data_0[5], current_obj_tile_data_1[5],
+        current_obj_tile_data_0[4], current_obj_tile_data_1[4],
+        current_obj_tile_data_0[3], current_obj_tile_data_1[3],
+        current_obj_tile_data_0[2], current_obj_tile_data_1[2],
+        current_obj_tile_data_0[1], current_obj_tile_data_1[1],
+        current_obj_tile_data_0[0], current_obj_tile_data_1[0]
+        };
+    
+    wire [31:0] merge_result = 
+        (current_obj_to_bg_priority) ?
+        ({ // BG have higher priority
+        (pf_data[63:62] == 2'b00) ? ({current_obj_fetch_result[15:14], current_obj_pal}) : ({pf_data[63:62], PPU_PAL_BG}),
+        (pf_data[59:58] == 2'b00) ? ({current_obj_fetch_result[13:12], current_obj_pal}) : ({pf_data[59:58], PPU_PAL_BG}),
+        (pf_data[55:54] == 2'b00) ? ({current_obj_fetch_result[11:10], current_obj_pal}) : ({pf_data[55:54], PPU_PAL_BG}),
+        (pf_data[51:50] == 2'b00) ? ({current_obj_fetch_result[ 9: 8], current_obj_pal}) : ({pf_data[51:50], PPU_PAL_BG}),
+        (pf_data[47:46] == 2'b00) ? ({current_obj_fetch_result[ 7: 6], current_obj_pal}) : ({pf_data[47:46], PPU_PAL_BG}),
+        (pf_data[43:42] == 2'b00) ? ({current_obj_fetch_result[ 5: 4], current_obj_pal}) : ({pf_data[43:42], PPU_PAL_BG}),
+        (pf_data[39:38] == 2'b00) ? ({current_obj_fetch_result[ 3: 2], current_obj_pal}) : ({pf_data[39:38], PPU_PAL_BG}),
+        (pf_data[35:34] == 2'b00) ? ({current_obj_fetch_result[ 1: 0], current_obj_pal}) : ({pf_data[35:34], PPU_PAL_BG})
+        }):
+        { // OBJ have higher prioritiy
+        (current_obj_fetch_result[15:14] == 2'b00) ? ({pf_data[63:62], PPU_PAL_BG}) : ({current_obj_fetch_result[15:14], current_obj_pal}),
+        (current_obj_fetch_result[13:12] == 2'b00) ? ({pf_data[59:58], PPU_PAL_BG}) : ({current_obj_fetch_result[13:12], current_obj_pal}),
+        (current_obj_fetch_result[11:10] == 2'b00) ? ({pf_data[55:54], PPU_PAL_BG}) : ({current_obj_fetch_result[11:10], current_obj_pal}),
+        (current_obj_fetch_result[ 9: 8] == 2'b00) ? ({pf_data[51:50], PPU_PAL_BG}) : ({current_obj_fetch_result[ 9: 8], current_obj_pal}),
+        (current_obj_fetch_result[ 7: 6] == 2'b00) ? ({pf_data[47:46], PPU_PAL_BG}) : ({current_obj_fetch_result[ 7: 6], current_obj_pal}),
+        (current_obj_fetch_result[ 5: 4] == 2'b00) ? ({pf_data[43:42], PPU_PAL_BG}) : ({current_obj_fetch_result[ 5: 4], current_obj_pal}),
+        (current_obj_fetch_result[ 3: 2] == 2'b00) ? ({pf_data[39:38], PPU_PAL_BG}) : ({current_obj_fetch_result[ 3: 2], current_obj_pal}),
+        (current_obj_fetch_result[ 1: 0] == 2'b00) ? ({pf_data[35:34], PPU_PAL_BG}) : ({current_obj_fetch_result[ 1: 0], current_obj_pal})
+        };
     
     // Modify all state related synchonize registers
     always @(negedge clk)
@@ -287,7 +355,6 @@ module ppu(
             S_IDLE: 
             begin
                 reg_mode_next <= PPU_MODE_V_BLANK;
-                valid <= 0;
                 //?
             end
             S_BLANK: 
@@ -300,6 +367,12 @@ module ppu(
                 valid <= 0;
                 oam_search_count <= 6'b0;
                 oam_visible_count <= 4'b0;
+                pf_empty <= 5'd16;
+                for (i = 0; i < 10; i=i+1) begin
+                    obj_visible_list[i] <= 6'b0;
+                    obj_trigger_list[i] <= 8'b0;
+                    obj_valid_list[i] <= 1'b0;
+                end
             end
             S_OAMX: 
             begin
@@ -308,8 +381,8 @@ module ppu(
                 valid <= 0;
                 oam_search_satisfy_y <= 
                     (
-                        ((oam_search_y)<=(oam_h_upper_boundary))&&
-                        ((oam_search_y)>(oam_h_lower_boundary))
+                        ((oam_search_y)<=(obj_h_upper_boundary))&&
+                        ((oam_search_y)>(obj_h_lower_boundary))
                     ) ? 1 : 0;
             end
             S_OAMY: 
@@ -319,8 +392,9 @@ module ppu(
                 valid <= 0;
                 if ((oam_search_satisfy_y)&&(oam_search_y)) begin
                     if (oam_visible_count < 4'd10) begin
-                        oam_visible_list[oam_visible_count] <= oam_search_count;
-                        oam_trigger_list[oam_visible_count] <= oam_search_y;
+                        obj_visible_list[oam_visible_count] <= oam_search_count;
+                        obj_trigger_list[oam_visible_count] <= oam_search_x;
+                        obj_valid_list[oam_visible_count] <= 1;
                         oam_visible_count <= oam_visible_count + 1'b1;
                     end
                 end    
@@ -330,76 +404,150 @@ module ppu(
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_map_address;
-                h_pix <= (h_pix + 1'b1);
+                h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= (h_pix < 8'd8) ? 0 : 1;
+                pixel <= pf_output_pixel;
+                valid <= (pf_empty != 5'd0) ? 0 : 1;
+                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
             end
             S_FTIDB: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_id <= vram_data_out;
-                h_pix <= (h_pix + 1'b1);
+                h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= (h_pix < 8'd8) ? 0 : 1;
+                pixel <= pf_output_pixel;
+                valid <= (pf_empty != 5'd0) ? 0 : 1;
+                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
             end
             S_FRD0A: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_0;
-                h_pix <= (h_pix + 1'b1);
+                h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= (h_pix < 8'd8) ? 0 : 1;
+                pixel <= pf_output_pixel;
+                valid <= (pf_empty != 5'd0) ? 0 : 1;
+                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
             end
             S_FRD0B: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_0 <= vram_data_out;
-                h_pix <= (h_pix + 1'b1);
+                h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= (h_pix < 8'd8) ? 0 : 1;
+                pixel <= pf_output_pixel;
+                valid <= (pf_empty != 5'd0) ? 0 : 1;
+                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
             end
             S_FRD1A: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_1;
-                h_pix <= (h_pix + 1'b1);
+                h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= (h_pix < 8'd8) ? 0 : 1;
+                pixel <= pf_output_pixel;
+                valid <= (pf_empty != 5'd0) ? 0 : 1;
+                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
             end
             S_FRD1B: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_1 <= vram_data_out;
-                h_pix <= (h_pix + 1'b1);
+                h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= (h_pix < 8'd8) ? 0 : 1;
+                pixel <= pf_output_pixel;
+                valid <= (pf_empty != 5'd0) ? 0 : 1;
+                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
             end
             S_FWAITA: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
-                h_pix <= (h_pix + 1'b1);
+                h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
-                valid <= (h_pix < 8'd8) ? 0 : 1;
+                pixel <= pf_output_pixel;
+                valid <= (pf_empty != 5'd0) ? 0 : 1;
+                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
             end
             S_FWAITB: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
-                h_pix <= (h_pix + 1'b1);
+                h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:28], current_fetch_result};
-                valid <= (h_pix < 8'd8) ? 0 : 1;
+                pixel <= pf_output_pixel;
+                valid <= (pf_empty != 5'd0) ? 0 : 1;
+                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
+            end
+            S_OFRD0A :
+            begin
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
+                valid <= 0;
+                vram_addr_int <= current_obj_address_0;
+            end
+            S_OFRD0B:
+            begin
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
+                valid <= 0;
+                current_obj_tile_data_0 <= vram_data_out;
+            end
+            S_OFRD1A:
+            begin
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
+                valid <= 0;
+                vram_addr_int <= current_obj_address_1;
+            end
+            S_OFRD1B:
+            begin
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
+                valid <= 0;
+                current_obj_tile_data_1 <= vram_data_out;
+            end
+            S_OWB:
+            begin
+                reg_mode_next <= PPU_MODE_PIX_TRANS;
+                valid <= 0;
+                vram_addr_int <= current_address_backup;
+                pf_data <= {merge_result[31:0], pf_data[31:0]};
             end
         endcase
     end
     
     // Enter Next State
+    // and handle object interrupt
+    // (sorry but I need to backup next state so I could not handle these in the next state logic)
     always @(posedge clk)
     begin
         if (rst) begin
             r_state <= 0;
+            r_next_backup <= 0;
+            obj_trigger_id <= obj_trigger_not_found;//not triggered
         end
         else
         begin
-            r_state <= r_next_state;
+            if (obj_trigger) begin
+                // If already in object rendering stages
+                if ((r_state == S_OFRD0A)||(r_state == S_OFRD0B)||(r_state == S_OFRD1A)||(r_state == S_OFRD1B)) begin
+                    r_state <= r_next_state;
+                end 
+                // Finished one object, but there is more to go!
+                else if (r_state == S_OWB) begin
+                    r_state <= S_OFRD0A;
+                    obj_trigger_id <= obj_trigger_id_next;
+                end
+                // Not rendering object before, start now
+                else begin
+                    r_next_backup <= r_next_state;
+                    r_state <= S_OFRD0A;
+                    obj_trigger_id <= obj_trigger_id_next;
+                end
+            end
+            else begin
+                r_state <= r_next_state;
+                // Finished one object, should be no more!
+                if (r_state == S_OWB) begin
+                    obj_trigger_id <= obj_trigger_not_found;
+                end
+            end
         end
     end
     
@@ -409,9 +557,18 @@ module ppu(
     begin
         case (r_state)
             S_IDLE: r_next_state = ((reg_lcd_en)&(is_in_v_blank)) ? (S_BLANK) : (S_IDLE);
-            S_BLANK: r_next_state = (reg_lcd_en) ? ((is_in_v_blank) ? 
-                (((v_count == (PPU_V_TOTAL - 1))&&(h_count == (PPU_H_TOTAL - 1))) ? (S_OAMX) : (S_BLANK)) :
-                ((h_count == (PPU_H_TOTAL - 1)) ? ((v_count == (PPU_V_ACTIVE - 1)) ? (S_BLANK) : (S_OAMX)) : (S_BLANK))) : (S_IDLE);
+            S_BLANK: r_next_state = 
+                (reg_lcd_en) ? (
+                    (is_in_v_blank) ? 
+                        (((v_count == (PPU_V_TOTAL - 1))&&(h_count == (PPU_H_TOTAL - 1))) ?
+                            (S_OAMX) : (S_BLANK)
+                        ) :
+                        ((h_count == (PPU_H_TOTAL - 1)) ? 
+                            ((v_count == (PPU_V_ACTIVE - 1)) ? 
+                                (S_BLANK) : (S_OAMX)):
+                            (S_BLANK)
+                        )
+                ) : (S_IDLE);
             S_OAMX: r_next_state = (reg_lcd_en) ? (S_OAMY) : (S_IDLE);
             S_OAMY: r_next_state = (reg_lcd_en) ? ((oam_search_count == (PPU_OAM_SEARCH_LENGTH)) ? (S_FTIDA) : (S_OAMX)) : (S_IDLE);
             S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FTIDB)) : (S_IDLE);
@@ -422,6 +579,12 @@ module ppu(
             S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FWAITA)) : (S_IDLE);
             S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FWAITB)) : (S_IDLE);
             S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
+            //S_OFTID: r_next_state = (reg_lcd_en) ? (S_OFRD0A) : (S_IDLE);
+            S_OFRD0A: r_next_state = (reg_lcd_en) ? (S_OFRD0B) : (S_IDLE);
+            S_OFRD0B: r_next_state = (reg_lcd_en) ? (S_OFRD1A) : (S_IDLE);
+            S_OFRD1A: r_next_state = (reg_lcd_en) ? (S_OFRD1B) : (S_IDLE);
+            S_OFRD1B: r_next_state = (reg_lcd_en) ? (S_OWB) : (S_IDLE);
+            S_OWB: r_next_state = (reg_lcd_en) ? (r_next_backup) : (S_IDLE);
             default: r_next_state = S_IDLE;
         endcase
     end
@@ -543,5 +706,10 @@ module ppu(
             end
         end
     end
+    
+    // Debug Outputs
+    assign scx = reg_scx;
+    assign scy = reg_scy;
+    assign state = r_state;
 
 endmodule
