@@ -37,6 +37,7 @@ module gameboy_test;
 	// Outputs
 	wire [15:0] a;
 	wire [7:0] d;
+    wire [7:0] din;
 	wire wr;
 	wire rd;
 	wire cs;
@@ -55,7 +56,9 @@ module gameboy_test;
 	wire [15:0] high_mem_addr;
 	wire [7:0] instruction;
 	wire [79:0] regs_data;
-
+    
+    reg [7:0] testrom [0:8191];
+    
 	// Instantiate the Unit Under Test (UUT)
 	gameboy uut (
 		.rst(rst), 
@@ -63,7 +66,7 @@ module gameboy_test;
 		.clk_mem(clk_mem), 
 		.a(a), 
 		.dout(d),
-        .din(8'hFF),
+        .din(din),
 		.wr(wr), 
 		.rd(rd), 
 		.cs(cs), 
@@ -88,7 +91,7 @@ module gameboy_test;
 		.bp_continue(bp_continue)
 	);
     
-    
+    assign din = testrom[a[11:0]];
     
     clk_gen #(250) clk_gen_1(clk);
     clk_gen #(62.5) clk_gen_2(clk_mem);
@@ -100,6 +103,8 @@ module gameboy_test;
 		bp_addr = 16'h8000;
 		bp_step = 0;
 		bp_continue = 0;
+        
+        $readmemh("testrom.mif", testrom, 0, 8191);
 
 		// Reset
 		#100;

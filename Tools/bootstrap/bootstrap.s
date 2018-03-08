@@ -8,6 +8,7 @@ Addr_0007:
     BIT 7,H               ; $0008
     JR NZ, Addr_0007      ; $000a
 
+    ;JP Prepare            ; for debug purpose only
     LD HL,$ff26           ; $000c  Setup Audio
     LD C,$11              ; $000f
     LD A,$80              ; $0011 
@@ -173,6 +174,7 @@ Addr_00F4:
 Addr_00FE:
     LD [$FF00+$50],A        ; $00fe    ;turn off DMG rom
 
+; These codes are NOT parts of boot ROM
 Addr_0100:
     JP Prepare
     DB $00
@@ -182,7 +184,7 @@ Addr_0104:
     DB $00,$08,$11,$1F,$88,$89,$00,$0E,$DC,$CC,$6E,$E6,$DD,$DD,$D9,$99
     DB $BB,$BB,$67,$63,$6E,$0E,$EC,$CC,$DD,$DC,$99,$9F,$BB,$B9,$33,$3E
     
-    DB "EXAMPLE",0,0,0,0,0,0,0,0 ; Cart name - 15bytes
+    DB "TESTROM",0,0,0,0,0,0,0,0 ; Cart name - 15bytes
     DB 0                         ; $143
     DB 0,0                       ; $144 - Licensee code (not important)
     DB 0                         ; $146 - SGB Support indicator
@@ -192,12 +194,72 @@ Addr_0104:
     DB 1                         ; $14a - Destination code
     DB $33                       ; $14b - Old licensee code
     DB 0                         ; $14c - Mask ROM version
-    DB 0                         ; $14d - Complement check (important)
+    DB $7F                       ; $14d - Complement check (important)
     DW 0                         ; $14e - Checksum (not important)
 
 Prepare:
     LD A,$00            
     LD [$FF00+$13],A           
     LD [$FF00+$14],A             
-    LD [$FF00+$40],A   
-    JP $0000
+    LD [$FF00+$40],A
+    LD HL, $FE9F
+    LD A, $00
+OAMClear:
+    LD [HL-], A
+    BIT 0, H
+    JR Z, OAMClear
+    ; Write a black tile
+    LD HL, $81BF
+    LD A, $FF
+OAMWRLoop:
+    LD [HL-], A
+    BIT 5, L
+    JR NZ, OAMWRLoop
+    ; Enable objects
+    LD HL, $FE00
+    ; Object 0
+    LD A, $90
+    LD [HL+], A
+    LD A, $48
+    LD [HL+], A
+    LD A, $1A
+    LD [HL+], A
+    LD A, $80
+    LD [HL+], A
+    ; Object 1
+    LD A, $98
+    LD [HL+], A
+    LD A, $48
+    LD [HL+], A
+    LD A, $1A
+    LD [HL+], A
+    LD A, $80
+    LD [HL+], A
+    ; Object 2
+    LD A, $98
+    LD [HL+], A
+    LD A, $50
+    LD [HL+], A
+    LD A, $1A
+    LD [HL+], A
+    LD A, $80
+    LD [HL+], A
+    ; Object 3
+    LD A, $98
+    LD [HL+], A
+    LD A, $58
+    LD [HL+], A
+    LD A, $1A
+    LD [HL+], A
+    LD A, $80
+    LD [HL+], A
+    ; Setup palette
+    LD A, $FC
+    LD [$FF00+$47],A
+    LD [$FF00+$48],A
+    LD [$FF00+$49],A
+    ; Enable LCD
+    LD A, $93
+    LD [$FF00+$40],A
+    HALT
+    
