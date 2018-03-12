@@ -10,7 +10,7 @@
 // Target Devices: 
 // Tool versions: 
 // Description: 
-//
+// 
 // Dependencies: 
 //
 // Revision: 
@@ -42,6 +42,15 @@ module ppu(
     output [7:0] scy,
     output [4:0] state
     );
+    
+    // There are three hardware layers in the GameBoy PPU: Background, Window, and Object (or sprites).
+    // Window will render above the background and the object can render above the background or under the background.
+    // Each object have a priority bit to identify where it should be rendered.
+    // Background, Window, and Object can be individually turned on or off.
+    // When nothing is turned on, it displays white.
+    // Windows Trigger is handled in the next state logic, their is a distinct state for the PPU to switch from
+    //   background rendering to window rendering (flush the fifo and add wait cycles.)
+    // Object Trigger is handled in the state change block, in order to backup the 
     
     // Global Wires ?
     integer i;
@@ -226,6 +235,7 @@ module ppu(
     wire [4:0] line_in_tile_v = v_pix_in_map[7:3];
     wire [4:0] h_tile = h_pix[7:3];
     wire render_window_or_bg = (((h_pix - reg_scx) >= reg_wx)&(reg_win_en)) ? 1 : 0;
+    wire window_trigger = (((h_pix - reg_scx) == reg_wx)&(reg_win_en)) ? 1 : 0;
     wire [12:0] current_map_address = ((render_window_or_bg) ? (window_map_addr) : (bg_map_addr)) + (line_in_tile_v) * 32 + h_tile;
     reg [7:0] current_tile_id;
     wire [12:0] current_tile_address_0 = (bg_window_tile_addr) + current_tile_id * 16 + line_to_tile_v_offset * 2;
@@ -367,7 +377,7 @@ module ppu(
                 valid <= 0;
                 oam_search_count <= 6'b0;
                 oam_visible_count <= 4'b0;
-                pf_empty <= 5'd16;
+                pf_empty <= 5'd3;
                 for (i = 0; i < 10; i=i+1) begin
                     obj_visible_list[i] <= 6'b0;
                     obj_trigger_list[i] <= 8'b0;
@@ -404,61 +414,104 @@ module ppu(
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_map_address;
-                h_pix <= h_pix + 1'b1;
-                pf_data <= {pf_data[59:0], 4'b0000};
-                pixel <= pf_output_pixel;
-                valid <= (pf_empty != 5'd0) ? 0 : 1;
-                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
+                if (pf_empty == 5'd2) begin
+                    valid <= 0;
+                    pf_data[63:32] <= current_fetch_result[31:0];
+                end
+                else if (pf_empty == 5'd1) begin
+                    valid <= 1;
+                    h_pix <= h_pix + 1'b1;
+                    pf_data <= {pf_data[59:32], current_fetch_result, 4'b0};
+                    pixel <= pf_output_pixel;
+                    pf_empty <= 0;
+                end
+                else if (pf_empty == 5'd0) begin
+                    valid <= 1;
+                    h_pix <= h_pix + 1'b1;
+                    pf_data <= {pf_data[59:0], 4'b0000};
+                    pixel <= pf_output_pixel;
+                end
+                else begin
+                    valid <= 0;
+                end
             end
             S_FTIDB: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_id <= vram_data_out;
-                h_pix <= h_pix + 1'b1;
-                pf_data <= {pf_data[59:0], 4'b0000};
-                pixel <= pf_output_pixel;
-                valid <= (pf_empty != 5'd0) ? 0 : 1;
-                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
+                if (pf_empty == 5'd0) begin
+                    h_pix <= h_pix + 1'b1;
+                    pf_data <= {pf_data[59:0], 4'b0000};
+                    pixel <= pf_output_pixel;
+                    valid <= 1;
+                end
+                else begin
+                    valid <= 0;
+                end
             end
             S_FRD0A: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_0;
-                h_pix <= h_pix + 1'b1;
-                pf_data <= {pf_data[59:0], 4'b0000};
-                pixel <= pf_output_pixel;
-                valid <= (pf_empty != 5'd0) ? 0 : 1;
-                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
+                if (pf_empty == 5'd0) begin
+                    h_pix <= h_pix + 1'b1;
+                    pf_data <= {pf_data[59:0], 4'b0000};
+                    pixel <= pf_output_pixel;
+                    valid <= 1;
+                end
+                else begin
+                    valid <= 0;
+                end
             end
             S_FRD0B: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_0 <= vram_data_out;
-                h_pix <= h_pix + 1'b1;
-                pf_data <= {pf_data[59:0], 4'b0000};
-                pixel <= pf_output_pixel;
-                valid <= (pf_empty != 5'd0) ? 0 : 1;
-                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
+                if (pf_empty == 5'd0) begin
+                    h_pix <= h_pix + 1'b1;
+                    pf_data <= {pf_data[59:0], 4'b0000};
+                    pixel <= pf_output_pixel;
+                    valid <= 1;
+                end
+                else begin
+                    valid <= 0;
+                end
             end
             S_FRD1A: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_1;
-                h_pix <= h_pix + 1'b1;
-                pf_data <= {pf_data[59:0], 4'b0000};
-                pixel <= pf_output_pixel;
-                valid <= (pf_empty != 5'd0) ? 0 : 1;
-                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
+                if (pf_empty == 5'd0) begin
+                    h_pix <= h_pix + 1'b1;
+                    pf_data <= {pf_data[59:0], 4'b0000};
+                    pixel <= pf_output_pixel;
+                    valid <= 1;
+                end
+                else begin
+                    valid <= 0;
+                end
             end
             S_FRD1B: 
             begin
                 reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_1 <= vram_data_out;
-                h_pix <= h_pix + 1'b1;
-                pf_data <= {pf_data[59:0], 4'b0000};
-                pixel <= pf_output_pixel;
-                valid <= (pf_empty != 5'd0) ? 0 : 1;
-                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
+                if (pf_empty == 5'd3) begin
+                    valid <= 0;
+                    pf_empty <= 5'd2; 
+                    h_pix <= h_pix + 8'd8;
+                    //Fetch result is not ready now, merge in the first stage.
+                end
+                else if (pf_empty == 5'd2) begin
+                    valid <= 0;
+                    pf_empty <= 5'd1;
+                    h_pix <= h_pix + 8'd8;
+                end
+                else if (pf_empty == 5'd0) begin
+                    valid <= 1;
+                    pf_data <= {pf_data[59:0], 4'b0000};
+                    pixel <= pf_output_pixel;
+                    h_pix <= h_pix + 1'b1;
+                end
             end
             S_FWAITA: 
             begin
@@ -466,8 +519,7 @@ module ppu(
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
                 pixel <= pf_output_pixel;
-                valid <= (pf_empty != 5'd0) ? 0 : 1;
-                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
+                valid <= 1;
             end
             S_FWAITB: 
             begin
@@ -475,8 +527,7 @@ module ppu(
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:28], current_fetch_result};
                 pixel <= pf_output_pixel;
-                valid <= (pf_empty != 5'd0) ? 0 : 1;
-                pf_empty <= (pf_empty != 5'd0) ? (pf_empty - 1) : 0;
+                valid <= 1;
             end
             S_OFRD0A :
             begin
@@ -576,7 +627,7 @@ module ppu(
             S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD0B)) : (S_IDLE);
             S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD1A)) : (S_IDLE);
             S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD1B)) : (S_IDLE);
-            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FWAITA)) : (S_IDLE);
+            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : ((pf_empty != 5'd0) ? (S_FTIDA) : (S_FWAITA))) : (S_IDLE); // If fifo is empty, no wait state is needed
             S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FWAITB)) : (S_IDLE);
             S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
             //S_OFTID: r_next_state = (reg_lcd_en) ? (S_OFRD0A) : (S_IDLE);
