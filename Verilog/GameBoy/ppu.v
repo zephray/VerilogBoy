@@ -48,9 +48,25 @@ module ppu(
     // Each object have a priority bit to identify where it should be rendered.
     // Background, Window, and Object can be individually turned on or off.
     // When nothing is turned on, it displays white.
+    
+    // The whole render logic does NOT require a scanline buffer to work, and it runs at 4MHz (VRAM runs at 2MHz)
+    // There are two main parts of the logic, implemented in a big FSM. The first one is the fetch unit, and the other
+    // is the pixel FIFO.
+    // The pixel FIFO shifts out one pixel when it contains more than 8 pixels, the fetch unit would generally render
+    // 8 pixels in 6 cycles (so 2 wait cycles are inserted so they are in sync generally). When there is no enough pixels,
+    // The FIFO would stop and wait for the fetch unit.
+    
     // Windows Trigger is handled in the next state logic, their is a distinct state for the PPU to switch from
-    //   background rendering to window rendering (flush the fifo and add wait cycles.)
-    // Object Trigger is handled in the state change block, in order to backup the 
+    // background rendering to window rendering (flush the fifo and add wait cycles.)
+    
+    // Object Trigger is handled in the state change block, in order to backup the previous state
+    // Current RAM address is also backed up during the handling of object rendering
+    // So, once all the objects at this position has been rendered, the state machine could be restored
+    
+    // The output pixel clock is the inverted main clock, which is the same as the real Game Boy
+    // Pixel data would be put on the pixel bus on the negedge of clock, so the LCD would latch the data on the posedge
+    // The original Game Boy used a gated clock to control if output is valid. Since gated clock is not recommend,
+    // I used a valid signal to indicate is output should be considered valid.
     
     // Global Wires ?
     integer i;
@@ -110,7 +126,7 @@ module ppu(
     
     wire [12:0] window_map_addr = (reg_win_disp_sel) ? (13'h1C00) : (13'h1800);
     wire [12:0] bg_map_addr = (reg_bg_disp_sel) ? (13'h1C00) : (13'h1800);
-    wire [12:0] bg_window_tile_addr = (reg_bg_win_data_sel) ? (13'h0000) : (13'h0800);
+    //wire [12:0] bg_window_tile_addr = (reg_bg_win_data_sel) ? (13'h0000) : (13'h0800);
     
     // PPU Memories
     wire        vram_we;
@@ -226,6 +242,7 @@ module ppu(
     wire [7:0] h_pix_obj = h_pix - 8'd8;
     wire [7:0] v_pix = v_count;
     wire [7:0] v_pix_in_map = v_pix + reg_scy;
+    reg [2:0] h_drop; //Drop pixels when SCX % 8 != 0
     reg [4:0] r_state = 0;
     reg [4:0] r_next_backup;
     reg [4:0] r_next_state;
@@ -233,12 +250,12 @@ module ppu(
     
     wire [2:0] line_to_tile_v_offset = v_pix_in_map[2:0];
     wire [4:0] line_in_tile_v = v_pix_in_map[7:3];
-    wire [4:0] h_tile = h_pix[7:3];
-    wire render_window_or_bg = (((h_pix - reg_scx) >= reg_wx)&(reg_win_en)) ? 1 : 0;
-    wire window_trigger = (((h_pix - reg_scx) == reg_wx)&(reg_win_en)) ? 1 : 0;
+    wire [4:0] h_tile = h_pix[7:3] + reg_scx[7:3];
+    wire render_window_or_bg = (((h_pix - reg_scx - 8'd8) >= reg_wx)&(reg_win_en)) ? 1 : 0;
+    wire window_trigger = (((h_pix - reg_scx - 8'd8) == reg_wx)&(reg_win_en)) ? 1 : 0;
     wire [12:0] current_map_address = ((render_window_or_bg) ? (window_map_addr) : (bg_map_addr)) + (line_in_tile_v) * 32 + h_tile;
     reg [7:0] current_tile_id;
-    wire [12:0] current_tile_address_0 = (bg_window_tile_addr) + current_tile_id * 16 + line_to_tile_v_offset * 2;
+    wire [12:0] current_tile_address_0 = ((reg_bg_win_data_sel) ? (current_tile_id * 16) : (13'h1000 - current_tile_id * 16)) + line_to_tile_v_offset * 2;
     wire [12:0] current_tile_address_1 = (current_tile_address_0) | 13'h0001;
     reg [7:0] current_tile_data_0;
     reg [7:0] current_tile_data_1;
@@ -383,6 +400,7 @@ module ppu(
                     obj_trigger_list[i] <= 8'b0;
                     obj_valid_list[i] <= 1'b0;
                 end
+                h_drop <= reg_scx[2:0];
             end
             S_OAMX: 
             begin
@@ -419,14 +437,22 @@ module ppu(
                     pf_data[63:32] <= current_fetch_result[31:0];
                 end
                 else if (pf_empty == 5'd1) begin
-                    valid <= 1;
+                    if (h_drop != 3'd0) begin
+                        h_drop <= h_drop - 1'd1;
+                        valid <= 0;
+                    end else
+                        valid <= 1;
                     h_pix <= h_pix + 1'b1;
                     pf_data <= {pf_data[59:32], current_fetch_result, 4'b0};
                     pixel <= pf_output_pixel;
                     pf_empty <= 0;
                 end
                 else if (pf_empty == 5'd0) begin
-                    valid <= 1;
+                    if (h_drop != 3'd0) begin
+                        h_drop <= h_drop - 1'd1;
+                        valid <= 0;
+                    end else
+                        valid <= 1;
                     h_pix <= h_pix + 1'b1;
                     pf_data <= {pf_data[59:0], 4'b0000};
                     pixel <= pf_output_pixel;
@@ -443,7 +469,11 @@ module ppu(
                     h_pix <= h_pix + 1'b1;
                     pf_data <= {pf_data[59:0], 4'b0000};
                     pixel <= pf_output_pixel;
-                    valid <= 1;
+                    if (h_drop != 3'd0) begin
+                        h_drop <= h_drop - 1'd1;
+                        valid <= 0;
+                    end else
+                        valid <= 1;
                 end
                 else begin
                     valid <= 0;
@@ -457,7 +487,11 @@ module ppu(
                     h_pix <= h_pix + 1'b1;
                     pf_data <= {pf_data[59:0], 4'b0000};
                     pixel <= pf_output_pixel;
-                    valid <= 1;
+                    if (h_drop != 3'd0) begin
+                        h_drop <= h_drop - 1'd1;
+                        valid <= 0;
+                    end else
+                        valid <= 1;
                 end
                 else begin
                     valid <= 0;
@@ -471,7 +505,11 @@ module ppu(
                     h_pix <= h_pix + 1'b1;
                     pf_data <= {pf_data[59:0], 4'b0000};
                     pixel <= pf_output_pixel;
-                    valid <= 1;
+                    if (h_drop != 3'd0) begin
+                        h_drop <= h_drop - 1'd1;
+                        valid <= 0;
+                    end else
+                        valid <= 1;
                 end
                 else begin
                     valid <= 0;
@@ -485,7 +523,11 @@ module ppu(
                     h_pix <= h_pix + 1'b1;
                     pf_data <= {pf_data[59:0], 4'b0000};
                     pixel <= pf_output_pixel;
-                    valid <= 1;
+                    if (h_drop != 3'd0) begin
+                        h_drop <= h_drop - 1'd1;
+                        valid <= 0;
+                    end else
+                        valid <= 1;
                 end
                 else begin
                     valid <= 0;
@@ -500,6 +542,7 @@ module ppu(
                     pf_empty <= 5'd2; 
                     h_pix <= h_pix + 8'd8;
                     //Fetch result is not ready now, merge in the first stage.
+                    //But h_pix add need to be handled here in order to have address ready
                 end
                 else if (pf_empty == 5'd2) begin
                     valid <= 0;
@@ -507,7 +550,11 @@ module ppu(
                     h_pix <= h_pix + 8'd8;
                 end
                 else if (pf_empty == 5'd0) begin
-                    valid <= 1;
+                    if (h_drop != 3'd0) begin
+                        h_drop <= h_drop - 1'd1;
+                        valid <= 0;
+                    end else
+                        valid <= 1;
                     pf_data <= {pf_data[59:0], 4'b0000};
                     pixel <= pf_output_pixel;
                     h_pix <= h_pix + 1'b1;
@@ -519,7 +566,11 @@ module ppu(
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
                 pixel <= pf_output_pixel;
-                valid <= 1;
+                if (h_drop != 3'd0) begin
+                        h_drop <= h_drop - 1'd1;
+                        valid <= 0;
+                    end else
+                        valid <= 1;
             end
             S_FWAITB: 
             begin
@@ -527,7 +578,11 @@ module ppu(
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:28], current_fetch_result};
                 pixel <= pf_output_pixel;
-                valid <= 1;
+                if (h_drop != 3'd0) begin
+                        h_drop <= h_drop - 1'd1;
+                        valid <= 0;
+                    end else
+                        valid <= 1;
             end
             S_OFRD0A :
             begin
