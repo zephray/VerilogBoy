@@ -130,7 +130,7 @@ module ppu(
     
     wire [12:0] window_map_addr = (reg_win_disp_sel) ? (13'h1C00) : (13'h1800);
     wire [12:0] bg_map_addr = (reg_bg_disp_sel) ? (13'h1C00) : (13'h1800);
-    //wire [12:0] bg_window_tile_addr = (reg_bg_win_data_sel) ? (13'h0000) : (13'h0800);
+    wire [12:0] bg_window_tile_addr = (reg_bg_win_data_sel) ? (13'h0000) : (13'h0800);
     
     // PPU Memories
     
@@ -277,19 +277,20 @@ module ppu(
     wire [7:0] v_pix = v_count;
     wire [7:0] v_pix_in_map = v_pix + reg_scy;
     reg [2:0] h_drop; //Drop pixels when SCX % 8 != 0
+    wire [2:0] h_extra = reg_scx % 8; //Extra line length when SCX % 8 != 0
     reg [4:0] r_state = 0;
     reg [4:0] r_next_backup;
     reg [4:0] r_next_state;
     wire is_in_v_blank = ((v_count >= PPU_V_ACTIVE) && (v_count < PPU_V_ACTIVE + PPU_V_BLANK));
     
-    wire [2:0] line_to_tile_v_offset = v_pix_in_map[2:0];
-    wire [4:0] line_in_tile_v = v_pix_in_map[7:3];
-    wire [4:0] h_tile = h_pix[7:3] + reg_scx[7:3];
+    wire [2:0] line_to_tile_v_offset = v_pix_in_map[2:0]; // Current line in a tile being rendered
+    wire [4:0] line_in_tile_v = v_pix_in_map[7:3]; // Current tile Y coordinate being rendered
+    wire [4:0] h_tile = h_pix[7:3] + reg_scx[7:3]; // Current tile X coordinate being rendered
     wire render_window_or_bg = (((h_pix - reg_scx - 8'd8) >= reg_wx)&(reg_win_en)) ? 1 : 0;
     wire window_trigger = (((h_pix - reg_scx - 8'd8) == reg_wx)&(reg_win_en)) ? 1 : 0;
     wire [12:0] current_map_address = ((render_window_or_bg) ? (window_map_addr) : (bg_map_addr)) + (line_in_tile_v) * 32 + h_tile;
     reg [7:0] current_tile_id;
-    wire [12:0] current_tile_address_0 = ((reg_bg_win_data_sel) ? (current_tile_id * 16) : (13'h1000 - current_tile_id * 16)) + line_to_tile_v_offset * 2;
+    wire [12:0] current_tile_address_0 = (bg_window_tile_addr) + current_tile_id * 16 + line_to_tile_v_offset * 2;
     wire [12:0] current_tile_address_1 = (current_tile_address_0) | 13'h0001;
     reg [7:0] current_tile_data_0;
     reg [7:0] current_tile_data_1;
@@ -298,14 +299,14 @@ module ppu(
     // Data that will be pushed into pixel FIFO
     // Organized in pixels
     wire [31:0] current_fetch_result = { 
-        current_tile_data_0[7], current_tile_data_1[7], PPU_PAL_BG,
-        current_tile_data_0[6], current_tile_data_1[6], PPU_PAL_BG,
-        current_tile_data_0[5], current_tile_data_1[5], PPU_PAL_BG,
-        current_tile_data_0[4], current_tile_data_1[4], PPU_PAL_BG,
-        current_tile_data_0[3], current_tile_data_1[3], PPU_PAL_BG,
-        current_tile_data_0[2], current_tile_data_1[2], PPU_PAL_BG,
-        current_tile_data_0[1], current_tile_data_1[1], PPU_PAL_BG,
-        current_tile_data_0[0], current_tile_data_1[0], PPU_PAL_BG
+        current_tile_data_1[7], current_tile_data_0[7], PPU_PAL_BG,
+        current_tile_data_1[6], current_tile_data_0[6], PPU_PAL_BG,
+        current_tile_data_1[5], current_tile_data_0[5], PPU_PAL_BG,
+        current_tile_data_1[4], current_tile_data_0[4], PPU_PAL_BG,
+        current_tile_data_1[3], current_tile_data_0[3], PPU_PAL_BG,
+        current_tile_data_1[2], current_tile_data_0[2], PPU_PAL_BG,
+        current_tile_data_1[1], current_tile_data_0[1], PPU_PAL_BG,
+        current_tile_data_1[0], current_tile_data_0[0], PPU_PAL_BG
         };
 
     reg [5:0] oam_search_count;
@@ -371,14 +372,14 @@ module ppu(
     // Data that will be merged into pixel FIFO
     // Organized in pixels
     wire [15:0] current_obj_fetch_result = { 
-        current_obj_tile_data_0[7], current_obj_tile_data_1[7],
-        current_obj_tile_data_0[6], current_obj_tile_data_1[6],
-        current_obj_tile_data_0[5], current_obj_tile_data_1[5],
-        current_obj_tile_data_0[4], current_obj_tile_data_1[4],
-        current_obj_tile_data_0[3], current_obj_tile_data_1[3],
-        current_obj_tile_data_0[2], current_obj_tile_data_1[2],
-        current_obj_tile_data_0[1], current_obj_tile_data_1[1],
-        current_obj_tile_data_0[0], current_obj_tile_data_1[0]
+        current_obj_tile_data_1[7], current_obj_tile_data_0[7],
+        current_obj_tile_data_1[6], current_obj_tile_data_0[6],
+        current_obj_tile_data_1[5], current_obj_tile_data_0[5],
+        current_obj_tile_data_1[4], current_obj_tile_data_0[4],
+        current_obj_tile_data_1[3], current_obj_tile_data_0[3],
+        current_obj_tile_data_1[2], current_obj_tile_data_0[2],
+        current_obj_tile_data_1[1], current_obj_tile_data_0[1],
+        current_obj_tile_data_1[0], current_obj_tile_data_0[0]
         };
     
     wire [31:0] merge_result = 
@@ -732,14 +733,14 @@ module ppu(
                 ) : (S_IDLE);
             S_OAMX: r_next_state = (reg_lcd_en) ? (S_OAMY) : (S_IDLE);
             S_OAMY: r_next_state = (reg_lcd_en) ? ((oam_search_count == (PPU_OAM_SEARCH_LENGTH)) ? (S_FTIDA) : (S_OAMX)) : (S_IDLE);
-            S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FTIDB)) : (S_IDLE);
-            S_FTIDB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD0A)) : (S_IDLE);
-            S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD0B)) : (S_IDLE);
-            S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD1A)) : (S_IDLE);
-            S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FRD1B)) : (S_IDLE);
-            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : ((pf_empty != 5'd0) ? (S_FTIDA) : (S_FWAITA))) : (S_IDLE); // If fifo is empty, no wait state is needed
-            S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FWAITB)) : (S_IDLE);
-            S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
+            S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO + h_extra)) ? (S_BLANK) : (S_FTIDB)) : (S_IDLE);
+            S_FTIDB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO + h_extra)) ? (S_BLANK) : (S_FRD0A)) : (S_IDLE);
+            S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO + h_extra)) ? (S_BLANK) : (S_FRD0B)) : (S_IDLE);
+            S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO + h_extra)) ? (S_BLANK) : (S_FRD1A)) : (S_IDLE);
+            S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO + h_extra)) ? (S_BLANK) : (S_FRD1B)) : (S_IDLE);
+            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO + h_extra)) ? (S_BLANK) : ((pf_empty != 5'd0) ? (S_FTIDA) : (S_FWAITA))) : (S_IDLE); // If fifo is empty, no wait state is needed
+            S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO + h_extra)) ? (S_BLANK) : (S_FWAITB)) : (S_IDLE);
+            S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO + h_extra)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
             //S_OFTID: r_next_state = (reg_lcd_en) ? (S_OFRD0A) : (S_IDLE);
             S_OAMRDA: r_next_state = (reg_lcd_en) ? (S_OAMRDB) : (S_IDLE);
             S_OAMRDB: r_next_state = (reg_lcd_en) ? (S_OFRD0A) : (S_IDLE);
