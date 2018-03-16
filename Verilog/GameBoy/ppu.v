@@ -290,7 +290,8 @@ module ppu(
     wire window_trigger = (((h_pix - reg_scx - 8'd8) == reg_wx)&(reg_win_en)) ? 1 : 0;
     wire [12:0] current_map_address = ((render_window_or_bg) ? (window_map_addr) : (bg_map_addr)) + (line_in_tile_v) * 32 + h_tile;
     reg [7:0] current_tile_id;
-    wire [12:0] current_tile_address_0 = (bg_window_tile_addr) + current_tile_id * 16 + line_to_tile_v_offset * 2;
+    wire [7:0] current_tile_id_adj = {~((reg_bg_win_data_sel)^(current_tile_id[7])), current_tile_id[6:0]}; // Adjust for 8800 Adressing mode
+    wire [12:0] current_tile_address_0 = (bg_window_tile_addr) + current_tile_id_adj * 16 + line_to_tile_v_offset * 2;
     wire [12:0] current_tile_address_1 = (current_tile_address_0) | 13'h0001;
     reg [7:0] current_tile_data_0;
     reg [7:0] current_tile_data_1;
