@@ -36,8 +36,9 @@ module debugger(
     input [4:0] reg_if,
     input [7:0] reg_scx,
     input [7:0] reg_scy,
-    input [15:0] bp_addr
-    );
+    input [15:0] bp_addr,
+    input [7:0] rom_bank
+    ); 
     
     reg [7:0] line1 [0:79];
     reg [7:0] line2 [0:79];
@@ -82,6 +83,8 @@ module debugger(
     wire [7:0] bp_addr_b;
     wire [7:0] bp_addr_c;
     wire [7:0] bp_addr_d;
+    wire [7:0] rom_bank_a;
+    wire [7:0] rom_bank_b;
     
     int_to_hex reg_a_a_disp  (reg_a [ 7: 4], reg_a_a);
     int_to_hex reg_a_b_disp  (reg_a [ 3: 0], reg_a_b);
@@ -115,6 +118,8 @@ module debugger(
     int_to_hex bp_addr_b_disp(bp_addr[11: 8],bp_addr_b);
     int_to_hex bp_addr_c_disp(bp_addr[ 7: 4],bp_addr_c);
     int_to_hex bp_addr_d_disp(bp_addr[ 3: 0],bp_addr_d);
+    int_to_hex rom_bank_a_disp(rom_bank[7:4], rom_bank_a);
+    int_to_hex rom_bank_b_disp(rom_bank[3:0], rom_bank_b);
     
     always @(*)
     begin
@@ -164,6 +169,8 @@ module debugger(
         line1[5]  = reg_scx_b;
         line1[11] = reg_scy_a;
         line1[12] = reg_scy_b;
+        line1[14] = rom_bank_a;
+        line1[15] = rom_bank_b;
     end
 
     //assign screen_buffer[0][23] = "G";

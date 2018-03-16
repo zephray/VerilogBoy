@@ -226,7 +226,7 @@ module top(
         .rd(gb_rd), // Read Enable
         .cs(), // External RAM Chip Select
         //Keyboard input
-        .key(),
+        .key(8'b0),
         //LCD output
         .hs(gb_hs), // Horizontal Sync Output
         .vs(gb_vs), // Vertical Sync Output
@@ -252,8 +252,26 @@ module top(
     );
     
     // Cartridge
-    assign SRAM_FLASH_A[13:0] = gb_a[14:1];
-    assign SRAM_FLASH_A[30:14] = 18'b0;
+    wire [9:0] rom_bank; //debug output
+    
+    mbc5 mbc5(
+        .gb_clk(clk_gb),
+        .gb_a(gb_a[15:12]),
+        .gb_d(gb_dout[7:0]),
+        .gb_cs(),
+        .gb_wr(gb_wr),
+        .gb_rd(gb_rd),
+        .gb_rst(reset),
+        .rom_a(SRAM_FLASH_A[21:13]),//Flash in 16bit mode
+        .ram_a(),
+        .rom_cs(),
+        .ram_cs(),
+        .ddir(),
+        .rom_bank(rom_bank)
+    );
+    
+    assign SRAM_FLASH_A[12:0] = gb_a[13:1];
+    assign SRAM_FLASH_A[30:22] = 18'b0;
     assign gb_din[7:0] = gb_a[0] ? (SRAM_FLASH_D[15:8]) : (SRAM_FLASH_D[7:0]);
     assign SRAM_FLASH_WE_B = 1;
     assign FLASH_CE_B = 0;
@@ -285,7 +303,8 @@ module top(
         .reg_if(reg_if),
         .reg_scx(reg_scx),
         .reg_scy(reg_scy),
-        .bp_addr(bp_addr)
+        .bp_addr(bp_addr),
+        .rom_bank(rom_bank[7:0])
     );
 
     // DVI output
