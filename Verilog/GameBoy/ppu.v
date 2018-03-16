@@ -24,8 +24,8 @@ module ppu(
     input clk_mem,
     input rst,
     input [15:0] a,
-    output reg [7:0] d_rd,
-    input [7:0] d_wr,
+    output reg [7:0] dout,
+    input [7:0] din,
     input rd,
     input wr,
     output reg int_vblank_req,
@@ -85,6 +85,10 @@ module ppu(
     reg [7:0] reg_wy;   //$FF4A Window Y Position (R/W)
     reg [7:0] reg_wx;   //$FF4B Window X Position (R/W)
     
+    // Some next state register, gets updated into reg during posedge
+    reg [7:0] reg_ly_next;
+    reg [1:0] reg_mode_next; // Next mode based on next state
+    
     wire reg_lcd_en = reg_lcdc[7];          //0=Off, 1=On
     wire reg_win_disp_sel = reg_lcdc[6];    //0=9800-9BFF, 1=9C00-9FFF
     wire reg_win_en = reg_lcdc[5];          //0=Off, 1=On
@@ -112,29 +116,57 @@ module ppu(
     reg [12:0] vram_addr_int;
     wire [12:0] vram_addr_ext;
     
-    wire addr_in_ppu    = (a >= 16'hFF40 && a <= 16'hFF4B);
-    wire addr_in_vram   = (a >= 16'h8000 && a <= 16'h9FFF);
-    wire addr_in_oamram = (a >= 16'hFE00 && a <= 16'hFE9F);
+    wire addr_in_ppu  = (a >= 16'hFF40 && a <= 16'hFF4B);
+    wire addr_in_vram = (a >= 16'h8000 && a <= 16'h9FFF);
+    wire addr_in_oam  = (a >= 16'hFE00 && a <= 16'hFE9F);
     
-    wire vram_access_ext = ((reg_mode_flag == PPU_MODE_H_BLANK)||
-                            (reg_mode_flag == PPU_MODE_V_BLANK)||
-                            (reg_mode_flag == PPU_MODE_OAM_SEARCH));
+    wire vram_access_ext = ((reg_mode_next == PPU_MODE_H_BLANK)||
+                            (reg_mode_next == PPU_MODE_V_BLANK)||
+                            (reg_mode_next == PPU_MODE_OAM_SEARCH));
     wire vram_access_int = ~vram_access_ext;
-    wire oamram_access_ext = ((reg_mode_flag == PPU_MODE_H_BLANK)||
-                              (reg_mode_flag == PPU_MODE_V_BLANK));
-    wire oamram_access_int = ~oamram_access_int;
+    wire oam_access_ext = ((reg_mode_next == PPU_MODE_H_BLANK)||
+                           (reg_mode_next == PPU_MODE_V_BLANK));
+    wire oam_access_int = ~oam_access_int;
     
     wire [12:0] window_map_addr = (reg_win_disp_sel) ? (13'h1C00) : (13'h1800);
     wire [12:0] bg_map_addr = (reg_bg_disp_sel) ? (13'h1C00) : (13'h1800);
     //wire [12:0] bg_window_tile_addr = (reg_bg_win_data_sel) ? (13'h0000) : (13'h0800);
     
     // PPU Memories
+    
+    // 8 bit WR, 16 bit RD, 160Bytes OAM
+    reg [7:0] oam_u [0: 79];
+    reg [7:0] oam_l [0: 79];
+    reg [7:0] oam_rd_addr_int;
+    wire [7:0] oam_rd_addr;
+    wire [7:0] oam_wr_addr;
+    reg [15:0] oam_data_out;
+    wire [8:0] oam_data_in;
+    wire oam_we;
+    
+    always @ (posedge clk)
+    begin
+        if (oam_we) begin
+            if (oam_wr_addr[0])
+                oam_u[oam_wr_addr[7:1]] <= oam_data_in;
+            else
+                oam_l[oam_wr_addr[7:1]] <= oam_data_in;
+        end
+        else begin
+            oam_data_out <= {oam_u[oam_rd_addr[7:1]], oam_l[oam_rd_addr[7:1]]};
+        end
+    end
+    
+    assign oam_wr_addr = a[7:0];
+    assign oam_rd_addr = (oam_access_ext) ? (a[7:0]) : (oam_rd_addr_int); 
+    assign oam_data_in = din;
+    assign oam_we = (addr_in_oam)&(wr)&(oam_access_ext);
+    
+    // 8 bit WR, 8 bit RD, 8KB VRAM
     wire        vram_we;
     wire [12:0] vram_addr;
     wire [7:0]  vram_data_in;
     wire [7:0]  vram_data_out;
-    
-    reg [7:0] oamram [0: 159];
     
     blockram8192 br_vram(
         .clka(clk_mem),
@@ -145,8 +177,8 @@ module ppu(
         
     assign vram_addr_ext = a[12:0];
     assign vram_addr = (vram_access_ext) ? (vram_addr_ext) : (vram_addr_int);
-    assign vram_data_in = d_wr;
-    assign vram_we = (addr_in_vram)&(wr);
+    assign vram_data_in = din;
+    assign vram_we = (addr_in_vram)&(wr)&(vram_access_ext);
     
     // Pixel Pipeline
     
@@ -235,6 +267,8 @@ module ppu(
     localparam S_OFRD1A   = 5'd15; // Object Fetch Read Data 1 Stage A
     localparam S_OFRD1B   = 5'd16; // Object Fetch Read Data 1 Stage B
     localparam S_OWB      = 5'd17; // Object Write Back
+    localparam S_OAMRDA   = 5'd18; // OAM Read Stage A
+    localparam S_OAMRDB   = 5'd19; // OAM Read Stage B
     
     localparam PPU_OAM_SEARCH_LENGTH = 6'd40;
 
@@ -275,22 +309,19 @@ module ppu(
         };
 
     reg [5:0] oam_search_count;
-    reg oam_search_satisfy_y;
     reg [5:0] obj_visible_list [0:9];
     reg [7:0] obj_trigger_list [0:9];
+    reg [7:0] obj_y_list [0:9];
     reg obj_valid_list [0:9];
     reg [3:0] oam_visible_count;
     
-    reg [7:0] reg_ly_next;
-    reg [1:0] reg_mode_next;
-    
-    wire [7:0] oam_search_x = oamram[oam_search_count * 4 + 1];
-    wire [7:0] oam_search_y = oamram[oam_search_count * 4];
+    reg [7:0] oam_search_x;
+    reg [7:0] oam_search_y;
     wire [7:0] obj_size_h = (reg_obj_size == 1'b1) ? (8'd16) : (8'd8);
     wire [7:0] obj_h_upper_boundary = (v_pix + 8'd16);
     wire [7:0] obj_h_lower_boundary = obj_h_upper_boundary - obj_size_h;
 
-    reg [3:0] obj_trigger_id;
+    reg [3:0] obj_trigger_id; // The object currently being/ or have been rendered, in the visible list
         
     localparam obj_trigger_not_found = 4'd15; 
     wire [3:0] obj_trigger_id_start_from_8 = ((h_pix_obj == obj_trigger_list[9])&&(obj_valid_list[9])) ? (4'd9) : (obj_trigger_not_found);
@@ -315,11 +346,13 @@ module ppu(
         (obj_trigger_id == 4'd7) ? (obj_trigger_id_start_from_7) : (obj_trigger_id_start_from_8)))))))));
     wire obj_trigger = ((reg_obj_en)&&(obj_trigger_id_next != obj_trigger_not_found)) ? 1 : 0;
     
-    wire [5:0] obj_triggered = obj_visible_list[obj_trigger_id];
-    wire [7:0] current_obj_y = oamram[obj_triggered * 4]; // This should always equals to h_pix (h_pix is offseted by 8 to match object position)
-    wire [7:0] current_obj_x = oamram[obj_triggered * 4 + 1]; // This indicate the start position, need to be minus 16 to get the actual position
-    wire [7:0] current_obj_tile_id_raw = oamram[obj_triggered * 4 + 2]; // Tile ID without considering the object size
-    wire [7:0] current_obj_flags = oamram[obj_triggered * 4 + 3]; // Flags
+    wire [5:0] obj_triggered = obj_visible_list[obj_trigger_id]; // The global id of object being rendered
+    //reg [7:0] current_obj_x; // This should always equals to h_pix (h_pix is offseted by 8 to match object position)
+    //reg [7:0] current_obj_y; // This indicate the start position, need to be minus 16 to get the actual position
+    wire [7:0] current_obj_y = obj_y_list[obj_trigger_id];
+    wire [7:0] current_obj_x = obj_trigger_list[obj_trigger_id]; //h_pix gets incremented before render
+    reg [7:0] current_obj_tile_id_raw ; // Tile ID without considering the object size
+    reg [7:0] current_obj_flags; // Flags
     wire current_obj_to_bg_priority = current_obj_flags[7];
     wire current_obj_y_flip = current_obj_flags[6];
     wire current_obj_x_flip = current_obj_flags[5];
@@ -371,6 +404,33 @@ module ppu(
         (current_obj_fetch_result[ 1: 0] == 2'b00) ? ({pf_data[35:34], PPU_PAL_BG}) : ({current_obj_fetch_result[ 1: 0], current_obj_pal})
         };
     
+    // Next Mode Logic, based on next state
+    always @ (*)
+    begin
+        case (r_next_state)
+            S_IDLE: reg_mode_next = PPU_MODE_V_BLANK;
+            S_BLANK: reg_mode_next = (is_in_v_blank) ? (PPU_MODE_V_BLANK) : (PPU_MODE_H_BLANK);
+            S_OAMX: reg_mode_next = PPU_MODE_OAM_SEARCH;
+            S_OAMY: reg_mode_next = PPU_MODE_OAM_SEARCH;
+            S_FTIDA: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_FTIDB: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_FRD0A: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_FRD0B: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_FRD1A: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_FRD1B: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_FWAITA: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_FWAITB: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_OAMRDA: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_OAMRDB: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_OFRD0A: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_OFRD0B: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_OFRD1A: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_OFRD1B: reg_mode_next = PPU_MODE_PIX_TRANS;
+            S_OWB: reg_mode_next = PPU_MODE_PIX_TRANS;
+            default: reg_mode_next = PPU_MODE_V_BLANK;
+        endcase
+    end
+    
     // Modify all state related synchonize registers
     always @(negedge clk)
     begin
@@ -381,56 +441,50 @@ module ppu(
         case (r_state)
             S_IDLE: 
             begin
-                reg_mode_next <= PPU_MODE_V_BLANK;
                 //?
             end
             S_BLANK: 
             begin
-                if (is_in_v_blank)
-                    reg_mode_next <= PPU_MODE_V_BLANK;
-                else
-                    reg_mode_next <= PPU_MODE_H_BLANK;
                 h_pix <= 8'b0;
                 valid <= 0;
                 oam_search_count <= 6'b0;
                 oam_visible_count <= 4'b0;
                 pf_empty <= 5'd3;
                 for (i = 0; i < 10; i=i+1) begin
-                    obj_visible_list[i] <= 6'b0;
-                    obj_trigger_list[i] <= 8'b0;
+                    //obj_visible_list[i] <= 6'b0;
+                    //obj_trigger_list[i] <= 8'b0;
                     obj_valid_list[i] <= 1'b0;
+                    //obj_y_list[i] <= 8'b0;
                 end
                 h_drop <= reg_scx[2:0];
+                oam_rd_addr_int <= 8'b0;
             end
             S_OAMX: 
             begin
-                reg_mode_next <= PPU_MODE_OAM_SEARCH;
                 h_pix <= 8'b0;
                 valid <= 0;
-                oam_search_satisfy_y <= 
-                    (
-                        ((oam_search_y)<=(obj_h_upper_boundary))&&
-                        ((oam_search_y)>(obj_h_lower_boundary))
-                    ) ? 1 : 0;
+                oam_search_y <= oam_data_out[7:0];
+                oam_search_x <= oam_data_out[15:8];
             end
             S_OAMY: 
             begin
-                reg_mode_next <= PPU_MODE_OAM_SEARCH;
                 h_pix <= 8'b0;
                 valid <= 0;
-                if ((oam_search_satisfy_y)&&(oam_search_y)) begin
+                if ((((oam_search_y)<=(obj_h_upper_boundary))&&((oam_search_y)>(obj_h_lower_boundary)))&&
+                    (oam_search_x != 8'b0)) begin
                     if (oam_visible_count < 4'd10) begin
                         obj_visible_list[oam_visible_count] <= oam_search_count;
                         obj_trigger_list[oam_visible_count] <= oam_search_x;
+                        obj_y_list[oam_visible_count] <= oam_search_y;
                         obj_valid_list[oam_visible_count] <= 1;
                         oam_visible_count <= oam_visible_count + 1'b1;
                     end
                 end    
                 oam_search_count <= oam_search_count + 1'b1;
+                oam_rd_addr_int <= (oam_search_count + 1'b1) * 4;
             end
             S_FTIDA: 
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_map_address;
                 if (pf_empty == 5'd2) begin
                     valid <= 0;
@@ -463,7 +517,6 @@ module ppu(
             end
             S_FTIDB: 
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_id <= vram_data_out;
                 if (pf_empty == 5'd0) begin
                     h_pix <= h_pix + 1'b1;
@@ -481,7 +534,6 @@ module ppu(
             end
             S_FRD0A: 
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_0;
                 if (pf_empty == 5'd0) begin
                     h_pix <= h_pix + 1'b1;
@@ -499,7 +551,6 @@ module ppu(
             end
             S_FRD0B: 
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_0 <= vram_data_out;
                 if (pf_empty == 5'd0) begin
                     h_pix <= h_pix + 1'b1;
@@ -517,7 +568,6 @@ module ppu(
             end
             S_FRD1A: 
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 vram_addr_int <= current_tile_address_1;
                 if (pf_empty == 5'd0) begin
                     h_pix <= h_pix + 1'b1;
@@ -535,7 +585,6 @@ module ppu(
             end
             S_FRD1B: 
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 current_tile_data_1 <= vram_data_out;
                 if (pf_empty == 5'd3) begin
                     valid <= 0;
@@ -562,7 +611,6 @@ module ppu(
             end
             S_FWAITA: 
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:0], 4'b0000};
                 pixel <= pf_output_pixel;
@@ -574,7 +622,6 @@ module ppu(
             end
             S_FWAITB: 
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 h_pix <= h_pix + 1'b1;
                 pf_data <= {pf_data[59:28], current_fetch_result};
                 pixel <= pf_output_pixel;
@@ -584,33 +631,39 @@ module ppu(
                     end else
                         valid <= 1;
             end
-            S_OFRD0A :
+            S_OAMRDA:
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
+                valid <= 0;
+                oam_rd_addr_int <= obj_triggered * 4 + 2'd2;
+            end
+            S_OAMRDB:
+            begin
+                valid <= 0;
+                current_obj_tile_id_raw <= oam_data_out[7:0];
+                current_obj_flags <= oam_data_out[15:8];
+            end
+            S_OFRD0A:
+            begin
                 valid <= 0;
                 vram_addr_int <= current_obj_address_0;
             end
             S_OFRD0B:
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 valid <= 0;
                 current_obj_tile_data_0 <= vram_data_out;
             end
             S_OFRD1A:
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 valid <= 0;
                 vram_addr_int <= current_obj_address_1;
             end
             S_OFRD1B:
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 valid <= 0;
                 current_obj_tile_data_1 <= vram_data_out;
             end
             S_OWB:
             begin
-                reg_mode_next <= PPU_MODE_PIX_TRANS;
                 valid <= 0;
                 vram_addr_int <= current_address_backup;
                 pf_data <= {merge_result[31:0], pf_data[31:0]};
@@ -632,18 +685,20 @@ module ppu(
         begin
             if (obj_trigger) begin
                 // If already in object rendering stages
-                if ((r_state == S_OFRD0A)||(r_state == S_OFRD0B)||(r_state == S_OFRD1A)||(r_state == S_OFRD1B)) begin
+                if ((r_state == S_OFRD0A)||(r_state == S_OFRD0B)||
+                    (r_state == S_OFRD1A)||(r_state == S_OFRD1B)||
+                    (r_state == S_OAMRDA)||(r_state == S_OAMRDB)) begin
                     r_state <= r_next_state;
                 end 
                 // Finished one object, but there is more to go!
                 else if (r_state == S_OWB) begin
-                    r_state <= S_OFRD0A;
+                    r_state <= S_OAMRDA;
                     obj_trigger_id <= obj_trigger_id_next;
                 end
                 // Not rendering object before, start now
                 else begin
                     r_next_backup <= r_next_state;
-                    r_state <= S_OFRD0A;
+                    r_state <= S_OAMRDA;
                     obj_trigger_id <= obj_trigger_id_next;
                 end
             end
@@ -686,6 +741,8 @@ module ppu(
             S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FWAITB)) : (S_IDLE);
             S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix == (PPU_H_FIFO)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
             //S_OFTID: r_next_state = (reg_lcd_en) ? (S_OFRD0A) : (S_IDLE);
+            S_OAMRDA: r_next_state = (reg_lcd_en) ? (S_OAMRDB) : (S_IDLE);
+            S_OAMRDB: r_next_state = (reg_lcd_en) ? (S_OFRD0A) : (S_IDLE);
             S_OFRD0A: r_next_state = (reg_lcd_en) ? (S_OFRD0B) : (S_IDLE);
             S_OFRD0B: r_next_state = (reg_lcd_en) ? (S_OFRD1A) : (S_IDLE);
             S_OFRD1A: r_next_state = (reg_lcd_en) ? (S_OFRD1B) : (S_IDLE);
@@ -728,35 +785,35 @@ module ppu(
     // Bus RW - Combinational Read
     always @(*)
     begin
-        d_rd = 8'hFF;
+        dout = 8'hFF;
         if (addr_in_ppu) begin
             case (a)
-                16'hFF40: d_rd = reg_lcdc;
-                16'hFF41: d_rd = reg_stat;
-                16'hFF42: d_rd = reg_scy;
-                16'hFF43: d_rd = reg_scx;
-                16'hFF44: d_rd = reg_ly;
-                16'hFF45: d_rd = reg_lyc;
-                16'hFF46: d_rd = reg_dma;
-                16'hFF47: d_rd = reg_bgp;
-                16'hFF48: d_rd = reg_obp0;
-                16'hFF49: d_rd = reg_obp1;
-                16'hFF4A: d_rd = reg_wy;
-                16'hFF4B: d_rd = reg_wx;
+                16'hFF40: dout = reg_lcdc;
+                16'hFF41: dout = reg_stat;
+                16'hFF42: dout = reg_scy;
+                16'hFF43: dout = reg_scx;
+                16'hFF44: dout = reg_ly;
+                16'hFF45: dout = reg_lyc;
+                16'hFF46: dout = reg_dma;
+                16'hFF47: dout = reg_bgp;
+                16'hFF48: dout = reg_obp0;
+                16'hFF49: dout = reg_obp1;
+                16'hFF4A: dout = reg_wy;
+                16'hFF4B: dout = reg_wx;
             endcase
         end
         else
         if (addr_in_vram) begin
             if (vram_access_ext)
             begin
-                d_rd = vram_data_out;
+                dout = vram_data_out;
             end
         end
         else
-        if (addr_in_oamram) begin
-            if (oamram_access_ext)
+        if (addr_in_oam) begin
+            if (oam_access_ext)
             begin
-                // Access Good
+                dout = oam_data_out;
             end
         end
     end
@@ -782,33 +839,21 @@ module ppu(
             if (wr) begin
                 if (addr_in_ppu) begin
                     case (a)
-                        16'hFF40: reg_lcdc <= d_wr;
-                        16'hFF41: reg_stat[7:3] <= d_wr[7:3];
-                        16'hFF42: reg_scy <= d_wr;
-                        16'hFF43: reg_scx <= d_wr;
-                        //16'hFF44: reg_ly <= d_wr;
-                        16'hFF45: reg_lyc <= d_wr;
-                        16'hFF46: reg_dma <= d_wr;
-                        16'hFF47: reg_bgp <= d_wr;
-                        16'hFF48: reg_obp0 <= d_wr;
-                        16'hFF49: reg_obp1 <= d_wr;
-                        16'hFF4A: reg_wy <= d_wr;
-                        16'hFF4B: reg_wx <= d_wr;
+                        16'hFF40: reg_lcdc <= din;
+                        16'hFF41: reg_stat[7:3] <= din[7:3];
+                        16'hFF42: reg_scy <= din;
+                        16'hFF43: reg_scx <= din;
+                        //16'hFF44: reg_ly <= din;
+                        16'hFF45: reg_lyc <= din;
+                        16'hFF46: reg_dma <= din;
+                        16'hFF47: reg_bgp <= din;
+                        16'hFF48: reg_obp0 <= din;
+                        16'hFF49: reg_obp1 <= din;
+                        16'hFF4A: reg_wy <= din;
+                        16'hFF4B: reg_wx <= din;
                     endcase
                 end
-                else
-                // VRAM access should be completed automatically 
-                if (addr_in_oamram) begin
-                    if (oamram_access_ext)
-                    begin
-                        // Access good
-                        oamram[a[7:0]] <= d_wr;
-                    end
-                    else
-                    begin
-                        // Do nothing
-                    end
-                end
+                // VRAM and OAM access should be completed automatically 
             end
         end
     end

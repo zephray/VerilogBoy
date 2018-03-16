@@ -195,8 +195,8 @@ module gameboy(
         .clk_mem(clk_mem),
         .rst(rst),
         .a(addr_ext),
-        .d_rd(do_video), // VRAM & OAM RW goes through PPU
-        .d_wr(data_ext),
+        .dout(do_video), // VRAM & OAM RW goes through PPU
+        .din(data_ext),
         .rd(mem_re), 
         .wr(mem_we),
         .int_vblank_req(int_vblank_req),

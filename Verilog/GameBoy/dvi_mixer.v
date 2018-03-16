@@ -147,10 +147,16 @@ module dvi_mixer(
 
     // Debug
     wire [14:0] gb_rd_addr = gb_y * 160 + gb_x;
+    reg [1:0] gb_rd_data;
     
-    assign gb_r[7:0] = (gb_buffer[gb_rd_addr] == 2'b11) ? (8'h00) : 
-                      ((gb_buffer[gb_rd_addr] == 2'b10) ? (8'h55) : 
-                      ((gb_buffer[gb_rd_addr] == 2'b01) ? (8'hAA) : (8'hFF)));
+    always @ (posedge clk)
+    begin
+        gb_rd_data <= gb_buffer[gb_rd_addr];
+    end
+    
+    assign gb_r[7:0] = (gb_rd_data == 2'b11) ? (8'h00) : 
+                      ((gb_rd_data == 2'b10) ? (8'h55) : 
+                      ((gb_rd_data == 2'b01) ? (8'hAA) : (8'hFF)));
     assign gb_g[7:0] = gb_r[7:0];
     assign gb_b[7:0] = gb_r[7:0];
     //assign gb_g[7:0] = gb_x[7:0];
@@ -167,8 +173,8 @@ module dvi_mixer(
       .gb_x(gb_x),
       .gb_y(gb_y),
       .gb_en(signal_in_gb_range),
-      .enable(dvi_blank),
-      .address()
+      .enable(dvi_blank)
+      //.address()
     );
 
     vga_font vga_font(

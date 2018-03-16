@@ -67,8 +67,8 @@ module dvi_module(//Outputs
   
 //  `MAKE_DDR(ODDR_dvi_xclk_p, dvi_xclk_p_nodly, 1'b1, 1'b0);
 //  `MAKE_DDR(ODDR_dvi_xclk_n, dvi_xclk_n_nodly, 1'b0, 1'b1);
-  ODDR ODDR_dvi_xclk_p (.C(shift_clk), .Q(dvi_xclk_p), .D1(1'b1), .D2(1'b0), .R(0), .S(0), .CE(1));
-  ODDR ODDR_dvi_xclk_n (.C(shift_clk), .Q(dvi_xclk_n), .D1(1'b0), .D2(1'b1), .R(0), .S(0), .CE(1));
+  ODDR ODDR_dvi_xclk_p (.C(shift_clk), .Q(dvi_xclk_p), .D1(1'b1), .D2(1'b0), .R(1'b0), .S(1'b0), .CE(1'b1));
+  ODDR ODDR_dvi_xclk_n (.C(shift_clk), .Q(dvi_xclk_n), .D1(1'b0), .D2(1'b1), .R(1'b0), .S(1'b0), .CE(1'b1));
 //  `MAKE_DDR(ODDR_dvi_de, dvi_de, ~border, ~border);
 //  `MAKE_DDR(ODDR_dvi_vs, dvi_vs, vs, vs);
 //  `MAKE_DDR(ODDR_dvi_hs, dvi_hs, hs, hs);

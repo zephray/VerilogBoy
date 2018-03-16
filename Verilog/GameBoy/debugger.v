@@ -116,7 +116,7 @@ module debugger(
     int_to_hex bp_addr_c_disp(bp_addr[ 7: 4],bp_addr_c);
     int_to_hex bp_addr_d_disp(bp_addr[ 3: 0],bp_addr_d);
     
-    always @(posedge clk)
+    always @(*)
     begin
         line2[2]  = reg_a_a;
         line2[3]  = reg_a_b;
