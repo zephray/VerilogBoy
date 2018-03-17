@@ -122,9 +122,12 @@ module dvi_timing(
 
     assign x = (h_count >= H_BLANK) ? (h_count - H_BLANK) : 11'h0;
     assign y = (v_count >= V_BLANK) ? (v_count - V_BLANK) : 11'h0;
-    assign gb_en = (x >= 11'd80)&&(x < 11'd560)&&(y >= 11'd24)&&(y < 11'd456);
+    wire gb_x_valid = (x >= 11'd80)&&(x < 11'd560);
+    wire gb_y_valid = (y >= 11'd24)&&(y < 11'd456);
+    assign gb_en = (gb_x_valid)&&(gb_y_valid);
     assign gb_x = (gb_en) ? (gb_x_count - 8'd80) : (8'h0);
-    assign gb_y = (gb_en) ? (gb_y_count - 8'd24) : (8'h0);
+    //assign gb_y = (gb_en) ? (gb_y_count - 8'd24) : (8'h0);
+    assign gb_y = (gb_y_valid) ? (gb_y_count - 8'd24) : (8'h0); // Y should be always available during the period
     //assign address = y * H_ACT + x;
     assign enable = (((h_count > H_BLANK) && (h_count <= H_TOTAL))&&
                                      ((v_count >= V_BLANK) && (v_count < V_TOTAL)));    //One pixel shift

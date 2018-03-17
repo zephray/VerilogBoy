@@ -258,8 +258,20 @@ OAMWRLoop:
     LD [$FF00+$47],A
     LD [$FF00+$48],A
     LD [$FF00+$49],A
+    ; Some Window Stuff
+    LD HL, $9C00
+    LD A, $19 ;(R)
+    LD C, $FF;
+WINWRLoop:
+    LD [HL+], A
+    DEC C
+    JR NZ, WINWRLoop
+    ; Set Window Position
+    LD A, $40
+    LD [$FF00+$4A],A
+    LD [$FF00+$4B],A
     ; Enable LCD
-    LD A, $93
+    LD A, $F3
     LD [$FF00+$40],A
     HALT
     
