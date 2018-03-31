@@ -5,7 +5,17 @@ Coding for fun - the hard way. Trying to implement a Game Boy with Verilog. Curr
 
 # Hardware
 
-Xilinx ML505/XUPV5. Planning to make a custom Spartan-6 based board.
+Currently targeting on Xilinx ML505/XUPV5. A custom board is designing in progress with the specifications below:
+
+* FPGA: Anlogic EG4D20 (23.5K 4-input LUTs equivalent)
+* MCU: STmicro STM32F207ZET6 (120MHz CortexM3/ 512KB Flash/ 128KB RAM)
+* RAM: 1M x 16Bits DDR400 SDRAM
+* LCD: Truly 2.2" 220x176 LCD
+* Sound: Wolfson WM8960 (16 bits ENOB, support GB AIN function)
+* Expansion: microSD card (3.3V HS mode up to 25MB/s)
+* Connectivity: USB 2.0 Full Speed
+* Catridge: GameBoy compatible cartridge slot
+* Power: Xpowers AXP192 PMU
 
 # Progress
 
@@ -13,7 +23,7 @@ Very early stage, BootROM runs and shows Nintendo logo correctly.
 
 GameBoy Related:
  - [x] CPU
- - [ ] PPU
+ - [x] PPU
  - [ ] Sound
  - [ ] Timer
  - [ ] Link
