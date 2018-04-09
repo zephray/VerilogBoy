@@ -20,11 +20,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 module top(
   //Audio
-  /*output         AUDIO_SDATA_OUT,
-  output         AUDIO_BIT_CLK,
+  output         AUDIO_SDATA_OUT,
+  input         AUDIO_BIT_CLK,
   input          AUDIO_SDATA_IN,
   output         AUDIO_SYNC,
-  output         FLASH_AUDIO_RESET_B,*/
+  output         FLASH_AUDIO_RESET_B,
 
   //SRAM & Flash
   output [30:0]  SRAM_FLASH_A,
@@ -43,6 +43,10 @@ module top(
   output         FLASH_CLK,
   output         FLASH_ADV_B,
   //output         FLASH_WAIT,
+  
+  //Rotrary Encoder
+  input          ROTARY_INCA,
+  input          ROTARY_INCB,
   
   //UART
   /*output         FPGA_SERIAL1_TX,
@@ -214,26 +218,33 @@ module top(
     wire gb_wr;
     wire gb_rd;
     
+    wire [19:0] gb_left;
+    wire [19:0] gb_right;
+    
     gameboy gameboy(
         .rst(reset), // Async Reset Input
         .clk(clk_gb), // 4.19MHz Clock Input
-        .clk_mem(clk_16), // High Speed Memory Clock
-        //Cartridge interface
+        .clk_mem(clk_16), // High Speed Memory Clock Input
+        .clk_audio(AUDIO_BIT_CLK), // 12.288MHz Audio Clock Input
+        // Cartridge interface
         .a(gb_a), // Address Bus
         .dout(gb_dout),  // Data Bus
         .din(gb_din),
         .wr(gb_wr), // Write Enable
         .rd(gb_rd), // Read Enable
         .cs(), // External RAM Chip Select
-        //Keyboard input
+        // Keyboard input
         .key(8'b0),
-        //LCD output
+        // LCD output
         .hs(gb_hs), // Horizontal Sync Output
         .vs(gb_vs), // Vertical Sync Output
         .cpl(gb_cpl), // Pixel Data Latch
         .pixel(gb_pixel), // Pixel Data
         .valid(gb_valid), // Pixel Valid
-        //Debug
+        // Audio
+        .left(gb_left),
+        .right(gb_right),
+        // Debug
         .halt(halt), // not quite implemented
         .debug_halt(debug_halt), // Debug mode status output
         .A_data(reg_a), // Accumulator debug output
@@ -365,7 +376,18 @@ module top(
         .pixel_b(dvi_b),
         .pixel_g(dvi_g)
     );
-    //
+    
+    // AC97 Output
+    ac97 ac97(
+        .rst(1'b0),
+        .ac97_bitclk(AUDIO_BIT_CLK),
+        .ac97_sdata_in(AUDIO_SDATA_IN),
+        .ac97_sdata_out(AUDIO_SDATA_OUT),
+        .ac97_sync(AUDIO_SYNC),
+        .ac97_reset_b(FLASH_AUDIO_RESET_B),
+        .left_level(gb_left),
+        .right_level(gb_right)
+    );
 
     //Debug output
     //assign GPIO_LED_C = locked_pll;
@@ -378,7 +400,7 @@ module top(
     assign GPIO_LED[6] = gb_vs;
     assign GPIO_LED[5] = gb_valid;
     assign GPIO_LED[4:3] = gb_pixel;
-    assign GPIO_LED[2:0] = 3'b0;
+    assign GPIO_LED[2:0] = gb_left[19:17];
     //
     
     //Keys

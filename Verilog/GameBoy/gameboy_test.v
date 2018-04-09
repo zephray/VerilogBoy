@@ -50,12 +50,10 @@ module gameboy_test;
 	wire debug_halt;
 	wire [7:0] A_data;
 	wire [7:0] F_data;
-	wire [4:0] IE_data;
-	wire [4:0] IF_data;
-	wire [7:0] high_mem_data;
-	wire [15:0] high_mem_addr;
 	wire [7:0] instruction;
 	wire [79:0] regs_data;
+    wire [19:0] left;
+    wire [19:0] right;
     
     reg [7:0] testrom [0:131071];
     
@@ -76,14 +74,16 @@ module gameboy_test;
 		.cpl(cpl), 
 		.pixel(pixel), 
 		.valid(valid), 
+        .left(left),
+        .right(right),
 		.halt(halt), 
 		.debug_halt(debug_halt), 
 		.A_data(A_data), 
 		.F_data(F_data), 
-		.IE_data(IE_data), 
-		.IF_data(IF_data), 
-		.high_mem_data(high_mem_data), 
-		.high_mem_addr(high_mem_addr), 
+		.IE_data(), 
+		.IF_data(), 
+		.high_mem_data(), 
+		.high_mem_addr(), 
 		.instruction(instruction), 
 		.regs_data(regs_data), 
 		.bp_addr(bp_addr), 

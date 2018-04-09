@@ -1,10 +1,10 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Wenting Zhang
 // 
 // Create Date:    17:30:26 02/08/2018 
-// Design Name: 
+// Design Name:    VerilogBoy
 // Module Name:    gameboy 
 // Project Name: 
 // Target Devices: 
@@ -24,23 +24,27 @@
 module gameboy(
     input rst, // Async Reset Input
     input clk, // 4.19MHz Clock Input
-    input clk_mem, // High Speed Memory Clock
-    //Cartridge interface
+    input clk_mem, // High Speed Memory Clock Input
+    input clk_audio, // 12.288MHz Audio Clock Input 
+    // Cartridge interface
     output [15:0] a, // Address Bus
     output [7:0] dout,  // Data Bus
     input  [7:0] din,
     output wr, // Write Enable
     output rd, // Read Enable
     output cs, // External RAM Chip Select
-    //Keyboard input
+    // Keyboard input
     input [7:0] key,
-    //LCD output
+    // LCD output
     output hs, // Horizontal Sync Output
     output vs, // Vertical Sync Output
     output cpl, // Pixel Data Latch
     output [1:0] pixel, // Pixel Data
     output valid,
-    //Debug
+    // Sound output
+    output [19:0] left,
+    output [19:0] right,
+    // Debug
     output halt, // not quite implemented?
     output debug_halt, // Debug mode status output
     output [7:0] A_data, // Accumulator debug output
@@ -62,7 +66,8 @@ module gameboy(
     wire [15:0] addr_ext; // Main Address Bus
     wire [7:0]  data_ext; // Main Data Bus
     wire [7:0]  do_video; // PPU & VRAM & OAM Data Output
-    
+    wire [7:0]  do_audio; // Audio Data Output
+
     wire mem_we; //Bus Master Memory Write Enable
     wire mem_re; //Bus Master Memory Read Enable
     wire cpu_mem_we; // CPU Memory Write Enable
@@ -213,6 +218,19 @@ module gameboy(
         .scy(scy)
     );
     
+    // Audio
+    sound sound(
+        .clk(clk),
+        .rst(rst),
+        .a(addr_ext),
+        .dout(do_audio),
+        .din(data_ext),
+        .rd(mem_re),
+        .wr(mem_we),
+        .left(left),
+        .right(right)
+    );
+    
     // Joystick
     register #(4) joystick_reg(
         .d(data_ext[7:4]),
@@ -306,7 +324,7 @@ module gameboy(
     assign bootstrap_tri_en = addr_in_bootstrap & ~mem_we;
     assign wram_tri_en = (addr_in_wram | addr_in_echo) & ~mem_we & mem_re;
     assign junk_tri_en = addr_in_junk & ~mem_we;
-    //assign sound_tri_en = reg_w_enable&~mem_we;
+    assign sound_tri_en = (addr_in_audio) & ~mem_we;
     assign video_tri_en = (addr_in_ppu | addr_in_vram | addr_in_oamram) & ~mem_we;
     assign cart_tri_en = addr_in_cart & ~mem_we;
     assign joystick_tri_en = addr_in_joystick & ~mem_we;
@@ -341,10 +359,10 @@ module gameboy(
         .out(data_ext),
         .in(joystick_reg_data),
         .en(joystick_tri_en));
-    /*tristate #(8) gating_sound_regs(
+    tristate #(8) gating_sound_regs(
         .out(data_ext),
-        .in(reg_data_in), //FIX THIS: regs need output
-        .en(sound_tri_en));*/
+        .in(do_audio), 
+        .en(sound_tri_en));
     tristate #(8) gating_IE(
         .out(data_ext),
         .in({3'd0, IE_data}),
