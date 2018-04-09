@@ -1,20 +1,15 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Wenting Zhang
 // 
 // Create Date:    21:19:04 04/08/2018 
-// Design Name: 
 // Module Name:    sound_noise 
-// Project Name: 
-// Target Devices: 
-// Tool versions: 
+// Project Name:   VerilogBoy
 // Description: 
 //
 // Dependencies: 
 //
-// Revision: 
-// Revision 0.01 - File Created
 // Additional Comments: 
 //
 //////////////////////////////////////////////////////////////////////////////////
@@ -27,16 +22,21 @@ module sound_noise(
     input [3:0] initial_volume, // Initial volume of envelope 0 = no sound
     input envelope_increasing, // 0 = decrease, 1 = increase
     input [2:0] num_envelope_sweeps, // number of envelope sweep 0 = stop
-    input [3:0] shift_clock_freq, // shift clock prescaler
+    input [3:0] shift_clock_freq, // shift clock prescaler (s)
     input counter_width, // 0 = 15 bits, 1 = 7 bits
-    input [2:0] freq_dividing_ratio, // shift clock divider 0 -> 1MHz, 1 -> 512kHz
+    input [2:0] freq_dividing_ratio, // shift clock divider 0 -> 1MHz, 1 -> 512kHz (r)
     input start, // Restart sound
     input single, // If set, output would stop upon reaching the length specified
-    output [3:0] level
+    output [3:0] level,
+    output enable
     );
     
+    // Dividing ratio from 4MHz is (r * 8), for the divier to work, the comparator shoud
+    // compare with (dividing_factor / 2 - 1), so it becomes (r * 4 - 1)
+    wire [4:0] adjusted_freq_dividing_ratio = (freq_dividing_ratio == 3'b0) ? (5'd1) :
+        ((freq_dividing_ratio * 4) - 1);
+    
     wire [3:0] target_vol;
-    wire enable;
     
     reg clk_div = 0;
     wire clk_shift;
@@ -44,7 +44,7 @@ module sound_noise(
     reg [3:0] clk_divider = 4'b0; // First stage divider
     always @(posedge clk)
     begin
-        if (clk_divider == (freq_dividing_ratio + 1)) begin
+        if (clk_divider == adjusted_freq_dividing_ratio) begin
             clk_div <= ~clk_div;
             clk_divider <= 0;
         end
@@ -67,9 +67,9 @@ module sound_noise(
         (counter_width == 0) ? ({(lfsr[0] ^ lfsr[1]), lfsr[14:1]}) :
                                ({8'b0, (lfsr[0] ^ lfsr[1]), lfsr[6:1]});
     
-    always@(posedge clk_shift, posedge rst)
+    always@(posedge clk_shift, posedge start)
     begin
-        if (rst) begin
+        if (start) begin
             lfsr <= {15{1'b1}};
         end
         else begin
@@ -86,7 +86,7 @@ module sound_noise(
         .target_vol(target_vol)
     );
 
-    sound_length_ctr sound_length_ctr(
+    sound_length_ctr #(6) sound_length_ctr(
         .rst(rst),
         .clk_length_ctr(clk_length_ctr),
         .start(start),

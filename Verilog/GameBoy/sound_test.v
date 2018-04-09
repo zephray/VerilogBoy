@@ -140,6 +140,27 @@ module sound_test;
         wr = 0;
         #10000;
         
+        a = 16'hFF1C;
+        din = 8'h01;
+        wr = 1;
+        #10000;
+        wr = 0;
+        #10000;
+        
+        a = 16'hFF1D;
+        din = 8'hFF;
+        wr = 1;
+        #10000;
+        wr = 0;
+        #10000;
+        
+        a = 16'hFF1E;
+        din = 8'h87; // Initiated
+        wr = 1;
+        #10000;
+        wr = 0;
+        #10000;
+        
 		// Add stimulus here
 
 	end

@@ -1,33 +1,30 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Wenting Zhang
 // 
 // Create Date:    22:24:55 04/08/2018 
-// Design Name: 
 // Module Name:    sound_length_ctr 
-// Project Name: 
-// Target Devices: 
-// Tool versions: 
+// Project Name:   VerilogBoy
 // Description: 
-//
+//   Sound length control for all channels 
 // Dependencies: 
-//
-// Revision: 
-// Revision 0.01 - File Created
+//   none
 // Additional Comments: 
-//
+//   Channel 3 has a different length
 //////////////////////////////////////////////////////////////////////////////////
 module sound_length_ctr(
     input rst,
     input clk_length_ctr,
     input start,
     input single,
-    input [5:0] length,
+    input [WIDTH-1:0] length,
     output reg enable = 0
     );
     
-    reg [5:0] length_left = 0; // Number of cycles to be played
+    parameter WIDTH = 6; // 6bit for Ch124, 8bit for Ch3
+    
+    reg [WIDTH-1:0] length_left = 0; // Upcounter from length to 255
 
     // Length Control
     always @(posedge clk_length_ctr, posedge start, posedge rst)
@@ -37,12 +34,12 @@ module sound_length_ctr(
         end
         else if (start) begin
             enable <= 1'b1;
-            length_left <= length;
+            length_left <= (length == 0) ? ({WIDTH{1'b1}}) : (length);
         end
         else begin
             if (single) begin
-                if (length_left != 6'b0)
-                    length_left <= length_left - 1'b1;
+                if (length_left != {WIDTH{1'b1}})
+                    length_left <= length_left + 1'b1;
                 else
                     enable <= 1'b0;
             end

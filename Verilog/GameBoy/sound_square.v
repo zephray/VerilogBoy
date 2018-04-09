@@ -4,19 +4,22 @@
 // Engineer: Wenting Zhang
 // 
 // Create Date:    16:51:12 04/07/2018 
-// Design Name:    VerilogBoy
 // Module Name:    sound_square 
-// Project Name: 
-// Target Devices: 
-// Tool versions: 
+// Project Name:   VerilogBoy
 // Description: 
-//
+//   Square wave generator for channel 1 and 2
 // Dependencies: 
-//
-// Revision: 
-// Revision 0.01 - File Created
+//   sound_vol_env, sound_length_ctr, sound_channel_mix
 // Additional Comments: 
-//   Output is 2s compliment
+//   First, synthesize a frequency with 8X of specified frequency with any percent
+//   of duty cycle, then use a small FSM to synthesis it into desired duty cycle.
+//
+//   Note: the original GameBoy process all the sound internally as unsigned
+//   number, and use a bypass capacitor to remove all the DC component. One drawback
+//   is that it do not have a constant "zero" reference: when a channel is off, the
+//   voltage is, naturually 0V. But when it is working, it will alter between 0 and
+//   Vmax(volume), means the zero becomes the half of current volume. This is also
+//   the design I am using here.
 //////////////////////////////////////////////////////////////////////////////////
 module sound_square(
     input rst, // Async reset
@@ -24,7 +27,7 @@ module sound_square(
     input clk_length_ctr, // Length control clock
     input clk_vol_env, // Volume Envelope clock
     input clk_sweep, // Sweep clock
-    input clk_freq_div, // Base frequency for divider (should be 8x131072=1048576Hz)
+    input clk_freq_div, // Base frequency for divider (should be 16x131072=2097152Hz)
     input [2:0] sweep_time, // From 0 to 7/128Hz
     input sweep_decreasing, // 0: Addition (Freq+) 1: Subtraction (Freq-)
     input [2:0] num_sweep_shifts, // Number of sweep shift (n=0-7)
@@ -36,40 +39,32 @@ module sound_square(
     input start, // Restart sound
     input single, // If set, output would stop upon reaching the length specified
     input [10:0] frequency, // Output frequency = 131072/(2048-x) Hz
-    output [3:0] level
+    output [3:0] level, // Sound output
+    output enable // Internal enable flag
     );
     
     //Sweep: X(t) = X(t-1) +/- X(t-1)/2^n
-
-    // First, synthesize a frequency with 8X of specified frequency with any percent
-    // of duty cycle, then use a small FSM to synthesis it into desired duty cycle.
-    
-    // Important note: the original GameBoy process all the sound internally as unsigned
-    // number, and use a bypass capacitor to remove all the DC component. One drawback
-    // is that it do not have a constant "zero" reference: when a channel is off, the
-    // voltage is, naturually 0V. But when it is working, it will alter between 0 and Vmax
-    // (which is the volume), means the zero becomes the half of current volume.
-    
-    // In this implementation, I am using 2s compliment as the final output value, and
-    // zero is always zero.
     
     reg [11:0] divider = 12'b0;
     reg [11:0] target_freq;
     reg octo_freq_out; // 8 x target frequency with arbitrary duty cycle
     wire target_freq_out; // Traget frequency with specified duty cycle
-    wire enable; // Enable for this channel
     wire [3:0] target_vol;
     reg [2:0] sweep_left; // Number of sweeps need to be done
 
-    always @(posedge clk_freq_div)
+    always @(posedge clk_freq_div, posedge start)
     begin
-        if (divider == target_freq) begin
-            octo_freq_out <= 1'b1;
-            divider <= 12'd2047;
+        if (start) begin
+            divider <= target_freq;
         end
         else begin
-            octo_freq_out <= 1'b0;
-            divider <= divider - 1'b1;
+            if (divider == 12'd2047) begin
+                octo_freq_out <= ~octo_freq_out;
+                divider <= target_freq;
+            end
+            else begin
+                divider <= divider - 1'b1;
+            end
         end
     end
     
@@ -119,12 +114,12 @@ module sound_square(
         .target_vol(target_vol)
     );
 
-    sound_length_ctr sound_length_ctr(
+    sound_length_ctr #(6) sound_length_ctr(
         .rst(rst),
         .clk_length_ctr(clk_length_ctr),
         .start(start),
         .single(single),
-        .length(length),
+        .length((length == 0) ? (8'd63) : (length)),
         .enable(enable)
     );
     

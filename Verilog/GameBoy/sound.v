@@ -1,22 +1,20 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: Wenting Zhangs
+// Engineer: Wenting Zhang
 // 
 // Create Date:    12:29:37 04/07/2018 
-// Design Name:    VerilogBoy
 // Module Name:    sound
-// Project Name: 
-// Target Devices: 
-// Tool versions: 
+// Project Name:   VerilogBoy
 // Description: 
-//
+//   GameBoy sound unit main file
 // Dependencies: 
 //
-// Revision: 
-// Revision 0.01 - File Created
 // Additional Comments: 
-//
+//   On a real gameboy, audio mixing is done with an OpAmp (I am not sure, but
+//   this makes most sense according to the documents we have). I am using adder
+//   here to make that happen. Also, audio volume control is probably done with a
+//   PGA on a real gameboy, and I am using multiplication to implement that here.
 //////////////////////////////////////////////////////////////////////////////////
 module sound(
     input clk,
@@ -56,12 +54,6 @@ module sound(
     wire [7:0] reg_nr52 = regs[22]; // $FF26 Sound on/off
     wire [4:0] reg_addr = {~a[4], a[3:0]}; // Convert 10-20 to 00-10
     
-    reg [7:0] wave [0:15];
-    wire [3:0] wave_addr = a[3:0];
-    
-    wire addr_in_regs = (a >= 16'hFF10 && a <= 16'hFF2F);
-    wire addr_in_wave = (a >= 16'hFF30 && a <= 16'hFF3F);
-    
     wire [2:0]  ch1_sweep_time = reg_nr10[6:4];
     wire        ch1_sweep_decreasing = reg_nr10[3];
     wire [2:0]  ch1_num_sweep_shifts = reg_nr10[2:0];
@@ -84,9 +76,10 @@ module sound(
     wire        ch2_single = reg_nr24[6];
     wire [10:0] ch2_frequency = {reg_nr24[2:0], reg_nr23[7:0]};
     wire [7:0]  ch3_length = reg_nr31[7:0];
-    wire [1:0]  ch3_enable = reg_nr30[7];
+    wire        ch3_on = reg_nr30[7];
     wire [3:0]  ch3_output_level = reg_nr32[6:5];
-    wire        ch3_consequtive = reg_nr34[6];
+    reg         ch3_start;
+    wire        ch3_single = reg_nr34[6];
     wire [10:0] ch3_frequency = {reg_nr34[2:0], reg_nr33[7:0]};
     wire [5:0]  ch4_length = reg_nr41[5:0];
     wire [3:0]  ch4_initial_volume = reg_nr42[7:4];
@@ -115,6 +108,15 @@ module sound(
     wire        ch3_on_flag;
     wire        ch2_on_flag;
     wire        ch1_on_flag;
+    
+    reg [7:0] wave [0:15];
+    wire [3:0] wave_addr_ext = a[3:0];
+    wire [3:0] wave_addr_int;
+    wire [3:0] wave_addr = (ch3_on) ? (wave_addr_int) : (wave_addr_ext);
+    wire [7:0] wave_data = wave[wave_addr];
+    
+    wire addr_in_regs = (a >= 16'hFF10 && a <= 16'hFF2F);
+    wire addr_in_wave = (a >= 16'hFF30 && a <= 16'hFF3F);
     
     // Bus RW
     // Bus RW - Combinational Read
@@ -168,6 +170,8 @@ module sound(
                 else ch1_start <= 0;
             if ((wr)&&(a == 16'hFF19)) ch2_start <= din[7];
                 else ch2_start <= 0;
+            if ((wr)&&(a == 16'hFF1E)) ch3_start <= din[7];
+                else ch3_start <= 0;
             if ((wr)&&(a == 16'hFF23)) ch4_start <= din[7];
                 else ch4_start <= 0;
         end
@@ -224,7 +228,8 @@ module sound(
         .start(ch1_start),
         .single(ch1_single),
         .frequency(ch1_frequency),
-        .level(ch1));
+        .level(ch1)
+    );
     
     sound_square sound_ch2(
         .rst(~sound_enable),
@@ -244,7 +249,23 @@ module sound(
         .start(ch2_start),
         .single(ch2_single),
         .frequency(ch2_frequency),
-        .level(ch2));
+        .level(ch2)
+    );
+        
+    sound_wave sound_ch3(
+        .rst(~sound_enable),
+        .clk(clk),
+        .clk_length_ctr(clk_length_ctr),
+        .length(ch3_length),
+        .volume(ch3_volume),
+        .on(ch3_on),
+        .single(ch3_single),
+        .start(ch3_start),
+        .frequency(ch3_frequency),
+        .wave_a(wave_addr_int),
+        .wave_d(wave_data),
+        .level(ch3)
+    );
     
     sound_noise sound_ch4(
         .rst(~sound_enable),
@@ -260,7 +281,8 @@ module sound(
         .freq_dividing_ratio(ch4_freq_dividing_ratio), 
         .start(ch4_start), 
         .single(ch4_single), 
-        .level(ch4));
+        .level(ch4)
+    );
     
     // Mixer
     
