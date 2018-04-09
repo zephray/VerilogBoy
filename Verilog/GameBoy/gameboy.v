@@ -1,25 +1,20 @@
 `timescale 1ns / 1ps
+`default_nettype wire
+`include "cpu.vh"
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: Wenting Zhang
 // 
 // Create Date:    17:30:26 02/08/2018 
-// Design Name:    VerilogBoy
 // Module Name:    gameboy 
-// Project Name: 
-// Target Devices: 
-// Tool versions: 
+// Project Name:   VerilogBoy
 // Description: 
-//
+//   Gameboy main file
 // Dependencies: 
-//
-// Revision: 
-// Revision 0.01 - File Created
+// 
 // Additional Comments: 
-//
+//   Hardware specific code should be implemented outside of this file
 //////////////////////////////////////////////////////////////////////////////////
-`include "cpu.vh"
-`default_nettype wire
 
 module gameboy(
     input rst, // Async Reset Input

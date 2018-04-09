@@ -2,20 +2,15 @@
 `default_nettype wire
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Wenting Zhang
 // 
 // Create Date:    09:50:37 04/07/2018 
-// Design Name: 
 // Module Name:    clk_div 
-// Project Name: 
-// Target Devices: 
-// Tool versions: 
+// Project Name:   VerilogBoy
 // Description: 
 //
 // Dependencies: 
 //
-// Revision: 
-// Revision 0.01 - File Created
 // Additional Comments: 
 //
 //////////////////////////////////////////////////////////////////////////////////

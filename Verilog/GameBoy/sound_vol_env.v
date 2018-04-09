@@ -1,20 +1,15 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Wenting Zhang
 // 
 // Create Date:    22:21:41 04/08/2018 
-// Design Name: 
 // Module Name:    sound_vol_env 
-// Project Name: 
-// Target Devices: 
-// Tool versions: 
+// Project Name:   VerilogBoy
 // Description: 
-//
+//   Sound volume envelope control for channel 1 2 4
 // Dependencies: 
-//
-// Revision: 
-// Revision 0.01 - File Created
+//   none
 // Additional Comments: 
 //
 //////////////////////////////////////////////////////////////////////////////////
