@@ -28,7 +28,7 @@
   </files>
 
   <transforms xmlns="http://www.xilinx.com/XMLSchema">
-    <transform xil_pn:end_ts="1523234609" xil_pn:in_ck="-6475049354523740683" xil_pn:name="TRAN_SubProjectAbstractToPreProxy" xil_pn:start_ts="1523234609">
+    <transform xil_pn:name="TRAN_SubProjectAbstractToPreProxy">
       <status xil_pn:value="SuccessfullyRun"/>
       <status xil_pn:value="ReadyToRun"/>
     </transform>
