@@ -1,38 +1,42 @@
 GameBoy
 =======
 
-Coding for fun - the hard way. Trying to implement a Game Boy with Verilog. Currently not working yet, and please do not expect it will. I am working on it in my spare time and this is not a school project, there will be no deadline nor formal reports. But I am trying to keep it well commented and documented.
+Coding for fun - the hard way. Trying to implement a Game Boy® compatible machine with Verilog. This is my course final project for CMPEN275 (Digital Design Laboratory) at PSU. I am trying to keep it well commented and documented.
+
+# Goals of the project
+
+This project aims to recreate the whole Game Boy gaming system on an FPGA development board, with the ability to play commercial game like The Legend of Zelda with no major glitches.
+
+To be specific, it should be able to run the unmodified Game Boy machine code, produce gray-scale graphics and output to an external monitor, produce the sound and output to the 3.5mm jack on the FPGA board, and accept user input to control the game. Other functionalities like serial communication and IR communication are currently not part of this project.
+
+# System Architecture
+
+The main system architecture is designed as follows:
+
+![Architecture](https://cdn.hackaday.io/images/6958041523363605244.jpg)
+
+There are three major parts needs to be implemented: the Game Boy CPU (8-bit CISC Processor, Intel 8080 like), the PPU (or GPU), the Sound unit. Several interfacing modules are needed to support the IO capability provided by the FPGA development board. Game ROM would be stored in on-board NOR flash, and RAM would be implemented with on-chip Block RAM.
 
 # Hardware
 
-Currently targeting on Xilinx ML505/XUPV5. A custom board is designing in progress with the specifications below:
-
-* FPGA: Anlogic EG4D20 (23.5K 4-input LUTs equivalent)
-* MCU: STmicro STM32F207ZET6 (120MHz CortexM3/ 512KB Flash/ 128KB RAM)
-* RAM: 1M x 16Bits DDR400 SDRAM
-* LCD: Truly 2.2" 220x176 LCD
-* Sound: Wolfson WM8960 (16 bits ENOB, support GB AIN function)
-* Expansion: microSD card (3.3V HS mode up to 25MB/s)
-* Connectivity: USB 2.0 Full Speed
-* Catridge: GameBoy compatible cartridge slot
-* Power: Xpowers AXP192 PMU
+Currently targeting on Xilinx ML505/XUPV5. 
 
 # Progress
 
-Very early stage, BootROM runs and shows Nintendo logo correctly.
+Working in progress. Able to run *Is that a demo in your pocket* correctly for the first part.
 
 GameBoy Related:
  - [x] CPU
  - [x] PPU
- - [ ] Sound
+ - [x] Sound
  - [ ] Timer
  - [ ] Link
  - [ ] Keypad?
 
 Board Related:
  - [x] DVI Interface
- - [ ] AC'97 Interface
- - [ ] Cartridge Interface
+ - [x] AC'97 Interface
+ - [x] Cartridge (Emulated with FlashROM)
 
 # Why I am building this
 
@@ -50,6 +54,18 @@ This project reused codes from several other projects. A great thanks to their e
  - https://github.com/nightslide7/Gameboy
  - https://github.com/MParygin/v.vga.font8x16
 
- # License
+# Legalese
 
- GNU GPLv3
+I'm not affiliated with Nintendo in any way. Game Boy® is a registered trademark by Nintendo. Nintendo® is a registered trademark. All other trademarks are property of their respective owner.
+
+# License
+
+The Game Boy® boot ROM code is copyrighted material and intellectual properity of Nintendo®. It is provided solely for educational purpose only.
+
+The GB-Z80 cpu code (cpu.v, cpu.vh, alu.v, and regfile.v) is originally written by Joseph Carlos, and according to his requirement, this files should only be used for non-commercial purpose.
+
+All other software codes are licensed under MPL 2.0.
+
+All other HDL codes are licensed under OHDL 1.0.
+
+All other text documents are licensed under CC BY-SA 4.0
