@@ -300,7 +300,7 @@ module ac97_conf(
 			ac97_out_slot1_valid_r = 1;
 			ac97_out_slot1_r = {1'b0 /* write */, 7'h04 /* hp volume */, 12'b0 /* reserved */};
 			ac97_out_slot2_valid_r = 1;
-			ac97_out_slot2_r = {16'h1f1f, 4'h0};
+			ac97_out_slot2_r = {16'h1717, 4'h0};
 			nextstate = 4'h3;
 		end
 		4'h3: begin

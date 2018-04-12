@@ -22,7 +22,8 @@ module sound_vol_env(
     output reg [3:0] target_vol
     );
     
-    reg [2:0] enve_left; // Number of envelopes need to be done
+    reg [2:0] enve_left; // Number of cycles before next sweep
+    wire enve_enabled = (num_envelope_sweeps == 3'd0) ? 0 : 1;
     
     // Volume Envelope
     always @(posedge clk_vol_env, posedge start)
@@ -36,14 +37,16 @@ module sound_vol_env(
                 enve_left <= enve_left - 1'b1;
             end
             else begin
-                enve_left <= num_envelope_sweeps;
-                if (envelope_increasing) begin
-                    if (target_vol != 4'b1111)
-                        target_vol <= target_vol + 1;
-                end
-                else begin
-                    if (target_vol != 4'b0000)
-                        target_vol <= target_vol - 1;
+                if (enve_enabled) begin
+                    if (envelope_increasing) begin
+                        if (target_vol != 4'b1111)
+                            target_vol <= target_vol + 1;
+                    end
+                    else begin
+                        if (target_vol != 4'b0000)
+                            target_vol <= target_vol - 1;
+                    end
+                    enve_left <= num_envelope_sweeps;
                 end
             end
         end

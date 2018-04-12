@@ -13,16 +13,15 @@
 // Additional Comments: 
 //   Channel 3 has a different length
 //////////////////////////////////////////////////////////////////////////////////
-module sound_length_ctr(
-    input rst,
-    input clk_length_ctr,
-    input start,
-    input single,
-    input [WIDTH-1:0] length,
-    output reg enable = 0
-    );
-    
+module sound_length_ctr(rst, clk_length_ctr, start, single, length, enable);
     parameter WIDTH = 6; // 6bit for Ch124, 8bit for Ch3
+    
+    input rst;
+    input clk_length_ctr;
+    input start;
+    input single;
+    input [WIDTH-1:0] length;
+    output reg enable = 0;
     
     reg [WIDTH-1:0] length_left = 0; // Upcounter from length to 255
 

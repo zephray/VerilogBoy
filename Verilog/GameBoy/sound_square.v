@@ -45,9 +45,9 @@ module sound_square(
     
     //Sweep: X(t) = X(t-1) +/- X(t-1)/2^n
     
-    reg [11:0] divider = 12'b0;
-    reg [11:0] target_freq;
-    reg octo_freq_out; // 8 x target frequency with arbitrary duty cycle
+    reg [10:0] divider = 11'b0;
+    reg [10:0] target_freq;
+    reg octo_freq_out = 0; // 8 x target frequency with arbitrary duty cycle
     wire target_freq_out; // Traget frequency with specified duty cycle
     wire [3:0] target_vol;
     reg [2:0] sweep_left; // Number of sweeps need to be done
@@ -58,12 +58,12 @@ module sound_square(
             divider <= target_freq;
         end
         else begin
-            if (divider == 12'd2047) begin
+            if (divider == 11'd2047) begin
                 octo_freq_out <= ~octo_freq_out;
                 divider <= target_freq;
             end
             else begin
-                divider <= divider - 1'b1;
+                divider <= divider + 1'b1;
             end
         end
     end
@@ -81,11 +81,13 @@ module sound_square(
                                ((duty_counter[2:1] == 2'b00) ? 1'b1 : 1'b0)))); // 25% HIGH
            
     // Frequency Sweep
+    reg overflow;
     always @(posedge clk_sweep, posedge start)
     begin
         if (start) begin
             target_freq <= frequency;
             sweep_left <= sweep_time;
+            overflow <= 0;
         end
         else begin
             if (sweep_left != 3'b0) begin
@@ -93,7 +95,7 @@ module sound_square(
                 if (sweep_decreasing) 
                     target_freq <= target_freq - (target_freq << num_sweep_shifts);
                 else
-                    target_freq <= target_freq + (target_freq << num_sweep_shifts);
+                    {overflow, target_freq} <= target_freq + (target_freq << num_sweep_shifts);
             end
             else begin
                 target_freq <= frequency;
@@ -119,9 +121,11 @@ module sound_square(
         .clk_length_ctr(clk_length_ctr),
         .start(start),
         .single(single),
-        .length((length == 0) ? (8'd63) : (length)),
-        .enable(enable)
+        .length(length),
+        .enable(enable_length)
     );
+    
+    assign enable = enable_length & ~overflow;
     
     sound_channel_mix sound_channel_mix(
         .enable(enable),

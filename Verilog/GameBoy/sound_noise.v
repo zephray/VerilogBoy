@@ -33,15 +33,15 @@ module sound_noise(
     
     // Dividing ratio from 4MHz is (r * 8), for the divier to work, the comparator shoud
     // compare with (dividing_factor / 2 - 1), so it becomes (r * 4 - 1)
-    wire [4:0] adjusted_freq_dividing_ratio = (freq_dividing_ratio == 3'b0) ? (5'd1) :
-        ((freq_dividing_ratio * 4) - 1);
+    reg [4:0] adjusted_freq_dividing_ratio;
+    reg [3:0] latched_shift_clock_freq;
     
     wire [3:0] target_vol;
     
     reg clk_div = 0;
     wire clk_shift;
     
-    reg [3:0] clk_divider = 4'b0; // First stage divider
+    reg [5:0] clk_divider = 6'b0; // First stage
     always @(posedge clk)
     begin
         if (clk_divider == adjusted_freq_dividing_ratio) begin
@@ -52,16 +52,16 @@ module sound_noise(
             clk_divider <= clk_divider + 1'b1;
     end
     
-    reg [15:0] clk_shifter = 15'b0;
+    reg [13:0] clk_shifter = 14'b0; // Second stage
     always @(posedge clk_div)
     begin
         clk_shifter <= clk_shifter + 1'b1;
     end
     
-    assign clk_shift = clk_shifter[shift_clock_freq];
+    assign clk_shift = clk_shifter[latched_shift_clock_freq];
     
     reg [14:0] lfsr = {15{1'b1}};
-    wire target_freq_out = lfsr[0];
+    wire target_freq_out = ~lfsr[0];
     
     wire [14:0] lfsr_next =
         (counter_width == 0) ? ({(lfsr[0] ^ lfsr[1]), lfsr[14:1]}) :
@@ -71,6 +71,9 @@ module sound_noise(
     begin
         if (start) begin
             lfsr <= {15{1'b1}};
+            adjusted_freq_dividing_ratio <=
+                (freq_dividing_ratio == 3'b0) ? (5'd1) : ((freq_dividing_ratio * 4) - 1);
+            latched_shift_clock_freq <= shift_clock_freq;
         end
         else begin
             lfsr <= lfsr_next;

@@ -15,6 +15,8 @@
 //   this makes most sense according to the documents we have). I am using adder
 //   here to make that happen. Also, audio volume control is probably done with a
 //   PGA on a real gameboy, and I am using multiplication to implement that here.
+//   So this would synthesis some additional adders and multipliers which should
+//   not be part of a Game Boy.
 //////////////////////////////////////////////////////////////////////////////////
 module sound(
     input clk,
@@ -26,7 +28,12 @@ module sound(
     input rd,
     input wr,
     output [19:0] left,
-    output [19:0] right
+    output [19:0] right,
+    // debug
+    output [3:0] ch1_level,
+    output [3:0] ch2_level,
+    output [3:0] ch3_level,
+    output [3:0] ch4_level
     );
 
     // Sound registers
@@ -77,7 +84,7 @@ module sound(
     wire [10:0] ch2_frequency = {reg_nr24[2:0], reg_nr23[7:0]};
     wire [7:0]  ch3_length = reg_nr31[7:0];
     wire        ch3_on = reg_nr30[7];
-    wire [3:0]  ch3_output_level = reg_nr32[6:5];
+    wire [1:0]  ch3_volume = reg_nr32[6:5];
     reg         ch3_start;
     wire        ch3_single = reg_nr34[6];
     wire [10:0] ch3_frequency = {reg_nr34[2:0], reg_nr33[7:0]};
@@ -163,7 +170,8 @@ module sound(
                     end
                 end
                 else if (addr_in_wave)
-                    wave[wave_addr] <= din;
+                    wave[wave_addr_ext] <= din; //what if we allow Write any way?
+                    //wave[wave_addr] <= din;
             end
             // Initialize signal, should be triggered whenever a 1 is written
             if ((wr)&&(a == 16'hFF14)) ch1_start <= din[7];
@@ -199,7 +207,7 @@ module sound(
     assign clk_vol_env = (sequencer_state == 3'd7) ? 1'b1 : 1'b0;
     assign clk_sweep = ((sequencer_state == 3'd2) || (sequencer_state == 3'd6)) ? 1'b1 : 1'b0;
 
-    clk_div #(.WIDTH(3), .DIV(4)) freq_div(
+    clk_div #(.WIDTH(2), .DIV(2)) freq_div(
         .i(clk),
         .o(clk_freq_div)
     );
@@ -228,7 +236,8 @@ module sound(
         .start(ch1_start),
         .single(ch1_single),
         .frequency(ch1_frequency),
-        .level(ch1)
+        .level(ch1),
+        .enable(ch1_on_flag)
     );
     
     sound_square sound_ch2(
@@ -249,7 +258,8 @@ module sound(
         .start(ch2_start),
         .single(ch2_single),
         .frequency(ch2_frequency),
-        .level(ch2)
+        .level(ch2),
+        .enable(ch2_on_flag)
     );
         
     sound_wave sound_ch3(
@@ -264,13 +274,14 @@ module sound(
         .frequency(ch3_frequency),
         .wave_a(wave_addr_int),
         .wave_d(wave_data),
-        .level(ch3)
+        .level(ch3),
+        .enable(ch3_on_flag)
     );
     
     sound_noise sound_ch4(
         .rst(~sound_enable),
         .clk(clk),
-        .clk_length_ctr(sound_length_ctr),
+        .clk_length_ctr(clk_length_ctr),
         .clk_vol_env(clk_vol_env),
         .length(ch4_length),
         .initial_volume(ch4_initial_volume), 
@@ -281,7 +292,8 @@ module sound(
         .freq_dividing_ratio(ch4_freq_dividing_ratio), 
         .start(ch4_start), 
         .single(ch4_single), 
-        .level(ch4)
+        .level(ch4),
+        .enable(ch4_on_flag)
     );
     
     // Mixer
@@ -314,23 +326,32 @@ module sound(
     */
     
     // Unsigned mixer
-    reg [5:0] mixed_s01;
-    reg [5:0] mixed_s02;
+    reg [5:0] added_s01;
+    reg [5:0] added_s02;
     always @(*)
     begin
-        mixed_s01 = 6'd0;
-        mixed_s02 = 6'd0;
-        if (s01_ch1_enable) mixed_s01 = mixed_s01 + ch1;
-        if (s01_ch2_enable) mixed_s01 = mixed_s01 + ch2;
-        if (s01_ch3_enable) mixed_s01 = mixed_s01 + ch3;
-        if (s01_ch4_enable) mixed_s01 = mixed_s01 + ch4;
-        if (s02_ch1_enable) mixed_s02 = mixed_s02 + ch1;
-        if (s02_ch2_enable) mixed_s02 = mixed_s02 + ch2;
-        if (s02_ch3_enable) mixed_s02 = mixed_s02 + ch3;
-        if (s02_ch4_enable) mixed_s02 = mixed_s02 + ch4;
+        added_s01 = 6'd0;
+        added_s02 = 6'd0;
+        if (s01_ch1_enable) added_s01 = added_s01 + ch1;
+        if (s01_ch2_enable) added_s01 = added_s01 + ch2;
+        if (s01_ch3_enable) added_s01 = added_s01 + ch3;
+        if (s01_ch4_enable) added_s01 = added_s01 + ch4;
+        if (s02_ch1_enable) added_s02 = added_s02 + ch1;
+        if (s02_ch2_enable) added_s02 = added_s02 + ch2;
+        if (s02_ch3_enable) added_s02 = added_s02 + ch3;
+        if (s02_ch4_enable) added_s02 = added_s02 + ch4;
     end
     
-    assign left  = (sound_enable) ? {1'b0, mixed_s01[5:0], 13'b0} : 20'b0;
-    assign right = (sound_enable) ? {1'b0, mixed_s02[5:0], 13'b0} : 20'b0; 
+    wire [8:0] mixed_s01 = added_s01 * s01_output_level;
+    wire [8:0] mixed_s02 = added_s02 * s02_output_level;
+    
+    assign left  = (sound_enable) ? {1'b0, mixed_s01[8:0], 10'b0} : 20'b0;
+    assign right = (sound_enable) ? {1'b0, mixed_s02[8:0], 10'b0} : 20'b0; 
+    
+    // Debug Output
+    assign ch1_level = ch1;
+    assign ch2_level = ch2;
+    assign ch3_level = ch3;
+    assign ch4_level = ch4;
 
 endmodule

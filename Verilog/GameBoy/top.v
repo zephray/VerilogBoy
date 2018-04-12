@@ -221,6 +221,11 @@ module top(
     wire [19:0] gb_left;
     wire [19:0] gb_right;
     
+    wire [3:0] ch1_level;
+    wire [3:0] ch2_level;
+    wire [3:0] ch3_level;
+    wire [3:0] ch4_level;
+    
     gameboy gameboy(
         .rst(reset), // Async Reset Input
         .clk(clk_gb), // 4.19MHz Clock Input
@@ -259,7 +264,11 @@ module top(
         .bp_step(bp_step), // Debug single step
         .bp_continue(bp_continue), // Debug continue
         .scx(reg_scx),
-        .scy(reg_scy)
+        .scy(reg_scy),
+        .ch1_level(ch1_level),
+        .ch2_level(ch2_level),
+        .ch3_level(ch3_level),
+        .ch4_level(ch4_level)
     );
     
     // Cartridge
@@ -399,8 +408,11 @@ module top(
     assign GPIO_LED[7] = gb_hs;
     assign GPIO_LED[6] = gb_vs;
     assign GPIO_LED[5] = gb_valid;
-    assign GPIO_LED[4:3] = gb_pixel;
-    assign GPIO_LED[2:0] = gb_left[19:17];
+    assign GPIO_LED[4] = gb_pixel[1];
+    assign GPIO_LED[3] = ch4_level[3];
+    assign GPIO_LED[2] = ch3_level[3];
+    assign GPIO_LED[1] = ch2_level[3];
+    assign GPIO_LED[0] = ch1_level[3];
     //
     
     //Keys

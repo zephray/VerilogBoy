@@ -31,6 +31,7 @@ module sound_wave(
     );
     
     // Freq = 64kHz / (2048 - frequency)
+    // Why????????
     
     wire [3:0] current_sample;
     
@@ -40,21 +41,22 @@ module sound_wave(
     assign current_sample[3:0] = (current_pointer[0]) ?
         (wave_d[3:0]) : (wave_d[7:4]);
     
-    wire clk_wave_base; // 128kHz base clock
-    clk_div #(.WIDTH(6), .DIV(32)) freq_div(
+    wire clk_wave_base = clk; // base clock
+    /*clk_div #(.WIDTH(6), .DIV(32)) freq_div(
         .i(clk),
         .o(clk_wave_base)
-    );
+    );*/
+    
     
     reg clk_pointer_inc = 1'b0; // Clock for pointer to increment
-    reg [11:0] divider = 12'b0;
+    reg [10:0] divider = 11'b0;
     always @(posedge clk_wave_base, posedge start)
     begin
         if (start) begin
             divider <= frequency;
         end
         else begin
-            if (divider == 12'd2047) begin
+            if (divider == 11'd2047) begin
                 clk_pointer_inc <= ~clk_pointer_inc;
                 divider <= frequency;
             end
@@ -64,7 +66,7 @@ module sound_wave(
         end
     end
         
-    always @(clk_pointer_inc, posedge start)
+    always @(posedge clk_pointer_inc, posedge start)
     begin
         if (start) begin
             current_pointer <= 5'b0;

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
-`default_nettype wire
 `include "cpu.vh"
+`default_nettype wire
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: Wenting Zhang
@@ -54,7 +54,11 @@ module gameboy(
     input bp_step, // Debug single step
     input bp_continue, // Debug continue
     output [7:0] scx,
-    output [7:0] scy
+    output [7:0] scy,
+    output [3:0] ch1_level,
+    output [3:0] ch2_level,
+    output [3:0] ch3_level,
+    output [3:0] ch4_level
     );
     
     // Bus & Memory Signals
@@ -223,7 +227,11 @@ module gameboy(
         .rd(mem_re),
         .wr(mem_we),
         .left(left),
-        .right(right)
+        .right(right),
+        .ch1_level(ch1_level),
+        .ch2_level(ch2_level),
+        .ch3_level(ch3_level),
+        .ch4_level(ch4_level)
     );
     
     // Joystick
