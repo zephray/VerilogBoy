@@ -66,6 +66,7 @@ module gameboy(
     wire [7:0]  data_ext; // Main Data Bus
     wire [7:0]  do_video; // PPU & VRAM & OAM Data Output
     wire [7:0]  do_audio; // Audio Data Output
+    wire [7:0]  do_timer; // Timer Data Output
 
     wire mem_we; //Bus Master Memory Write Enable
     wire mem_re; //Bus Master Memory Read Enable
@@ -80,7 +81,7 @@ module gameboy(
     wire addr_in_wram;
     wire addr_in_junk;
     wire addr_in_dma;
-    wire addr_in_tima;
+    wire addr_in_timer;
     wire addr_in_echo;
     wire addr_in_audio;
     wire addr_in_bootstrap;
@@ -123,7 +124,7 @@ module gameboy(
     
     localparam I_HILO = 4;
     localparam I_SERIAL = 3;
-    localparam I_TIMA = 2;
+    localparam I_TIMER = 2;
     localparam I_LCDC = 1;
     localparam I_VBLANK = 0;
     
@@ -131,6 +132,8 @@ module gameboy(
     wire int_lcdc_req;
     wire int_vblank_ack;
     wire int_lcdc_ack;
+    wire int_timer_req;
+    wire int_timer_ack;
    
     //DMA
     dma gb80_dma(
@@ -158,11 +161,13 @@ module gameboy(
     
     assign int_lcdc_ack = IF_data[I_LCDC];
     assign int_vblank_ack = IF_data[I_VBLANK];
+    assign int_timer_ack = IF_data[I_TIMER];
     
-    assign IF_load = int_lcdc_req | int_vblank_req | (addr_in_IF & mem_we);
+    assign IF_load = int_lcdc_req | int_vblank_req | int_timer_req | (addr_in_IF & mem_we);
     
     assign IF_in_int[I_VBLANK] = int_vblank_req | (IF_data[I_VBLANK] & IF_load);
     assign IF_in_int[I_LCDC] = int_lcdc_req | (IF_data[I_LCDC] & IF_load);
+    assign IF_in_int[I_TIMER] = int_timer_req | (IF_data[I_TIMER] & IF_load);
    
     assign IF_in = (addr_in_IF & mem_we) ? data_ext : IF_in_int;
     
@@ -234,6 +239,19 @@ module gameboy(
         .ch4_level(ch4_level)
     );
     
+    // Timer 
+    timer timer(
+        .clk(clk),
+        .rst(rst),
+        .a(addr_ext),
+        .dout(do_timer),
+        .din(data_ext),
+        .rd(mem_re),
+        .wr(mem_we),
+        .int_tim_req(int_tim_req),
+        .int_tim_ack(int_tim_ack)
+    );
+    
     // Joystick
     register #(4) joystick_reg(
         .d(data_ext[7:4]),
@@ -249,7 +267,7 @@ module gameboy(
     assign addr_in_echo   = (addr_ext >= `MEM_ECHO_START) & (addr_ext <= `MEM_ECHO_END);
     assign addr_in_wram   = (addr_ext >= `MEM_WRAM_START) & (addr_ext <= `MEM_WRAM_END);
     assign addr_in_dma    =  addr_ext == `MMIO_DMA;
-    assign addr_in_tima   = (addr_ext == `MMIO_DIV) |
+    assign addr_in_timer  = (addr_ext == `MMIO_DIV) |
                             (addr_ext == `MMIO_TMA) |
                             (addr_ext == `MMIO_TIMA) |
                             (addr_ext == `MMIO_TAC);
@@ -273,8 +291,8 @@ module gameboy(
                           addr_in_cram);
     assign addr_in_joystick = (addr_ext == `MMIO_JOYSTICK);
     assign addr_in_junk = ~addr_in_brom & ~addr_in_audio &
-                          ~addr_in_tima & ~addr_in_wram &
-                          ~addr_in_dma & ~addr_in_tima & 
+                          ~addr_in_timer & ~addr_in_wram &
+                          ~addr_in_dma &  
                           ~addr_in_ppu & ~addr_in_vram &
                           ~addr_in_oamram & ~addr_in_joystick &
                           ~addr_in_cart & ~addr_in_echo & 
@@ -328,6 +346,7 @@ module gameboy(
     assign wram_tri_en = (addr_in_wram | addr_in_echo) & ~mem_we & mem_re;
     assign junk_tri_en = addr_in_junk & ~mem_we;
     assign sound_tri_en = (addr_in_audio) & ~mem_we;
+    assign timer_tri_en = (addr_in_timer) & ~mem_we;
     assign video_tri_en = (addr_in_ppu | addr_in_vram | addr_in_oamram) & ~mem_we;
     assign cart_tri_en = addr_in_cart & ~mem_we;
     assign joystick_tri_en = addr_in_joystick & ~mem_we;
@@ -354,6 +373,10 @@ module gameboy(
         .out(data_ext),
         .in(do_video),
         .en(video_tri_en));
+    tristate #(8) gating_timer(
+        .out(data_ext),
+        .in(do_timer),
+        .en(timer_tri_en));
     tristate #(8) gating_cart(
         .out(data_ext),
         .in(din),
