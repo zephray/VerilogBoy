@@ -45,29 +45,47 @@ This project is NOT built to be cycle exact accurate. Currently it does very poo
 
 ### Mooneye GB acceptance tests
 
+#### Timer
+
+| Test                 | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy     |
+| -------------------- | ---------- | ---- | -------- | ------ | ---- |----------------|
+| div write            | :x:        | :+1: | :x:      | :+1:   | :+1: | :+1: (a267b5b) |
+| rapid toggle         | :x:        | :x:  | :x:      | :x:    | :+1: | :x:  (a267b5b) |
+| tim00 div trigger    | :+1:       | :x:  | :+1:     | :x:    | :+1: | :x:  (a267b5b) |
+| tim00                | :x:        | :+1: | :x:      | :+1:   | :+1: | :x:  (a267b5b) |
+| tim01 div trigger    | :x:        | :+1: | :x:      | :x:    | :+1: | :x:  (a267b5b) |
+| tim01                | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:  (a267b5b) |
+| tim10 div trigger    | :x:        | :+1: | :x:      | :x:    | :+1: | NA             |
+| tim10                | :x:        | :+1: | :x:      | :+1:   | :+1: | NA             |
+| tim11 div trigger    | :+1:       | :x:  | :x:      | :x:    | :+1: | NA             |
+| tim11                | :x:        | :+1: | :x:      | :+1:   | :+1: | NA             |
+| tima reload          | :x:        | :x:  | :x:      | :x:    | :+1: | :x:  (a267b5b) |
+| tima write reloading | :x:        | :x:  | :x:      | :x:    | :+1: | :x:  (a267b5b) |
+| tma write reloading  | :x:        | :x:  | :x:      | :x:    | :+1: | :x:  (a267b5b) |
+
 #### PPU
 
 | Test                        | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy     |
 | --------------------------- | ---------- | ---- | -------- | ------| ---- |----------------|
-| hblank ly scx timing GS     | :+1:       | :x:  | :x:      | :x:   | :+1: | :x:  (8ae055f) |
-| intr 1 2 timing GS          | :+1:       | :+1: | :+1:     | :+1:  | :+1: | :+1: (8ae055f) |
-| intr 2 0 timing             | :+1:       | :+1: | :x:      | :+1:  | :+1: | :x:  (8ae055f) |
-| intr 2 mode0 timing         | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:  (8ae055f) |
-| intr 2 mode3 timing         | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:  (8ae055f) |
-| intr 2 oam ok timing        | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:  (8ae055f) |
-| intr 2 mode0 timing sprites | :x:        | :x:  | :x:      | :x:   | :+1: | :x:  (8ae055f) |
-| lcdon timing dmgABCXmgbS    | :x:        | :+1: | :x:      | :x:   | :x:  | :x:  (8ae055f) |
-| lcdon write timing GS       | :x:        | :x:  | :x:      | :x:   | :x:  | :x:  (8ae055f) |
-| stat irq blocking           | :x:        | :x:  | :+1:     | :x:   | :+1: | :x:  (8ae055f) |
-| stat lyc onoff              | :x:        | :x:  | :x:      | :x:   | :x:  | :x:  (8ae055f) |
-| vblank stat intr GS         | :+1:       | :+1: | :x:      | :+1:  | :+1: | :x:  (8ae055f) |
+| hblank ly scx timing GS     | :+1:       | :x:  | :x:      | :x:   | :+1: | :x:  (a267b5b) |
+| intr 1 2 timing GS          | :+1:       | :+1: | :+1:     | :+1:  | :+1: | :+1: (a267b5b) |
+| intr 2 0 timing             | :+1:       | :+1: | :x:      | :+1:  | :+1: | :+1: (a267b5b) |
+| intr 2 mode0 timing         | :+1:       | :+1: | :x:      | :x:   | :+1: | :+1: (a267b5b) |
+| intr 2 mode3 timing         | :+1:       | :+1: | :x:      | :x:   | :+1: | :+1: (a267b5b) |
+| intr 2 oam ok timing        | :+1:       | :+1: | :x:      | :x:   | :+1: | :+1: (a267b5b) |
+| intr 2 mode0 timing sprites | :x:        | :x:  | :x:      | :x:   | :+1: | :x:  (a267b5b) |
+| lcdon timing dmgABCXmgbS    | :x:        | :+1: | :x:      | :x:   | :x:  | :x:  (a267b5b) |
+| lcdon write timing GS       | :x:        | :x:  | :x:      | :x:   | :x:  | :x:  (a267b5b) |
+| stat irq blocking           | :x:        | :x:  | :+1:     | :x:   | :+1: | :x:  (a267b5b) |
+| stat lyc onoff              | :x:        | :x:  | :x:      | :x:   | :x:  | :x:  (a267b5b) |
+| vblank stat intr GS         | :+1:       | :+1: | :x:      | :+1:  | :+1: | :x:  (a267b5b) |
 
 
 ### Mooneye GB manual tests
 
 | Test            | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy     |
 | --------------- | ---------- | ---- | -------- | ----- | ---- |----------------|
-| sprite priority | :+1:       | :+1: | :+1:     | :+1:  | :x:  | :+1: (8ae055f) |
+| sprite priority | :+1:       | :+1: | :+1:     | :+1:  | :x:  | :+1: (a267b5b) |
 
 ## How to use
 
