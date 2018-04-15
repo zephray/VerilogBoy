@@ -174,8 +174,8 @@ module sound(
                     end
                 end
                 else if (addr_in_wave)
-                    wave[wave_addr_ext] <= din; //what if we allow Write any way?
-                    //wave[wave_addr] <= din;
+                    //wave[wave_addr_ext] <= din; //what if we allow Write any way?
+                    wave[wave_addr] <= din; // This is what happens trying to write to wave sample while it is on
             end
             // Initialize signal, should be triggered whenever a 1 is written
             if ((wr)&&(a == 16'hFF14)) ch1_start <= din[7];

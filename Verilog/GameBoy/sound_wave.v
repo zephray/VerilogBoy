@@ -86,11 +86,11 @@ module sound_wave(
         .enable(enable)
     );
     
-    assign level = 
+    assign level = (on) ? (
         (volume == 2'b00) ? (4'b0000) : (
         (volume == 2'b01) ? (current_sample[3:0]) : (
         (volume == 2'b10) ? ({1'b0, current_sample[3:1]}) : (
-                            ({2'b0, current_sample[3:2]}))));
+                            ({2'b0, current_sample[3:2]}))))) : 4'b0000;
 
 
 endmodule
