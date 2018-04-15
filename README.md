@@ -29,14 +29,45 @@ GameBoy Related:
  - [x] CPU
  - [x] PPU
  - [x] Sound
- - [ ] Timer
+ - [x] Timer
  - [ ] Link
- - [ ] Keypad?
+ - [ ] Keypad
 
 Board Related:
  - [x] DVI Interface
  - [x] AC'97 Interface
  - [x] Cartridge (Emulated with FlashROM)
+ - [ ] Controller Interface
+
+## Accuracy
+
+This project is NOT built to be cycle exact accurate. Currently it does very poor on tests. Here are the results of several tests I have tried to run on it.
+
+### Mooneye GB acceptance tests
+
+#### PPU
+
+| Test                        | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy     |
+| --------------------------- | ---------- | ---- | -------- | ------| ---- |----------------|
+| hblank ly scx timing GS     | :+1:       | :x:  | :x:      | :x:   | :+1: | :x:  (8ae055f) |
+| intr 1 2 timing GS          | :+1:       | :+1: | :+1:     | :+1:  | :+1: | :+1: (8ae055f) |
+| intr 2 0 timing             | :+1:       | :+1: | :x:      | :+1:  | :+1: | :x:  (8ae055f) |
+| intr 2 mode0 timing         | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:  (8ae055f) |
+| intr 2 mode3 timing         | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:  (8ae055f) |
+| intr 2 oam ok timing        | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:  (8ae055f) |
+| intr 2 mode0 timing sprites | :x:        | :x:  | :x:      | :x:   | :+1: | :x:  (8ae055f) |
+| lcdon timing dmgABCXmgbS    | :x:        | :+1: | :x:      | :x:   | :x:  | :x:  (8ae055f) |
+| lcdon write timing GS       | :x:        | :x:  | :x:      | :x:   | :x:  | :x:  (8ae055f) |
+| stat irq blocking           | :x:        | :x:  | :+1:     | :x:   | :+1: | :x:  (8ae055f) |
+| stat lyc onoff              | :x:        | :x:  | :x:      | :x:   | :x:  | :x:  (8ae055f) |
+| vblank stat intr GS         | :+1:       | :+1: | :x:      | :+1:  | :+1: | :x:  (8ae055f) |
+
+
+### Mooneye GB manual tests
+
+| Test            | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy     |
+| --------------- | ---------- | ---- | -------- | ----- | ---- |----------------|
+| sprite priority | :+1:       | :+1: | :+1:     | :+1:  | :x:  | :+1: (8ae055f) |
 
 ## How to use
 
@@ -49,9 +80,10 @@ This project reused codes from several other projects. A great thanks to their e
  - https://github.com/nightslide7/Gameboy
  - https://github.com/MParygin/v.vga.font8x16
 
-These projects are used as references.
+These projects are used as references. Again, thanks for sharing.
 
  - https://github.com/freecores/genesys_ddr2
+ - https://github.com/Gekkio/mooneye-gb
 
 ## Legalese
 
