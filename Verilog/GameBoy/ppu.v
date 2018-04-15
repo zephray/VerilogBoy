@@ -222,7 +222,7 @@ module ppu(
     localparam PPU_H_SYNC   = 9'd4;    // So front porch + sync = OAM search
     localparam PPU_H_TOTAL  = 9'd456;
     localparam PPU_H_PIXEL  = 9'd160;
-    localparam PPU_H_OUTPUT = 9'd160; // 8 pixel empty for first fetch, 8 pixels in the front for objects which have x < 8
+    localparam PPU_H_OUTPUT = 9'd168; // 8 null pixels in the front for objects which have x < 8
     localparam PPU_V_ACTIVE = 8'd144;
     localparam PPU_V_BACK   = 8'd9;
     localparam PPU_V_SYNC   = 8'd1;  
@@ -291,7 +291,7 @@ module ppu(
     wire [2:0] h_extra = reg_scx % 8; //Extra line length when SCX % 8 != 0
     reg [7:0] h_pix_render; // Horizontal Render Pixel pointer
     reg [7:0] h_pix_output; // Horizontal Output Pixel counter
-    wire [7:0] h_pix_obj = h_pix_output + 8'd9; // Coordinate used to trigger the object rendering
+    wire [7:0] h_pix_obj = h_pix_output + 8'd1; // Coordinate used to trigger the object rendering
     wire [7:0] v_pix = v_count;
     wire [7:0] v_pix_in_map = v_pix + reg_scy;
     wire [7:0] v_pix_in_win = v_pix - reg_wy;
@@ -303,7 +303,7 @@ module ppu(
     
     reg window_triggered; // Indicate whether window has been triggered, should be replaced by a edge detector
     wire render_window_or_bg = window_triggered;
-    wire window_trigger = (((h_pix_output + 8'd7) == (reg_wx))&&(v_pix >= reg_wy)&&(reg_win_en)&&(~window_triggered)) ? 1 : 0;
+    wire window_trigger = (((h_pix_output - 8'd1) == (reg_wx))&&(v_pix >= reg_wy)&&(reg_win_en)&&(~window_triggered)) ? 1 : 0;
     
     wire [2:0] line_to_tile_v_offset_bg = v_pix_in_map[2:0]; // Current line in a tile being rendered
     wire [4:0] line_in_tile_v_bg = v_pix_in_map[7:3]; // Current tile Y coordinate being rendered
@@ -467,7 +467,7 @@ module ppu(
                 end
                 oam_rd_addr_int <= 8'b0;
                 window_triggered <= 1'b0;
-                pf_empty <= PF_EMPTY;
+                pf_empty <= PF_HALF; // pretend we have some null pixels there
             end
             S_OAMX: begin
                 oam_search_y <= oam_data_out[7:0];
@@ -550,7 +550,10 @@ module ppu(
                     valid <= 0;
                 end
                 else begin
-                    valid <= 1;
+                    if (h_pix_output >= 8)
+                        valid <= 1;
+                    else
+                        valid <= 0;
                     pixel <= pf_output_pixel;
                     h_pix_output <= h_pix_output + 1'b1;
                 end
