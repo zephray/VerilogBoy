@@ -209,10 +209,13 @@ module ppu(
                              (pf_output_pixel_id == 2'b10) ? (pf_output_palette[5:4]) :
                              (pf_output_pixel_id == 2'b01) ? (pf_output_palette[3:2]) :
                              (pf_output_pixel_id == 2'b00) ? (pf_output_palette[1:0]) : (8'h00);
-    reg [1:0] pf_empty; // Indicate if the Pixel FIFO is empty. It could be: 2 - empty, 1 - half empty, 0 - full
-    localparam PF_EMPTY = 2'd2;
-    localparam PF_HALF = 2'd1;
-    localparam PF_FULL = 2'd0;
+    reg [2:0] pf_empty; // Indicate if the Pixel FIFO is empty. 
+    localparam PF_INITA = 3'd5; // When a line start...
+    localparam PF_INITB = 3'd4; // Line start, 2 pixels out, 8 rendered
+    localparam PF_EMPTY = 3'd3; // When the pipeline get flushed
+    localparam PF_HALF  = 3'd2; // After flushed, 8 pixels in
+    localparam PF_FIN   = 3'd1; // 16 pixels in, but still no wait cycles
+    localparam PF_FULL  = 3'd0; // Normal
 
     assign cpl = ~clk;
     //assign pixel = pf_output_pixel;
@@ -368,6 +371,10 @@ module ppu(
         else
             obj_trigger_id_next = obj_trigger_id_from[obj_trigger_id + 1]; // Search start from next one
     end
+    
+    //!-- DEBUG --
+    //wire [3:0] obj_trigger_id_next = ((h_pix_obj == obj_trigger_list[4'd0])&&(obj_valid_list[4'd0])) ? (4'd0) : (4'd15);
+    
     wire obj_trigger = ((reg_obj_en)&&(obj_trigger_id_next != OBJ_TRIGGER_NOT_FOUND)) ? 1 : 0;
     //wire obj_trigger = 0;
     
@@ -467,7 +474,8 @@ module ppu(
                 end
                 oam_rd_addr_int <= 8'b0;
                 window_triggered <= 1'b0;
-                pf_empty <= PF_HALF; // pretend we have some null pixels there
+                // Line start, need to render 16 pixels in 12 clocks
+                // and output 8 null pixels starting from the 4th clock
             end
             S_OAMX: begin
                 oam_search_y <= oam_data_out[7:0];
@@ -495,12 +503,9 @@ module ppu(
             S_FRD1B: begin
                 current_tile_data_1 <= vram_data_out;
                 h_pix_render <= h_pix_render + 8'd8;
-                if (pf_empty == PF_EMPTY) pf_empty <= PF_HALF;
-                else if (pf_empty == PF_HALF) pf_empty <= PF_FULL;
             end
             // nothing to do for S_WAITA, S_WAITB
             S_SWW: begin
-                pf_empty <= PF_EMPTY; // Flush the pipeline 
                 h_pix_render <= 8'd0;
                 window_triggered <= 1'b1;
             end
@@ -524,27 +529,46 @@ module ppu(
             valid <= 1'b0;
             h_pix_output <= 8'd0; // Output pointer
             h_drop <= reg_scx[2:0];
+            pf_empty <= PF_INITA; 
         end
         else if ((r_state == S_FTIDA) || (r_state == S_FTIDB) || (r_state == S_FRD0A) || (r_state == S_FRD0B) ||
             (r_state == S_FRD1A) || (r_state == S_FRD1B) || (r_state == S_FWAITA) || (r_state == S_FWAITB))
         begin
+        
+            if (r_state == S_FRD1B) begin
+                if (pf_empty == PF_INITA) pf_empty <= PF_INITB;
+                if (pf_empty == PF_INITB) pf_empty <= PF_FIN;
+                if (pf_empty == PF_EMPTY) pf_empty <= PF_HALF;
+                if (pf_empty == PF_HALF) pf_empty <= PF_FIN;
+            end else
+                if (pf_empty == PF_FIN) pf_empty <= PF_FULL; // should NOT wait through end
+            
             // If it is in one of the output stages
             if (pf_empty == PF_EMPTY) begin
                 // Just started, no data available
                 valid <= 1'b0;
             end
             else if (pf_empty == PF_HALF) begin
-                // One batch done, but not there yet.
                 valid <= 1'b0;
-                if (r_state == S_FTIDA)
+                if (r_state == S_FTIDA) begin
+                // One batch done, and they can be push into pipeline, but could not be output yet
                     pf_data[63:32] <= current_fetch_result[31:0];
+                end
             end
-            else begin
-                // Can output
-                if (r_state == S_FTIDA)
-                    pf_data[63:0] <= {pf_data[59:32], current_fetch_result[31:0], 4'b0};
-                else
+            else if (((pf_empty == PF_INITA)&&((r_state == S_FRD1A)||(r_state == S_FRD1B)))
+                    ||(pf_empty == PF_INITB)||(pf_empty == PF_FULL)||(pf_empty == PF_FIN)) begin 
+                if (r_state == S_FTIDA) begin // reload and shift
+                    if (pf_empty == PF_INITB) begin
+                        pf_data[63:0] <= {20'b0, current_fetch_result[31:0], 12'b0};
+                    end
+                    else begin // PF_FULL or PF_FIN
+                        pf_data[63:0] <= {pf_data[59:32], current_fetch_result[31:0], 4'b0};
+                    end
+                end
+                else begin // just shift
                     pf_data <= {pf_data[59:0], 4'b0};
+                end
+                
                 if (h_drop != 3'd0) begin
                     h_drop <= h_drop - 1'd1;
                     valid <= 0;
@@ -561,6 +585,11 @@ module ppu(
         end
         else if (r_state == S_OWB) begin
             pf_data <= {merge_result[31:0], pf_data[31:0]};
+            valid <= 1'b0;
+        end
+        else if (r_state == S_SWW) begin
+            pf_empty <= PF_EMPTY;  // Flush the pipeline 
+            valid <= 1'b0;
         end
         else begin
             // Not even in output stages
@@ -628,16 +657,16 @@ module ppu(
                         )
                 ) : (S_IDLE);
             S_OAMX: r_next_state = (reg_lcd_en) ? (S_OAMY) : (S_IDLE);
-            S_OAMY: r_next_state = (reg_lcd_en) ? ((oam_search_count == (PPU_OAM_SEARCH_LENGTH)) ? (S_FTIDA) : (S_OAMX)) : (S_IDLE);
-            S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FTIDB))) : (S_IDLE);
-            S_FTIDB: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD0A))) : (S_IDLE);
-            S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD0B))) : (S_IDLE);
-            S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD1A))) : (S_IDLE);
-            S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD1B))) : (S_IDLE);
-            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : ((pf_empty != 2'd0) ? (S_FTIDA) : (S_FWAITA)))) : (S_IDLE); // If fifo not full, no wait state is needed
-            S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FWAITB))) : (S_IDLE);
-            S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FTIDA))) : (S_IDLE);
-            S_SWW: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
+            S_OAMY: r_next_state = (reg_lcd_en) ? ((oam_search_count == (PPU_OAM_SEARCH_LENGTH - 1'b1)) ? (S_FTIDA) : (S_OAMX)) : (S_IDLE);
+            S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT - 1'b1)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FTIDB))) : (S_IDLE);
+            S_FTIDB: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT - 1'b1)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD0A))) : (S_IDLE);
+            S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT - 1'b1)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD0B))) : (S_IDLE);
+            S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT - 1'b1)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD1A))) : (S_IDLE);
+            S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT - 1'b1)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD1B))) : (S_IDLE);
+            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT - 1'b1)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : ((pf_empty != PF_FULL) ? (S_FTIDA) : (S_FWAITA)))) : (S_IDLE); // If fifo not full, no wait state is needed
+            S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT - 1'b1)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FWAITB))) : (S_IDLE);
+            S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT - 1'b1)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FTIDA))) : (S_IDLE);
+            S_SWW: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT - 1'b1)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
             S_OAMRDA: r_next_state = (reg_lcd_en) ? (S_OAMRDB) : (S_IDLE);
             S_OAMRDB: r_next_state = (reg_lcd_en) ? (S_OFRD0A) : (S_IDLE);
             S_OFRD0A: r_next_state = (reg_lcd_en) ? (S_OFRD0B) : (S_IDLE);
