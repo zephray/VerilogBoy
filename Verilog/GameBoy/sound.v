@@ -127,6 +127,10 @@ module sound(
     
     // Bus RW
     // Bus RW - Combinational Read
+    // This is a drawback of ISE XST, one can not use always@(*) and reg array together,
+    // so one have to write something (does not need to make sense, just as a place holder)
+    // and let the synthesizer to determine the correct sensitvity list. (Or one would have
+    // to enumerate EACH item in an array, otherwise it will give an error.
     always @(a)
     begin
         dout = 8'hFF;

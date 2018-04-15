@@ -23,7 +23,7 @@ module sound_length_ctr(rst, clk_length_ctr, start, single, length, enable);
     input [WIDTH-1:0] length;
     output reg enable = 0;
     
-    reg [WIDTH-1:0] length_left = 0; // Upcounter from length to 255
+    reg [WIDTH-1:0] length_left = {WIDTH{1'b1}}; // Upcounter from length to 255
 
     // Length Control
     always @(posedge clk_length_ctr, posedge start, posedge rst)

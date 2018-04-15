@@ -30,10 +30,10 @@ module timer(
     reg [7:0] reg_tma; // Timer modulo
     reg [7:0] reg_tac; // Timer control
     
-    wire addr_in_timer = (a == 8'hFF04) |
-                        (a == 8'hFF05) |
-                        (a == 8'hFF06) |
-                        (a == 8'hFF07);
+    wire addr_in_timer = ((a == 16'hFF04) ||
+                          (a == 16'hFF05) ||
+                          (a == 16'hFF06) ||
+                          (a == 16'hFF07)) ? 1'b1 : 1'b0;
     
     reg [15:0] div;
     
@@ -60,10 +60,10 @@ module timer(
     always @(a)
     begin
         dout = 8'hFF;
-        if (a == 8'hFF04) dout = reg_div; else
-        if (a == 8'hFF05) dout = reg_tima; else
-        if (a == 8'hFF06) dout = reg_tma; else
-        if (a == 8'hFF07) dout = reg_tac;
+        if (a == 16'hFF04) dout = reg_div; else
+        if (a == 16'hFF05) dout = reg_tima; else
+        if (a == 16'hFF06) dout = reg_tma; else
+        if (a == 16'hFF07) dout = reg_tac;
     end
     
     // Bus RW - Sequential Write
@@ -79,10 +79,10 @@ module timer(
         end
         else begin
             if ((wr)&&(addr_in_timer)) begin
-                if (a == 8'hFF04) div <= 0; else
-                if (a == 8'hFF05) reg_tima <= din; else
-                if (a == 8'hFF06) reg_tma <= din; else
-                if (a == 8'hFF07) reg_tac <= din;
+                if (a == 16'hFF04) div <= 0; else
+                if (a == 16'hFF05) reg_tima <= din; else
+                if (a == 16'hFF06) reg_tma <= din; else
+                if (a == 16'hFF07) reg_tac <= din;
             end
             else begin
                 if ((last_clk_tim == 1'b0)&&(clk_tim == 1'b1)) begin

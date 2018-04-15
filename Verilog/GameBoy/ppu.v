@@ -10,13 +10,44 @@
 // Target Devices: 
 // Tool versions: 
 // Description: 
-// 
-// Dependencies: 
-//
-// Revision: 
-// Revision 0.01 - File Created
+//   GameBoy PPU
 // Additional Comments: 
+//   There are three hardware layers in the GameBoy PPU: Background, Window, and 
+//   Object (or sprites).
 //
+//   Window will render above the background and the object can render above the
+//   background or under the background. Each object have a priority bit to
+//   indicate where it should be rendered.
+//
+//   Background, Window, and Object can be individually turned on or off. When 
+//   nothing is turned on, it displays white.
+//
+//   The whole render logic does NOT require a scanline buffer to work, and it
+//   runs at 4MHz (VRAM runs at 2MHz)
+//
+//   There are two main parts of the logic, implemented in a big FSM. The first
+//   one is the fetch unit, and the other is the pixel FIFO.
+//
+//   The pixel FIFO shifts out one pixel when it contains more than 8 pixels, the 
+//   fetch unit would generally render 8 pixels in 6 cycles (so 2 wait cycles are
+//   inserted so they are in sync generally). When there is no enough pixels,
+//   the FIFO would stop and wait for the fetch unit.
+//
+//   Windows Trigger is handled in the next state logic, there is a distinct state
+//   for the PPU to switch from background rendering to window rendering (flush 
+//   the fifo and add wait cycles.)
+//
+//   Object Trigger is handled in the state change block, in order to backup the 
+//   previous state. Current RAM address is also backed up during the handling of
+//   object rendering. Once all the objects at this position has been rendered,
+//   the render state machine could be restored to its previous state.
+//
+//   The output pixel clock is the inverted main clock, which is the same as the
+//   real Game Boy Pixel data would be put on the pixel bus on the negedge of 
+//   clock, so the LCD would latch the data on the posedge. The original Game Boy
+//   used a gated clock to control if output is valid. Since gated clock is not
+//   recommend, I used a valid signal to indicate is output should be considered
+//   valid.
 //////////////////////////////////////////////////////////////////////////////////
 `default_nettype wire
 module ppu(
@@ -42,31 +73,6 @@ module ppu(
     output [7:0] scy,
     output [4:0] state
     );
-    
-    // There are three hardware layers in the GameBoy PPU: Background, Window, and Object (or sprites).
-    // Window will render above the background and the object can render above the background or under the background.
-    // Each object have a priority bit to identify where it should be rendered.
-    // Background, Window, and Object can be individually turned on or off.
-    // When nothing is turned on, it displays white.
-    
-    // The whole render logic does NOT require a scanline buffer to work, and it runs at 4MHz (VRAM runs at 2MHz)
-    // There are two main parts of the logic, implemented in a big FSM. The first one is the fetch unit, and the other
-    // is the pixel FIFO.
-    // The pixel FIFO shifts out one pixel when it contains more than 8 pixels, the fetch unit would generally render
-    // 8 pixels in 6 cycles (so 2 wait cycles are inserted so they are in sync generally). When there is no enough pixels,
-    // The FIFO would stop and wait for the fetch unit.
-    
-    // Windows Trigger is handled in the next state logic, their is a distinct state for the PPU to switch from
-    // background rendering to window rendering (flush the fifo and add wait cycles.)
-    
-    // Object Trigger is handled in the state change block, in order to backup the previous state
-    // Current RAM address is also backed up during the handling of object rendering
-    // So, once all the objects at this position has been rendered, the state machine could be restored
-    
-    // The output pixel clock is the inverted main clock, which is the same as the real Game Boy
-    // Pixel data would be put on the pixel bus on the negedge of clock, so the LCD would latch the data on the posedge
-    // The original Game Boy used a gated clock to control if output is valid. Since gated clock is not recommend,
-    // I used a valid signal to indicate is output should be considered valid.
     
     // Global Wires ?
     integer i;
@@ -113,8 +119,13 @@ module ppu(
     localparam PPU_PAL_OB0 = 2'b01;
     localparam PPU_PAL_OB1 = 2'b10;
     
-    reg [12:0] vram_addr_int;
+    reg [12:0] vram_addr_bg;
+    reg [12:0] vram_addr_obj;
+    wire [12:0] vram_addr_int;
     wire [12:0] vram_addr_ext;
+    wire vram_addr_int_sel; // 0 - BG, 1 - OBJ
+    
+    assign vram_addr_int = (vram_addr_int_sel == 1'b1) ? (vram_addr_obj) : (vram_addr_bg);
     
     wire addr_in_ppu  = (a >= 16'hFF40 && a <= 16'hFF4B);
     wire addr_in_vram = (a >= 16'h8000 && a <= 16'h9FFF);
@@ -141,10 +152,10 @@ module ppu(
     wire [7:0] oam_rd_addr;
     wire [7:0] oam_wr_addr;
     reg [15:0] oam_data_out;
-    wire [8:0] oam_data_in;
+    wire [7:0] oam_data_in;
     wire oam_we;
     
-    always @ (posedge clk)
+    always @ (negedge clk)
     begin
         if (oam_we) begin
             if (oam_wr_addr[0])
@@ -198,23 +209,27 @@ module ppu(
                              (pf_output_pixel_id == 2'b10) ? (pf_output_palette[5:4]) :
                              (pf_output_pixel_id == 2'b01) ? (pf_output_palette[3:2]) :
                              (pf_output_pixel_id == 2'b00) ? (pf_output_palette[1:0]) : (8'h00);
-    reg [4:0] pf_empty;
-    
-    assign cpl = clk;
+    reg [1:0] pf_empty; // Indicate if the Pixel FIFO is empty. It could be: 2 - empty, 1 - half empty, 0 - full
+    localparam PF_EMPTY = 2'd2;
+    localparam PF_HALF = 2'd1;
+    localparam PF_FULL = 2'd0;
+
+    assign cpl = ~clk;
     //assign pixel = pf_output_pixel;
     
     // HV Timing
     localparam PPU_H_FRONT  = 9'd76;
     localparam PPU_H_SYNC   = 9'd4;    // So front porch + sync = OAM search
     localparam PPU_H_TOTAL  = 9'd456;
-    localparam PPU_H_PIXEL  = 8'd160;
-    localparam PPU_H_FIFO   = 8'd176;  // 8 pixel empty for first fetch, 8 pixels in the front for objects which have x < 8
+    localparam PPU_H_PIXEL  = 9'd160;
+    localparam PPU_H_OUTPUT = 9'd160; // 8 pixel empty for first fetch, 8 pixels in the front for objects which have x < 8
     localparam PPU_V_ACTIVE = 8'd144;
     localparam PPU_V_BACK   = 8'd9;
     localparam PPU_V_SYNC   = 8'd1;  
     localparam PPU_V_BLANK  = 8'd10;
     localparam PPU_V_TOTAL  = 8'd154;
    
+    // Raw timing counter
     reg [8:0] h_count;
     reg [7:0] v_count;
     
@@ -262,13 +277,13 @@ module ppu(
     localparam S_FWAITA   = 5'd10; // Fetch Wait Stage A (Idle)
     localparam S_FWAITB   = 5'd11; // Fetch Wait Stage B (Load to FIFO?)
     localparam S_SWW      = 5'd12; // Fetch Switch to Window
-    localparam S_OFRD0A   = 5'd13; // Object Fetch Read Data 0 Stage A
-    localparam S_OFRD0B   = 5'd14; // Object Fetch Read Data 0 Stage B
-    localparam S_OFRD1A   = 5'd15; // Object Fetch Read Data 1 Stage A
-    localparam S_OFRD1B   = 5'd16; // Object Fetch Read Data 1 Stage B
-    localparam S_OWB      = 5'd17; // Object Write Back
-    localparam S_OAMRDA   = 5'd18; // OAM Read Stage A
-    localparam S_OAMRDB   = 5'd19; // OAM Read Stage B
+    localparam S_OAMRDA   = 5'd13; // OAM Read Stage A
+    localparam S_OAMRDB   = 5'd14; // OAM Read Stage B
+    localparam S_OFRD0A   = 5'd15; // Object Fetch Read Data 0 Stage A
+    localparam S_OFRD0B   = 5'd16; // Object Fetch Read Data 0 Stage B
+    localparam S_OFRD1A   = 5'd17; // Object Fetch Read Data 1 Stage A
+    localparam S_OFRD1B   = 5'd18; // Object Fetch Read Data 1 Stage B
+    localparam S_OWB      = 5'd19; // Object Write Back
     
     localparam PPU_OAM_SEARCH_LENGTH = 6'd40;
 
@@ -276,7 +291,7 @@ module ppu(
     wire [2:0] h_extra = reg_scx % 8; //Extra line length when SCX % 8 != 0
     reg [7:0] h_pix_render; // Horizontal Render Pixel pointer
     reg [7:0] h_pix_output; // Horizontal Output Pixel counter
-    wire [7:0] h_pix_obj = h_pix_output + 8'd8; // Counter used to trigger the object rendering
+    wire [7:0] h_pix_obj = h_pix_output + 8'd9; // Coordinate used to trigger the object rendering
     wire [7:0] v_pix = v_count;
     wire [7:0] v_pix_in_map = v_pix + reg_scy;
     wire [7:0] v_pix_in_win = v_pix - reg_wy;
@@ -286,7 +301,7 @@ module ppu(
     reg [4:0] r_next_state;
     wire is_in_v_blank = ((v_count >= PPU_V_ACTIVE) && (v_count < PPU_V_ACTIVE + PPU_V_BLANK));
     
-    reg window_triggered; // Identify whether window has been triggered
+    reg window_triggered; // Indicate whether window has been triggered, should be replaced by a edge detector
     wire render_window_or_bg = window_triggered;
     wire window_trigger = (((h_pix_output + 8'd7) == (reg_wx))&&(v_pix >= reg_wy)&&(reg_win_en)&&(~window_triggered)) ? 1 : 0;
     
@@ -308,27 +323,25 @@ module ppu(
     wire [12:0] current_tile_address_1 = (current_tile_address_0) | 13'h0001;
     reg [7:0] current_tile_data_0;
     reg [7:0] current_tile_data_1;
-    reg [12:0] current_address_backup;
    
     // Data that will be pushed into pixel FIFO
     // Organized in pixels
-    wire [31:0] current_fetch_result = { 
-        current_tile_data_1[7], current_tile_data_0[7], PPU_PAL_BG,
-        current_tile_data_1[6], current_tile_data_0[6], PPU_PAL_BG,
-        current_tile_data_1[5], current_tile_data_0[5], PPU_PAL_BG,
-        current_tile_data_1[4], current_tile_data_0[4], PPU_PAL_BG,
-        current_tile_data_1[3], current_tile_data_0[3], PPU_PAL_BG,
-        current_tile_data_1[2], current_tile_data_0[2], PPU_PAL_BG,
-        current_tile_data_1[1], current_tile_data_0[1], PPU_PAL_BG,
-        current_tile_data_1[0], current_tile_data_0[0], PPU_PAL_BG
-        };
-
-    reg [5:0] oam_search_count;
-    reg [5:0] obj_visible_list [0:9];
-    reg [7:0] obj_trigger_list [0:9];
-    reg [7:0] obj_y_list [0:9];
-    reg obj_valid_list [0:9];
-    reg [3:0] oam_visible_count;
+    reg [31:0] current_fetch_result;
+    always@(current_tile_data_1, current_tile_data_0) begin
+        for (i = 0; i < 8; i = i + 1) begin
+            current_fetch_result[i*4+3] = current_tile_data_1[i];
+            current_fetch_result[i*4+2] = current_tile_data_0[i];
+            current_fetch_result[i*4+1] = PPU_PAL_BG[1]; // Fetch could only fetch BG
+            current_fetch_result[i*4+0] = PPU_PAL_BG[0];
+        end
+    end
+    
+    reg [5:0] oam_search_count; // Counter during OAM search stage
+    reg [5:0] obj_visible_list [0:9]; // Total visible list
+    reg [7:0] obj_trigger_list [0:9]; // Where the obj should be triggered
+    reg [7:0] obj_y_list [0:9]; // Where the obj is
+    reg obj_valid_list [0:9]; // Is obj visible entry valid
+    reg [3:0] oam_visible_count; // ???
     
     reg [7:0] oam_search_x;
     reg [7:0] oam_search_y;
@@ -338,40 +351,37 @@ module ppu(
 
     reg [3:0] obj_trigger_id; // The object currently being/ or have been rendered, in the visible list
         
-    localparam obj_trigger_not_found = 4'd15; 
-    wire [3:0] obj_trigger_id_start_from_8 = ((h_pix_obj == obj_trigger_list[9])&&(obj_valid_list[9])) ? (4'd9) : (obj_trigger_not_found);
-    wire [3:0] obj_trigger_id_start_from_7 = ((h_pix_obj == obj_trigger_list[8])&&(obj_valid_list[8])) ? (4'd8) : (obj_trigger_id_start_from_8);
-    wire [3:0] obj_trigger_id_start_from_6 = ((h_pix_obj == obj_trigger_list[7])&&(obj_valid_list[7])) ? (4'd7) : (obj_trigger_id_start_from_7);
-    wire [3:0] obj_trigger_id_start_from_5 = ((h_pix_obj == obj_trigger_list[6])&&(obj_valid_list[6])) ? (4'd6) : (obj_trigger_id_start_from_6);
-    wire [3:0] obj_trigger_id_start_from_4 = ((h_pix_obj == obj_trigger_list[5])&&(obj_valid_list[5])) ? (4'd5) : (obj_trigger_id_start_from_5);
-    wire [3:0] obj_trigger_id_start_from_3 = ((h_pix_obj == obj_trigger_list[4])&&(obj_valid_list[4])) ? (4'd4) : (obj_trigger_id_start_from_4);
-    wire [3:0] obj_trigger_id_start_from_2 = ((h_pix_obj == obj_trigger_list[3])&&(obj_valid_list[3])) ? (4'd3) : (obj_trigger_id_start_from_3);
-    wire [3:0] obj_trigger_id_start_from_1 = ((h_pix_obj == obj_trigger_list[2])&&(obj_valid_list[2])) ? (4'd2) : (obj_trigger_id_start_from_2);
-    wire [3:0] obj_trigger_id_start_from_0 = ((h_pix_obj == obj_trigger_list[1])&&(obj_valid_list[1])) ? (4'd1) : (obj_trigger_id_start_from_1);
-    wire [3:0] obj_trigger_id_all          = ((h_pix_obj == obj_trigger_list[0])&&(obj_valid_list[0])) ? (4'd0) : (obj_trigger_id_start_from_0);
-    wire [3:0] obj_trigger_id_next =
-        (obj_trigger_id == 4'd15) ? (obj_trigger_id_all) : (
-        (obj_trigger_id == 4'd0) ? (obj_trigger_id_start_from_0) : (
-        (obj_trigger_id == 4'd1) ? (obj_trigger_id_start_from_1) : (
-        (obj_trigger_id == 4'd2) ? (obj_trigger_id_start_from_2) : (
-        (obj_trigger_id == 4'd3) ? (obj_trigger_id_start_from_3) : (
-        (obj_trigger_id == 4'd4) ? (obj_trigger_id_start_from_4) : (
-        (obj_trigger_id == 4'd5) ? (obj_trigger_id_start_from_5) : (
-        (obj_trigger_id == 4'd6) ? (obj_trigger_id_start_from_6) : (
-        (obj_trigger_id == 4'd7) ? (obj_trigger_id_start_from_7) : (obj_trigger_id_start_from_8)))))))));
-    wire obj_trigger = ((reg_obj_en)&&(obj_trigger_id_next != obj_trigger_not_found)) ? 1 : 0;
+    localparam OBJ_TRIGGER_NOT_FOUND = 4'd15; 
+    
+    // Cascade mux used to implement the searching of next id would be triggered
+    reg [3:0] obj_trigger_id_from[0:10];
+    reg [3:0] obj_trigger_id_next;
+    always@(h_pix_obj, obj_trigger_id) begin
+        obj_trigger_id_from[10] = OBJ_TRIGGER_NOT_FOUND; // There is no more after the 10th
+        for (i = 0; i < 10; i = i + 1) begin
+            obj_trigger_id_from[i] = 
+                ((h_pix_obj == obj_trigger_list[i])&&(obj_valid_list[i])) ? (i) : (obj_trigger_id_from[i+1]);
+                // See if this one match, if not, cascade down.
+        end
+        if (obj_trigger_id == OBJ_TRIGGER_NOT_FOUND) // currently not triggered yet
+            obj_trigger_id_next = obj_trigger_id_from[0]; // Search from start
+        else
+            obj_trigger_id_next = obj_trigger_id_from[obj_trigger_id + 1]; // Search start from next one
+    end
+    wire obj_trigger = ((reg_obj_en)&&(obj_trigger_id_next != OBJ_TRIGGER_NOT_FOUND)) ? 1 : 0;
+    //wire obj_trigger = 0;
     
     wire [5:0] obj_triggered = obj_visible_list[obj_trigger_id]; // The global id of object being rendered
     wire [7:0] current_obj_y = obj_y_list[obj_trigger_id];
     wire [7:0] current_obj_x = obj_trigger_list[obj_trigger_id]; //h_pix gets incremented before render
-    reg [7:0] current_obj_tile_id_raw ; // Tile ID without considering the object size
+    reg [7:0] current_obj_tile_id_raw; // Tile ID without considering the object size
     reg [7:0] current_obj_flags; // Flags
     wire current_obj_to_bg_priority = current_obj_flags[7];
     wire current_obj_y_flip = current_obj_flags[6];
     wire current_obj_x_flip = current_obj_flags[5];
-    wire current_obj_pal_number = current_obj_flags[4];
-    wire [1:0] current_obj_pal= (current_obj_pal_number) ? (PPU_PAL_OB1) : (PPU_PAL_OB0);
-    wire [7:0] line_to_obj_v_offset_raw = (v_pix + 8'd16 - current_obj_y); // Compensate 16 pixel offset and truncate to 3 bits
+    wire current_obj_pal_id = current_obj_flags[4];
+    wire [1:0] current_obj_pal= (current_obj_pal_id) ? (PPU_PAL_OB1) : (PPU_PAL_OB0);
+    wire [3:0] line_to_obj_v_offset_raw = (v_pix + 8'd16 - current_obj_y); // Compensate 16 pixel offset and truncate to 4 bits
     wire [7:0] current_obj_tile_id = (reg_obj_size == 1'b1) ? 
         ({current_obj_tile_id_raw[7:1], (((line_to_obj_v_offset_raw[3])^(current_obj_y_flip)) ? 1'b1 : 1'b0)}) : // Select Hi or Lo tile
         (current_obj_tile_id_raw); // Use tile ID directly
@@ -382,40 +392,36 @@ module ppu(
     reg [7:0] current_obj_tile_data_0;
     reg [7:0] current_obj_tile_data_1;
     // Data that will be merged into pixel FIFO
-    // Organized in pixels
-    wire [15:0] current_obj_fetch_result = { 
-        current_obj_tile_data_1[7], current_obj_tile_data_0[7],
-        current_obj_tile_data_1[6], current_obj_tile_data_0[6],
-        current_obj_tile_data_1[5], current_obj_tile_data_0[5],
-        current_obj_tile_data_1[4], current_obj_tile_data_0[4],
-        current_obj_tile_data_1[3], current_obj_tile_data_0[3],
-        current_obj_tile_data_1[2], current_obj_tile_data_0[2],
-        current_obj_tile_data_1[1], current_obj_tile_data_0[1],
-        current_obj_tile_data_1[0], current_obj_tile_data_0[0]
-        };
+    // Organized in pixels 
+    reg [31:0] merge_result;
+    always@(*) begin
+        for (i = 0; i < 8; i = i + 1) begin
+            if (
+                    ((current_obj_tile_data_1[i] != 1'b0)||(current_obj_tile_data_0[i] != 1'b0))&&
+                    (
+                        ((current_obj_to_bg_priority)&&(pf_data[32+i*4+3] == 1'b0)&&(pf_data[32+i*4+2] == 1'b0))|| 
+                        (~current_obj_to_bg_priority)
+                    )
+                ) //(OBJ is not transparent) and ((BG priority and BG is transparent) or (OBJ priority))
+            begin 
+                merge_result[i*4+3] = current_obj_tile_data_1[i];
+                merge_result[i*4+2] = current_obj_tile_data_0[i];
+                merge_result[i*4+1] = current_obj_pal[1];
+                merge_result[i*4+0] = current_obj_pal[0];
+            end
+            else begin
+                merge_result[i*4+3] = pf_data[32+i*4+3];
+                merge_result[i*4+2] = pf_data[32+i*4+2];
+                merge_result[i*4+1] = PPU_PAL_BG[1];
+                merge_result[i*4+0] = PPU_PAL_BG[0];
+            end
+        end
+    end
     
-    wire [31:0] merge_result = 
-        (current_obj_to_bg_priority) ?
-        ({ // BG have higher priority
-        (pf_data[63:62] == 2'b00) ? ({current_obj_fetch_result[15:14], current_obj_pal}) : ({pf_data[63:62], PPU_PAL_BG}),
-        (pf_data[59:58] == 2'b00) ? ({current_obj_fetch_result[13:12], current_obj_pal}) : ({pf_data[59:58], PPU_PAL_BG}),
-        (pf_data[55:54] == 2'b00) ? ({current_obj_fetch_result[11:10], current_obj_pal}) : ({pf_data[55:54], PPU_PAL_BG}),
-        (pf_data[51:50] == 2'b00) ? ({current_obj_fetch_result[ 9: 8], current_obj_pal}) : ({pf_data[51:50], PPU_PAL_BG}),
-        (pf_data[47:46] == 2'b00) ? ({current_obj_fetch_result[ 7: 6], current_obj_pal}) : ({pf_data[47:46], PPU_PAL_BG}),
-        (pf_data[43:42] == 2'b00) ? ({current_obj_fetch_result[ 5: 4], current_obj_pal}) : ({pf_data[43:42], PPU_PAL_BG}),
-        (pf_data[39:38] == 2'b00) ? ({current_obj_fetch_result[ 3: 2], current_obj_pal}) : ({pf_data[39:38], PPU_PAL_BG}),
-        (pf_data[35:34] == 2'b00) ? ({current_obj_fetch_result[ 1: 0], current_obj_pal}) : ({pf_data[35:34], PPU_PAL_BG})
-        }):
-        { // OBJ have higher prioritiy
-        (current_obj_fetch_result[15:14] == 2'b00) ? ({pf_data[63:62], PPU_PAL_BG}) : ({current_obj_fetch_result[15:14], current_obj_pal}),
-        (current_obj_fetch_result[13:12] == 2'b00) ? ({pf_data[59:58], PPU_PAL_BG}) : ({current_obj_fetch_result[13:12], current_obj_pal}),
-        (current_obj_fetch_result[11:10] == 2'b00) ? ({pf_data[55:54], PPU_PAL_BG}) : ({current_obj_fetch_result[11:10], current_obj_pal}),
-        (current_obj_fetch_result[ 9: 8] == 2'b00) ? ({pf_data[51:50], PPU_PAL_BG}) : ({current_obj_fetch_result[ 9: 8], current_obj_pal}),
-        (current_obj_fetch_result[ 7: 6] == 2'b00) ? ({pf_data[47:46], PPU_PAL_BG}) : ({current_obj_fetch_result[ 7: 6], current_obj_pal}),
-        (current_obj_fetch_result[ 5: 4] == 2'b00) ? ({pf_data[43:42], PPU_PAL_BG}) : ({current_obj_fetch_result[ 5: 4], current_obj_pal}),
-        (current_obj_fetch_result[ 3: 2] == 2'b00) ? ({pf_data[39:38], PPU_PAL_BG}) : ({current_obj_fetch_result[ 3: 2], current_obj_pal}),
-        (current_obj_fetch_result[ 1: 0] == 2'b00) ? ({pf_data[35:34], PPU_PAL_BG}) : ({current_obj_fetch_result[ 1: 0], current_obj_pal})
-        };
+    assign vram_addr_int_sel = 
+        ((r_state == S_OAMRDB) || (r_state == S_OFRD0A) || (r_state == S_OFRD0B)
+            || (r_state == S_OFRD1A) || (r_state == S_OFRD1B)) ? 1'b1 : 1'b0;
+        
     
     // Next Mode Logic, based on next state
     always @ (*)
@@ -444,273 +450,121 @@ module ppu(
             default: reg_mode_next = PPU_MODE_V_BLANK;
         endcase
     end
-    
-    // Modify all state related synchonize registers
-    always @(negedge clk)
+
+    // Render logic
+    always @(posedge clk)
     begin
-        // Update Registers
-        reg_ly_next[7:0] <= v_pix[7:0];
+        reg_ly_next <= v_pix[7:0];
         
-        // FSM Logic
         case (r_state)
-            S_IDLE: 
-            begin
-                //?
-            end
-            S_BLANK: 
-            begin
-                h_pix_render <= 8'b0;
-                h_pix_output <= 8'b0;
-                valid <= 0;
-                oam_search_count <= 6'b0;
-                oam_visible_count <= 4'b0;
-                pf_empty <= 5'd3;
-                for (i = 0; i < 10; i=i+1) begin
-                    //obj_visible_list[i] <= 6'b0;
-                    //obj_trigger_list[i] <= 8'b0;
+            // nothing to do for S_IDLE
+            S_BLANK: begin
+                h_pix_render <= 8'd0; // Render pointer
+                oam_search_count <= 6'd0;
+                oam_visible_count <= 4'd0;
+                for (i = 0; i < 10; i = i + 1) begin
                     obj_valid_list[i] <= 1'b0;
-                    //obj_y_list[i] <= 8'b0;
                 end
-                h_drop <= reg_scx[2:0];
                 oam_rd_addr_int <= 8'b0;
-                window_triggered <= 0;
+                window_triggered <= 1'b0;
+                pf_empty <= PF_EMPTY;
             end
-            S_OAMX: 
-            begin
-                valid <= 0;
+            S_OAMX: begin
                 oam_search_y <= oam_data_out[7:0];
                 oam_search_x <= oam_data_out[15:8];
             end
-            S_OAMY: 
-            begin
-                valid <= 0;
-                if ((((oam_search_y)<=(obj_h_upper_boundary))&&((oam_search_y)>(obj_h_lower_boundary)))&&
-                    (oam_search_x != 8'b0)) begin
-                    if (oam_visible_count < 4'd10) begin
-                        obj_visible_list[oam_visible_count] <= oam_search_count;
-                        obj_trigger_list[oam_visible_count] <= oam_search_x;
-                        obj_y_list[oam_visible_count] <= oam_search_y;
-                        obj_valid_list[oam_visible_count] <= 1;
-                        oam_visible_count <= oam_visible_count + 1'b1;
-                    end
-                end    
+            S_OAMY: begin
+                if ((oam_search_y <= obj_h_upper_boundary)&&
+                    (oam_search_y >  obj_h_lower_boundary)&&
+                    (oam_search_x != 8'd0)&&
+                    (oam_visible_count < 4'd10)) begin
+                    obj_visible_list[oam_visible_count] <= oam_search_count;
+                    obj_trigger_list[oam_visible_count] <= oam_search_x;
+                    obj_y_list[oam_visible_count] <= oam_search_y;
+                    obj_valid_list[oam_visible_count] <= 1'b1;
+                    oam_visible_count <= oam_visible_count + 1'b1;
+                end
                 oam_search_count <= oam_search_count + 1'b1;
                 oam_rd_addr_int <= (oam_search_count + 1'b1) * 4;
             end
-            S_FTIDA: 
-            begin
-                vram_addr_int <= current_map_address;
-                if (pf_empty == 5'd2) begin
-                    valid <= 0;
-                    pf_data[63:32] <= current_fetch_result[31:0];
-                end
-                else if (pf_empty == 5'd1) begin
-                    if (h_drop != 3'd0) begin
-                        h_drop <= h_drop - 1'd1;
-                        valid <= 0;
-                    end else
-                    begin
-                        valid <= 1;
-                        h_pix_output <= h_pix_output + 1'b1;
-                    end
-                    pf_data <= {pf_data[59:32], current_fetch_result, 4'b0};
-                    pixel <= pf_output_pixel;
-                    pf_empty <= 0;
-                end
-                else if (pf_empty == 5'd0) begin
-                    if (h_drop != 3'd0) begin
-                        h_drop <= h_drop - 1'd1;
-                        valid <= 0;
-                    end else
-                    begin
-                        valid <= 1;
-                        h_pix_output <= h_pix_output + 1'b1;
-                    end
-                    pf_data <= {pf_data[59:0], 4'b0000};
-                    pixel <= pf_output_pixel;
-                end
-                else begin
-                    valid <= 0;
-                end
-            end
-            S_FTIDB: 
-            begin
-                current_tile_id <= vram_data_out;
-                if (pf_empty == 5'd0) begin
-                    pf_data <= {pf_data[59:0], 4'b0000};
-                    pixel <= pf_output_pixel;
-                    if (h_drop != 3'd0) begin
-                        h_drop <= h_drop - 1'd1;
-                        valid <= 0;
-                    end else
-                    begin
-                        valid <= 1;
-                        h_pix_output <= h_pix_output + 1'b1;
-                    end
-                end
-                else begin
-                    valid <= 0;
-                end
-            end
-            S_FRD0A: 
-            begin
-                vram_addr_int <= current_tile_address_0;
-                if (pf_empty == 5'd0) begin
-                    pf_data <= {pf_data[59:0], 4'b0000};
-                    pixel <= pf_output_pixel;
-                    if (h_drop != 3'd0) begin
-                        h_drop <= h_drop - 1'd1;
-                        valid <= 0;
-                    end else
-                    begin
-                        valid <= 1;
-                        h_pix_output <= h_pix_output + 1'b1;
-                    end
-                end
-                else begin
-                    valid <= 0;
-                end
-            end
-            S_FRD0B: 
-            begin
-                current_tile_data_0 <= vram_data_out;
-                if (pf_empty == 5'd0) begin
-                    pf_data <= {pf_data[59:0], 4'b0000};
-                    pixel <= pf_output_pixel;
-                    if (h_drop != 3'd0) begin
-                        h_drop <= h_drop - 1'd1;
-                        valid <= 0;
-                    end else
-                    begin
-                        valid <= 1;
-                        h_pix_output <= h_pix_output + 1'b1;
-                    end
-                end
-                else begin
-                    valid <= 0;
-                end
-            end
-            S_FRD1A: 
-            begin
-                vram_addr_int <= current_tile_address_1;
-                if (pf_empty == 5'd0) begin
-                    pf_data <= {pf_data[59:0], 4'b0000};
-                    pixel <= pf_output_pixel;
-                    if (h_drop != 3'd0) begin
-                        h_drop <= h_drop - 1'd1;
-                        valid <= 0;
-                    end else
-                    begin
-                        valid <= 1;
-                        h_pix_output <= h_pix_output + 1'b1;
-                    end
-                end
-                else begin
-                    valid <= 0;
-                end
-            end
-            S_FRD1B: 
-            begin
+            S_FTIDA: vram_addr_bg <= current_map_address;
+            S_FTIDB: current_tile_id <= vram_data_out;
+            S_FRD0A: vram_addr_bg <= current_tile_address_0;
+            S_FRD0B: current_tile_data_0 <= vram_data_out;
+            S_FRD1A: vram_addr_bg <= current_tile_address_1;
+            S_FRD1B: begin
                 current_tile_data_1 <= vram_data_out;
-                if (pf_empty == 5'd3) begin
-                    valid <= 0;
-                    pf_empty <= 5'd2; 
-                    h_pix_render <= h_pix_render + 8'd8;
-                    //Fetch result is not ready now, merge in the first stage.
-                    //But h_pix add need to be handled here in order to have address ready
-                end
-                else if (pf_empty == 5'd2) begin
-                    valid <= 0;
-                    pf_empty <= 5'd1;
-                    h_pix_render <= h_pix_render + 8'd8;
-                end
-                else if (pf_empty == 5'd0) begin
-                    if (h_drop != 3'd0) begin
-                        h_drop <= h_drop - 1'd1;
-                        valid <= 0;
-                    end else
-                    begin
-                        valid <= 1;
-                        h_pix_output <= h_pix_output + 1'b1;
-                    end
-                    pf_data <= {pf_data[59:0], 4'b0000};
-                    pixel <= pf_output_pixel;
-                end
-            end
-            S_FWAITA: 
-            begin
-                pf_data <= {pf_data[59:0], 4'b0000};
-                pixel <= pf_output_pixel;
-                if (h_drop != 3'd0) begin
-                        h_drop <= h_drop - 1'd1;
-                        valid <= 0;
-                    end else
-                    begin
-                        valid <= 1;
-                        h_pix_output <= h_pix_output + 1'b1;
-                    end
-            end
-            S_FWAITB: 
-            begin
                 h_pix_render <= h_pix_render + 8'd8;
-                pf_data <= {pf_data[59:28], current_fetch_result};
-                pixel <= pf_output_pixel;
-                if (h_drop != 3'd0) begin
-                        h_drop <= h_drop - 1'd1;
-                        valid <= 0;
-                    end else
-                    begin
-                        valid <= 1;
-                        h_pix_output <= h_pix_output + 1'b1;
-                    end
+                if (pf_empty == PF_EMPTY) pf_empty <= PF_HALF;
+                else if (pf_empty == PF_HALF) pf_empty <= PF_FULL;
             end
-            S_SWW:
-            begin
-                valid <= 0;
-                pf_empty <= 5'd3;
-                window_triggered <= 1;
-                h_pix_render <= 0;
+            // nothing to do for S_WAITA, S_WAITB
+            S_SWW: begin
+                pf_empty <= PF_EMPTY; // Flush the pipeline 
+                h_pix_render <= 8'd0;
+                window_triggered <= 1'b1;
             end
-            S_OAMRDA:
-            begin
-                valid <= 0;
-                oam_rd_addr_int <= obj_triggered * 4 + 2'd2;
-            end
-            S_OAMRDB:
-            begin
-                valid <= 0;
+            S_OAMRDA: oam_rd_addr_int <= obj_triggered * 4 + 2'd2;
+            S_OAMRDB: begin
                 current_obj_tile_id_raw <= oam_data_out[7:0];
                 current_obj_flags <= oam_data_out[15:8];
             end
-            S_OFRD0A:
-            begin
-                valid <= 0;
-                vram_addr_int <= current_obj_address_0;
-            end
-            S_OFRD0B:
-            begin
-                valid <= 0;
-                current_obj_tile_data_0 <= vram_data_out;
-            end
-            S_OFRD1A:
-            begin
-                valid <= 0;
-                vram_addr_int <= current_obj_address_1;
-            end
-            S_OFRD1B:
-            begin
-                valid <= 0;
-                current_obj_tile_data_1 <= vram_data_out;
-            end
-            S_OWB:
-            begin
-                valid <= 0;
-                vram_addr_int <= current_address_backup;
-                pf_data <= {merge_result[31:0], pf_data[31:0]};
-            end
+            S_OFRD0A: vram_addr_obj <= current_obj_address_0;
+            S_OFRD0B: current_obj_tile_data_0 <= vram_data_out;
+            S_OFRD1A: vram_addr_obj <= current_obj_address_1;
+            S_OFRD1B: current_obj_tile_data_1 <= vram_data_out;
+            // nothing to do for S_OWB
         endcase
     end
     
+    // Output logic
+    always @(posedge clk)
+    begin
+        if (r_state == S_BLANK) begin
+            valid <= 1'b0;
+            h_pix_output <= 8'd0; // Output pointer
+            h_drop <= reg_scx[2:0];
+        end
+        else if ((r_state == S_FTIDA) || (r_state == S_FTIDB) || (r_state == S_FRD0A) || (r_state == S_FRD0B) ||
+            (r_state == S_FRD1A) || (r_state == S_FRD1B) || (r_state == S_FWAITA) || (r_state == S_FWAITB))
+        begin
+            // If it is in one of the output stages
+            if (pf_empty == PF_EMPTY) begin
+                // Just started, no data available
+                valid <= 1'b0;
+            end
+            else if (pf_empty == PF_HALF) begin
+                // One batch done, but not there yet.
+                valid <= 1'b0;
+                if (r_state == S_FTIDA)
+                    pf_data[63:32] <= current_fetch_result[31:0];
+            end
+            else begin
+                // Can output
+                if (r_state == S_FTIDA)
+                    pf_data[63:0] <= {pf_data[59:32], current_fetch_result[31:0], 4'b0};
+                else
+                    pf_data <= {pf_data[59:0], 4'b0};
+                if (h_drop != 3'd0) begin
+                    h_drop <= h_drop - 1'd1;
+                    valid <= 0;
+                end
+                else begin
+                    valid <= 1;
+                    pixel <= pf_output_pixel;
+                    h_pix_output <= h_pix_output + 1'b1;
+                end
+            end
+        end
+        else if (r_state == S_OWB) begin
+            pf_data <= {merge_result[31:0], pf_data[31:0]};
+        end
+        else begin
+            // Not even in output stages
+            valid <= 1'b0;
+        end
+    end
+
     // Enter Next State
     // and handle object interrupt
     // (sorry but I need to backup next state so I could not handle these in the next state logic)
@@ -719,7 +573,7 @@ module ppu(
         if (rst) begin
             r_state <= 0;
             r_next_backup <= 0;
-            obj_trigger_id <= obj_trigger_not_found;//not triggered
+            obj_trigger_id <= OBJ_TRIGGER_NOT_FOUND;//not triggered
         end
         else
         begin
@@ -730,7 +584,7 @@ module ppu(
                     (r_state == S_OAMRDA)||(r_state == S_OAMRDB)) begin
                     r_state <= r_next_state;
                 end 
-                // Finished one object, but there is more to go!
+                // Finished one object, but there is more
                 else if (r_state == S_OWB) begin
                     r_state <= S_OAMRDA;
                     obj_trigger_id <= obj_trigger_id_next;
@@ -744,9 +598,9 @@ module ppu(
             end
             else begin
                 r_state <= r_next_state;
-                // Finished one object, should be no more!
+                // Finished one object, and there is no more currently
                 if (r_state == S_OWB) begin
-                    obj_trigger_id <= obj_trigger_not_found;
+                    obj_trigger_id <= OBJ_TRIGGER_NOT_FOUND;
                 end
             end
         end
@@ -772,16 +626,15 @@ module ppu(
                 ) : (S_IDLE);
             S_OAMX: r_next_state = (reg_lcd_en) ? (S_OAMY) : (S_IDLE);
             S_OAMY: r_next_state = (reg_lcd_en) ? ((oam_search_count == (PPU_OAM_SEARCH_LENGTH)) ? (S_FTIDA) : (S_OAMX)) : (S_IDLE);
-            S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_FIFO)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FTIDB))) : (S_IDLE);
-            S_FTIDB: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_FIFO)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD0A))) : (S_IDLE);
-            S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_FIFO)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD0B))) : (S_IDLE);
-            S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_FIFO)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD1A))) : (S_IDLE);
-            S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_FIFO)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD1B))) : (S_IDLE);
-            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_FIFO)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : ((pf_empty != 5'd0) ? (S_FTIDA) : (S_FWAITA)))) : (S_IDLE); // If fifo is empty, no wait state is needed
-            S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_FIFO)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FWAITB))) : (S_IDLE);
-            S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_FIFO)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FTIDA))) : (S_IDLE);
-            S_SWW: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_FIFO)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
-            //S_OFTID: r_next_state = (reg_lcd_en) ? (S_OFRD0A) : (S_IDLE);
+            S_FTIDA: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FTIDB))) : (S_IDLE);
+            S_FTIDB: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD0A))) : (S_IDLE);
+            S_FRD0A: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD0B))) : (S_IDLE);
+            S_FRD0B: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD1A))) : (S_IDLE);
+            S_FRD1A: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FRD1B))) : (S_IDLE);
+            S_FRD1B: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : ((pf_empty != 2'd0) ? (S_FTIDA) : (S_FWAITA)))) : (S_IDLE); // If fifo not full, no wait state is needed
+            S_FWAITA: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FWAITB))) : (S_IDLE);
+            S_FWAITB: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : ((window_trigger) ? (S_SWW) : (S_FTIDA))) : (S_IDLE);
+            S_SWW: r_next_state = (reg_lcd_en) ? ((h_pix_output == (PPU_H_OUTPUT)) ? (S_BLANK) : (S_FTIDA)) : (S_IDLE);
             S_OAMRDA: r_next_state = (reg_lcd_en) ? (S_OAMRDB) : (S_IDLE);
             S_OAMRDB: r_next_state = (reg_lcd_en) ? (S_OFRD0A) : (S_IDLE);
             S_OFRD0A: r_next_state = (reg_lcd_en) ? (S_OFRD0B) : (S_IDLE);
