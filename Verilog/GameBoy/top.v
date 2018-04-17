@@ -19,115 +19,123 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module top(
-  //Audio
-  output         AUDIO_SDATA_OUT,
-  input         AUDIO_BIT_CLK,
-  input          AUDIO_SDATA_IN,
-  output         AUDIO_SYNC,
-  output         FLASH_AUDIO_RESET_B,
+    // Audio
+    output         AUDIO_SDATA_OUT,
+    input         AUDIO_BIT_CLK,
+    input          AUDIO_SDATA_IN,
+    output         AUDIO_SYNC,
+    output         FLASH_AUDIO_RESET_B,
 
-  //SRAM & Flash
-  output [30:0]  SRAM_FLASH_A,
-  inout  [15:0]  SRAM_FLASH_D,
-  //inout  [31:16] SRAM_D,
-  //inout  [3:0]   SRAM_DQP,
-  //output [3:0]   SRAM_BW,
-  output         SRAM_FLASH_WE_B,
-  //output         SRAM_CLK,
-  //output         SRAM_CS_B,
-  //output         SRAM_OE_B,
-  //output         SRAM_MODE,
-  //output         SRAM_ADV_LD_B,
-  output         FLASH_CE_B,
-  output         FLASH_OE_B,
-  output         FLASH_CLK,
-  output         FLASH_ADV_B,
-  //output         FLASH_WAIT,
-  
-  //Rotrary Encoder
-  input          ROTARY_INCA,
-  input          ROTARY_INCB,
-  
-  //UART
-  /*output         FPGA_SERIAL1_TX,
-  input          FPGA_SERIAL1_RX,
-  output         FPGA_SERIAL2_TX,
-  input          FPGA_SERIAL2_RX,*/
-  
-  //IIC
-  /*output         IIC_SCL_MAIN,
-  inout          IIC_SDA_MAIN,*/
-  inout          IIC_SCL_VIDEO,
-  inout          IIC_SDA_VIDEO,
-  /*output         IIC_SCL_SFP,
-  inout          IIC_SDA_SFP,*/
-  
-  //PS2
-  /*output         MOUSE_CLK,
-  input          MOUSE_DATA,
-  output         KEYBOARD_CLK,
-  inout          KEYBOARD_DATA,*/
-  
-  //VGA IN
-  /*input          VGA_IN_DATA_CLK,
-  input  [7:0]   VGA_IN_BLUE,
-  input  [7:0]   VGA_IN_GREEN,
-  input  [7:0]   VGA_IN_RED,
-  input          VGA_IN_HSOUT,
-  input          VGA_IN_ODD_EVEN_B,
-  input          VGA_IN_VSOUT,
-  input          VGA_IN_SOGOUT,*/
-  
-  //SW
-  input          GPIO_SW_C,
-  input          GPIO_SW_W,
-  input          GPIO_SW_E,
-  input          GPIO_SW_S,
-  input          GPIO_SW_N,
-  input  [7:0]   GPIO_DIP_SW,
+    // SRAM & Flash
+    output [30:0]  SRAM_FLASH_A,
+    inout  [15:0]  SRAM_FLASH_D,
+    //inout  [31:16] SRAM_D,
+    //inout  [3:0]   SRAM_DQP,
+    //output [3:0]   SRAM_BW,
+    output         SRAM_FLASH_WE_B,
+    //output         SRAM_CLK,
+    //output         SRAM_CS_B,
+    //output         SRAM_OE_B,
+    //output         SRAM_MODE,
+    //output         SRAM_ADV_LD_B,
+    output         FLASH_CE_B,
+    output         FLASH_OE_B,
+    output         FLASH_CLK,
+    output         FLASH_ADV_B,
+    //output         FLASH_WAIT,
+    
+    // Rotrary Encoder
+    input          ROTARY_INCA,
+    input          ROTARY_INCB,
+    
+    // UART
+    /*output         FPGA_SERIAL1_TX,
+    input          FPGA_SERIAL1_RX,
+    output         FPGA_SERIAL2_TX,
+    input          FPGA_SERIAL2_RX,*/
+    
+    // IIC
+    /*output         IIC_SCL_MAIN,
+    inout          IIC_SDA_MAIN,*/
+    inout          IIC_SCL_VIDEO,
+    inout          IIC_SDA_VIDEO,
+    /*output         IIC_SCL_SFP,
+    inout          IIC_SDA_SFP,*/
+    
+    // PS2
+    /*output         MOUSE_CLK,
+    input          MOUSE_DATA,
+    output         KEYBOARD_CLK,
+    inout          KEYBOARD_DATA,*/
+    
+    // VGA IN
+    /*input          VGA_IN_DATA_CLK,
+    input  [7:0]   VGA_IN_BLUE,
+    input  [7:0]   VGA_IN_GREEN,
+    input  [7:0]   VGA_IN_RED,
+    input          VGA_IN_HSOUT,
+    input          VGA_IN_ODD_EVEN_B,
+    input          VGA_IN_VSOUT,
+    input          VGA_IN_SOGOUT,*/
+    
+    // SW
+    input          GPIO_SW_C,
+    input          GPIO_SW_W,
+    input          GPIO_SW_E,
+    input          GPIO_SW_S,
+    input          GPIO_SW_N,
+    input  [7:0]   GPIO_DIP_SW,
+    
+    // LED
+    output [7:0]   GPIO_LED,
+    output         GPIO_LED_C,
+    output         GPIO_LED_W,
+    output         GPIO_LED_E,
+    output         GPIO_LED_S,
+    output         GPIO_LED_N,
 
-  //LED
-  output [7:0]   GPIO_LED,
-  output         GPIO_LED_C,
-  output         GPIO_LED_W,
-  output         GPIO_LED_E,
-  output         GPIO_LED_S,
-  output         GPIO_LED_N,
-
-  //DDR2
-  /*inout  [63:0]  DDR2_D,
-  output [12:0]  DDR2_A,
-  output [1:0]   DDR2_CLK_P,
-  output [1:0]   DDR2_CLK_N,
-  output [1:0]   DDR2_CE,
-  output [1:0]   DDR2_CS_B,
-  output [1:0]   DDR2_ODT,
-  output         DDR2_RAS_B,
-  output         DDR2_CAS_B,
-  output         DDR2_WE_B,
-  output [1:0]   DDR2_BA,
-  output [7:0]   DDR2_DQS_P,
-  output [7:0]   DDR2_DQS_N,
-  output         DDR2_SCL,
-  inout          DDR2_SDA,*/
-  
-  //Speaker
-  //output         PIEZO_SPEAKER,
-  
-  //DVI
-  output [11:0]  DVI_D,
-  output         DVI_DE,
-  output         DVI_H,
-  output         DVI_RESET_B,
-  output         DVI_V,
-  output         DVI_XCLK_N,
-  output         DVI_XCLK_P,
-  input          DVI_GPIO1,
-  
-  //System
-  input          FPGA_CPU_RESET_B,
-  input          CLK_33MHZ_FPGA,
-  input          CLK_27MHZ_FPGA
+    // DDR2
+    /*inout  [63:0]  DDR2_D,
+    output [12:0]  DDR2_A,
+    output [1:0]   DDR2_CLK_P,
+    output [1:0]   DDR2_CLK_N,
+    output [1:0]   DDR2_CE,
+    output [1:0]   DDR2_CS_B,
+    output [1:0]   DDR2_ODT,
+    output         DDR2_RAS_B,
+    output         DDR2_CAS_B,
+    output         DDR2_WE_B,
+    output [1:0]   DDR2_BA,
+    output [7:0]   DDR2_DQS_P,
+    output [7:0]   DDR2_DQS_N,
+    output         DDR2_SCL,
+    inout          DDR2_SDA,*/
+    
+    // Speaker
+    //output         PIEZO_SPEAKER,
+    
+    // DVI
+    output [11:0]  DVI_D,
+    output         DVI_DE,
+    output         DVI_H,
+    output         DVI_RESET_B,
+    output         DVI_V,
+    output         DVI_XCLK_N,
+    output         DVI_XCLK_P,
+    input          DVI_GPIO1,
+    
+    // Dual Shock 2
+    input          DS2_DAT,
+    output         DS2_CMD,
+    output         DS2_ATT,
+    output         DS2_CLK,
+    input          DS2_ACK,
+    output         DS2_TST,
+      
+    // System
+    input          FPGA_CPU_RESET_B,
+    input          CLK_33MHZ_FPGA,
+    input          CLK_27MHZ_FPGA
     );
 
     //Clock and Reset control   
@@ -397,6 +405,49 @@ module top(
         .left_level(gb_left),
         .right_level(gb_right)
     );
+    
+    // Dual Shock 2
+    wire key_up;
+    wire key_down;
+    wire key_left;
+    wire key_right;
+    wire key_a;
+    wire key_b;
+    wire key_start;
+    wire key_select;
+    
+    dualshock2 dualshock2(
+        .clk(clk_gb),
+        .rst(reset),
+        .vsync(gb_vs), // Vsync, should be high active, read back happen during Vsync
+        .ds2_dat(DS2_DAT),
+        .ds2_cmd(DS2_CMD),
+        .ds2_att(DS2_ATT),
+        .ds2_clk(DS2_CLK),
+        .ds2_ack(DS2_ACK),
+        .stick_lx(),
+        .stick_ly(),
+        .stick_rx(),
+        .stick_ry(),
+        .key_up(key_up),
+        .key_down(key_down),
+        .key_left(key_left),
+        .key_right(key_right),
+        .key_l1(),
+        .key_l2(),
+        .key_r1(),
+        .key_r2(),
+        .key_triangle(),
+        .key_square(),
+        .key_circle(key_a),
+        .key_cross(key_b),
+        .key_start(key_start),
+        .key_select(key_select),
+        .key_analog(),
+        .key_lstick(),
+        .key_rstick(),
+        .ds2_tst(DS2_TST)
+    );
 
     //Debug output
     //assign GPIO_LED_C = locked_pll;
@@ -405,14 +456,24 @@ module top(
     assign GPIO_LED_N = locked_pll;
     //assign GPIO_LED_E = 0;
 
-    assign GPIO_LED[7] = gb_hs;
-    assign GPIO_LED[6] = gb_vs;
-    assign GPIO_LED[5] = gb_valid;
-    assign GPIO_LED[4] = gb_pixel[1];
-    assign GPIO_LED[3] = ch4_level[3];
-    assign GPIO_LED[2] = ch3_level[3];
-    assign GPIO_LED[1] = ch2_level[3];
-    assign GPIO_LED[0] = ch1_level[3];
+    //assign GPIO_LED[7] = gb_hs;
+    //assign GPIO_LED[6] = gb_vs;
+    //assign GPIO_LED[5] = gb_valid;
+    //assign GPIO_LED[4] = gb_pixel[1];
+    //assign GPIO_LED[3] = ch4_level[3];
+    //assign GPIO_LED[2] = ch3_level[3];
+    //assign GPIO_LED[1] = ch2_level[3];
+    //assign GPIO_LED[0] = ch1_level[3];
+    
+    assign GPIO_LED[7] = key_up;
+    assign GPIO_LED[6] = key_down;
+    assign GPIO_LED[5] = key_left;
+    assign GPIO_LED[4] = key_right;
+    assign GPIO_LED[3] = key_a;
+    assign GPIO_LED[2] = key_b;
+    assign GPIO_LED[1] = key_start;
+    assign GPIO_LED[0] = key_select;
+    
     //
     
     //Keys

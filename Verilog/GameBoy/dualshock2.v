@@ -4,18 +4,16 @@
 // Engineer: Wenting Zhang
 // 
 // Create Date:    13:13:04 04/13/2018 
-// Module Name:    dualshock2 
+// Module Name:    dualshock
 // Project Name:   VerilogBoy
 // Description: 
-//   Interface logic of SONY DualShock 2 controller
+//   Interface logic of SONY DualShock controller
 // Dependencies: 
 //
-// Revision: 
-// Revision 0.01 - File Created
 // Additional Comments: 
 //   The PSX controller use a SPI like protocol. ATT is the CS, CMD is the MOSI,
 //   and the DAT is the MISO. There is an additional ACK line would be pulled
-//   low by the controller indicate the presense of the controller.
+//   low by the controller indicate the presense of the controller. LSB first.
 //
 //   Clock is Idle High, Data are put on to bus during the leading edge, and
 //   pulled from bus during the trailing edge.
@@ -35,7 +33,7 @@
 //      * 0x07: Analog mode
 //      * 0x0F: Escape mode
 //
-//   This module only implement the Command 0x42 and Command 0x44.
+//   This module only implement the Command 0x42.
 //
 //   Command 0x42 Polling keys:
 //      | Byte | BIT0  | BIT1  | BIT2  | BIT3  | BIT4  | BIT5  | BIT6  | BIT7  |
@@ -85,8 +83,11 @@ module dualshock2(
     output key_start,
     output key_select,
     output key_analog,
-    output key_l3,
-    output key_r3
+    output key_lstick,
+    output key_rstick,
+    //debug
+    output [7:0] debug1,
+    output [7:0] debug2
     );
     
     wire clk_spi; //500kHz SPI Clock
@@ -107,26 +108,58 @@ module dualshock2(
     
     localparam T_ATT       = 5'd4;  // Wait 2 clocks before start
     localparam T_BITS      = 5'd8;  // Word size: 8 bits
-    localparam T_TIMEOUT   = 5'd32; // Timeout for ACK
+    localparam T_TIMEOUT   = 5'd31; // Timeout for ACK
     localparam T_CD        = 5'd8;  // Cool down before next byte
     
     localparam LENGTH      = 4'd9;  // Transfer size should always be 9 bytes
     
-    clk_div #(.WIDTH(4), .DIV(8)) frame_div(
+    clk_div #(.WIDTH(4), .DIV(8)) spi_div(
         .i(clk),
         .o(clk_spi)
     );
     
     reg [4:0] state;
-    wire [4:0] next_state;
+    reg [4:0] next_state;
     reg [4:0] state_counter; // Delta clock counter
     
-    reg [3:0] bytes_count; // Bytes left
-    reg [3:0] bits_left; // Bit count
+    reg [3:0] bytes_count; // Bytes count
+    reg [3:0] bits_count; // Bits count
     reg [7:0] tx_buffer [0:8]; // TX buffer, constant
     reg [7:0] rx_buffer [0:8]; // RX buffer
+    reg [7:0] rx_byte;
     reg ready = 0; // Indicate if the data could be sent
     reg [1:0] status;
+    
+    assign debug1 = rx_buffer[3];
+    assign debug2 = rx_buffer[4];
+    
+    wire [7:0] rx_b0 = rx_buffer[3];
+    wire [7:0] rx_b1 = rx_buffer[4];
+    wire [7:0] rx_b2 = rx_buffer[5];
+    wire [7:0] rx_b3 = rx_buffer[6];
+    wire [7:0] rx_b4 = rx_buffer[7];
+    wire [7:0] rx_b5 = rx_buffer[8];
+    
+    assign key_select  = rx_b0[0];
+    assign key_rstick  = rx_b0[1];
+    assign key_lstick  = rx_b0[2];
+    assign key_start   = rx_b0[3];
+    assign key_up      = rx_b0[4];
+    assign key_right   = rx_b0[5];
+    assign key_down    = rx_b0[6];
+    assign key_left    = rx_b0[7];
+    assign key_l2      = rx_b1[0];
+    assign key_r2      = rx_b1[1];
+    assign key_l1      = rx_b1[2];
+    assign key_r1      = rx_b1[3];
+    assign key_triangle= rx_b1[4];
+    assign key_circle  = rx_b1[5];
+    assign key_cross   = rx_b1[6];
+    assign key_square  = rx_b1[7];
+    assign stick_rx    = rx_b2;
+    assign stick_ry    = rx_b3;
+    assign stick_lx    = rx_b4;
+    assign stick_ly    = rx_b5;
     
     reg last_vsync = 0;
     
@@ -140,7 +173,7 @@ module dualshock2(
             S_TX:
                 next_state = S_RX;
             S_RX:
-                if (state_counter == T_BITS) next_state = S_EOB;
+                if (bits_count == 4'd7) next_state = S_EOB; else next_state = S_TX;
             S_EOB:
                 if (bytes_count == LENGTH) next_state = S_END; else next_state = S_ACK_L;
             S_ACK_L:
@@ -151,24 +184,31 @@ module dualshock2(
             S_END:
                 next_state = S_IDLE;
             S_ERR:
-                next_state = S_ERR;
+                next_state = S_IDLE;//Error recovery
         endcase
     end
     
-    always @(posedge clk) begin
+    always @(posedge clk_spi) begin
         if (rst) begin
             state <= S_IDLE;
+            state_counter <= 5'd0;
+            last_vsync <= 1'b0;
         end
         else begin
+            last_vsync <= vsync;
             state <= next_state;
+            if (state != next_state)
+                state_counter <= 5'd0;
+            else
+                state_counter <= state_counter + 1'b1;
         end
     end
     
-    always @(posedge clk) begin
+    always @(posedge clk_spi) begin
         if (rst) begin
             // When reset, we want the first command to be 0x44
             bytes_count <= 4'd0;
-            bits_left <= 4'd7;
+            bits_count <= 4'd0;
             tx_buffer[0] <= 8'h01;
             tx_buffer[1] <= 8'h42;
             tx_buffer[2] <= 8'hff;
@@ -178,53 +218,42 @@ module dualshock2(
             tx_buffer[6] <= 8'hff;
             tx_buffer[7] <= 8'hff;
             tx_buffer[8] <= 8'hff;
+            rx_byte <= 8'hff;
             status <= STATUS_OK;
             ready <= 1;
+            ds2_clk <= 1'b1;
+            ds2_att <= 1'b1;
+            ds2_cmd <= 1'b1;
         end
         else begin
             case (state)
-                S_IDLE:
-                    // Do nothing!
                 S_ATT:
                     ds2_att <= 1'b0;
-                S_TX:
-                    ds2_cmd <= tx_buffer[bytes_count][bits_left];
-                //S_RX:
-                    
-                //S_EOB:
-                    
-                //S_ACK_L:
-
-                //S_ACK_H:
-               
+                S_TX: begin
+                    ds2_clk <= 1'b0;
+                    ds2_cmd <= tx_buffer[bytes_count][bits_count];
+                end
+                S_RX: begin
+                    ds2_clk <= 1'b1;
+                    rx_byte[bits_count] <= ds2_dat;
+                    bits_count <= bits_count + 1'b1;
+                end
+                S_EOB: begin
+                    bytes_count <= bytes_count + 1'b1;
+                    bits_count <= 4'd0;
+                    rx_buffer[bytes_count] <= rx_byte;
+                end
+                //nothing to do for S_ACK_L and S_ACK_H
                 S_END: begin
                     bytes_count <= 4'd0;
-                    bits_left <= 4'd7;
-                    tx_buffer[0] <= 8'h01;
-                    tx_buffer[1] <= 8'h42;
-                    tx_buffer[2] <= 8'hff;
-                    tx_buffer[3] <= 8'hff;
-                    tx_buffer[4] <= 8'hff;
-                    tx_buffer[5] <= 8'hff;
-                    tx_buffer[6] <= 8'hff;
-                    tx_buffer[7] <= 8'hff;
-                    tx_buffer[8] <= 8'hff;
+                    bits_count <= 4'd0;
                     status <= STATUS_OK;
                     ds2_att <= 1'b1;
                 end
                 S_ERR: begin
                     // Error happens, restart from 0x44
                     bytes_count <= 4'd0;
-                    bits_left <= 4'd7;
-                    tx_buffer[0] <= 8'h01;
-                    tx_buffer[1] <= 8'h44;
-                    tx_buffer[2] <= 8'hff;
-                    tx_buffer[3] <= 8'h01;
-                    tx_buffer[4] <= 8'h03;
-                    tx_buffer[5] <= 8'hff;
-                    tx_buffer[6] <= 8'hff;
-                    tx_buffer[7] <= 8'hff;
-                    tx_buffer[8] <= 8'hff;
+                    bits_count <= 4'd0;
                     status <= STATUS_ERR;
                     ds2_att <= 1'b1;
                 end
