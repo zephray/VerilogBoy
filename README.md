@@ -31,13 +31,13 @@ GameBoy Related:
  - [x] Sound
  - [x] Timer
  - [ ] Link
- - [ ] Keypad
+ - [x] Keypad
 
 Board Related:
  - [x] DVI Interface
  - [x] AC'97 Interface
  - [x] Cartridge (Emulated with FlashROM)
- - [ ] Controller Interface
+ - [x] Controller Interface
 
 ## Accuracy
 

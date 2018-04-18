@@ -130,7 +130,6 @@ module top(
     output         DS2_ATT,
     output         DS2_CLK,
     input          DS2_ACK,
-    output         DS2_TST,
       
     // System
     input          FPGA_CPU_RESET_B,
@@ -226,6 +225,8 @@ module top(
     wire gb_wr;
     wire gb_rd;
     
+    wire [7:0] gb_key;
+    
     wire [19:0] gb_left;
     wire [19:0] gb_right;
     
@@ -233,6 +234,8 @@ module top(
     wire [3:0] ch2_level;
     wire [3:0] ch3_level;
     wire [3:0] ch4_level;
+    
+    wire [7:0] joystick;
     
     gameboy gameboy(
         .rst(reset), // Async Reset Input
@@ -247,7 +250,7 @@ module top(
         .rd(gb_rd), // Read Enable
         .cs(), // External RAM Chip Select
         // Keyboard input
-        .key(8'b0),
+        .key(gb_key),
         // LCD output
         .hs(gb_hs), // Horizontal Sync Output
         .vs(gb_vs), // Vertical Sync Output
@@ -276,7 +279,8 @@ module top(
         .ch1_level(ch1_level),
         .ch2_level(ch2_level),
         .ch3_level(ch3_level),
-        .ch4_level(ch4_level)
+        .ch4_level(ch4_level),
+        .joystick(joystick)
     );
     
     // Cartridge
@@ -445,9 +449,10 @@ module top(
         .key_select(key_select),
         .key_analog(),
         .key_lstick(),
-        .key_rstick(),
-        .ds2_tst(DS2_TST)
+        .key_rstick()
     );
+    
+    assign gb_key[7:0] = {key_down, key_up, key_left, key_right, key_start, key_select, key_b, key_a};
 
     //Debug output
     //assign GPIO_LED_C = locked_pll;
@@ -465,15 +470,7 @@ module top(
     //assign GPIO_LED[1] = ch2_level[3];
     //assign GPIO_LED[0] = ch1_level[3];
     
-    assign GPIO_LED[7] = key_up;
-    assign GPIO_LED[6] = key_down;
-    assign GPIO_LED[5] = key_left;
-    assign GPIO_LED[4] = key_right;
-    assign GPIO_LED[3] = key_a;
-    assign GPIO_LED[2] = key_b;
-    assign GPIO_LED[1] = key_start;
-    assign GPIO_LED[0] = key_select;
-    
+    assign GPIO_LED = joystick;
     //
     
     //Keys

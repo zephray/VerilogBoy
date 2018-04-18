@@ -58,7 +58,8 @@ module gameboy(
     output [3:0] ch1_level,
     output [3:0] ch2_level,
     output [3:0] ch3_level,
-    output [3:0] ch4_level
+    output [3:0] ch4_level,
+    output [7:0] joystick
     );
     
     // Bus & Memory Signals
@@ -259,8 +260,11 @@ module gameboy(
         .load(addr_in_joystick & mem_we),
         .reset(rst),
         .clock(clk));
-    assign joystick_reg_data[3:0] = 4'hF; // No keys are pressed
-   
+    assign joystick_reg_data[3:0] = 
+        ~(((joystick_reg_data[5] == 1'b1) ? (key[7:4]) : 4'h0) | 
+          ((joystick_reg_data[4] == 1'b1) ? (key[3:0]) : 4'h0)); 
+    assign joystick[7:0] = joystick_reg_data[7:0];
+    
     // Memory related
     assign addr_in_brom = (bootstrap_reg_data[0]) ? 1'b0 : addr_ext < 16'h103;
     assign addr_in_bootstrap = addr_ext == `MMIO_BOOTSTRAP;

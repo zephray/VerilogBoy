@@ -140,26 +140,26 @@ module dualshock2(
     wire [7:0] rx_b4 = rx_buffer[7];
     wire [7:0] rx_b5 = rx_buffer[8];
     
-    assign key_select  = rx_b0[0];
-    assign key_rstick  = rx_b0[1];
-    assign key_lstick  = rx_b0[2];
-    assign key_start   = rx_b0[3];
-    assign key_up      = rx_b0[4];
-    assign key_right   = rx_b0[5];
-    assign key_down    = rx_b0[6];
-    assign key_left    = rx_b0[7];
-    assign key_l2      = rx_b1[0];
-    assign key_r2      = rx_b1[1];
-    assign key_l1      = rx_b1[2];
-    assign key_r1      = rx_b1[3];
-    assign key_triangle= rx_b1[4];
-    assign key_circle  = rx_b1[5];
-    assign key_cross   = rx_b1[6];
-    assign key_square  = rx_b1[7];
-    assign stick_rx    = rx_b2;
-    assign stick_ry    = rx_b3;
-    assign stick_lx    = rx_b4;
-    assign stick_ly    = rx_b5;
+    assign key_select  = ~rx_b0[0];
+    assign key_rstick  = ~rx_b0[1];
+    assign key_lstick  = ~rx_b0[2];
+    assign key_start   = ~rx_b0[3];
+    assign key_up      = ~rx_b0[4];
+    assign key_right   = ~rx_b0[5];
+    assign key_down    = ~rx_b0[6];
+    assign key_left    = ~rx_b0[7];
+    assign key_l2      = ~rx_b1[0];
+    assign key_r2      = ~rx_b1[1];
+    assign key_l1      = ~rx_b1[2];
+    assign key_r1      = ~rx_b1[3];
+    assign key_triangle= ~rx_b1[4];
+    assign key_circle  = ~rx_b1[5];
+    assign key_cross   = ~rx_b1[6];
+    assign key_square  = ~rx_b1[7];
+    assign stick_rx    = ~rx_b2;
+    assign stick_ry    = ~rx_b3;
+    assign stick_lx    = ~rx_b4;
+    assign stick_ly    = ~rx_b5;
     
     reg last_vsync = 0;
     
