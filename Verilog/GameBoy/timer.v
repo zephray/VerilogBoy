@@ -15,6 +15,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 module timer(
     input clk,
+    input clk_1m,
     input rst,
     input [15:0] a,
     output reg [7:0] dout,
@@ -67,7 +68,7 @@ module timer(
     end
     
     // Bus RW - Sequential Write
-    always @(posedge clk)
+    always @(posedge clk_1m)
     begin
         last_clk_tim <= clk_tim;
         if (rst) begin
@@ -78,6 +79,7 @@ module timer(
             div <= 0;
         end
         else begin
+            div <= div + 1'b1;
             if ((wr)&&(addr_in_timer)) begin
                 if (a == 16'hFF04) div <= 0; else
                 if (a == 16'hFF05) reg_tima <= din; else
@@ -89,7 +91,7 @@ module timer(
                     {carry, reg_tima} <= reg_tima + 1'b1;
                 end
                 else begin
-                    //Overflow is delayed by 1 clock
+                    //Overflow is delayed by 1 CYCLE (4 clocks)
                     if (carry) begin
                         reg_tima <= reg_tma;
                         carry <= 1'b0;

@@ -16,7 +16,7 @@
 module cpu(/*AUTOARG*/
    // Outputs
    high_mem_data, high_mem_addr, F_data, A_data, instruction, IF_data,
-   IE_data, regs_data, mem_we, mem_re, halt, debug_halt,
+   IE_data, regs_data, mem_we, mem_re, halt, debug_halt, clk_1m,
    // Inouts
    addr_ext, data_ext,
    // Inputs
@@ -43,6 +43,8 @@ module cpu(/*AUTOARG*/
    output wire  mem_we, mem_re;
    output wire  halt;
    output wire  debug_halt;
+   
+   output wire  clk_1m;
 
    input [4:0]  IF_in, IE_in;
    input        IF_load, IE_load;
@@ -434,6 +436,7 @@ module cpu(/*AUTOARG*/
                       .alu_size         (alu_size[1:0]),
                       .halt             (halt),
                       .debug_halt       (debug_halt),
+                      .clk_1m           (clk_1m),
                       // Inputs
                       .bp_step          (bp_step),
                       .bp_continue      (bp_continue),

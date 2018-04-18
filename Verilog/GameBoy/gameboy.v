@@ -62,6 +62,8 @@ module gameboy(
     output [7:0] joystick
     );
     
+    wire clk_1m; // CPU Internal 1MHz machine cycle clock
+    
     // Bus & Memory Signals
     wire [15:0] addr_ext; // Main Address Bus
     wire [7:0]  data_ext; // Main Data Bus
@@ -182,6 +184,7 @@ module gameboy(
         .data_ext(data_ext),
         .clock(clk),
         .reset(rst),
+        .clk_1m(clk_1m),
         .A_data(A_data),
         .F_data(F_data),
         .high_mem_data(high_mem_data[7:0]),
@@ -243,6 +246,7 @@ module gameboy(
     // Timer 
     timer timer(
         .clk(clk),
+        .clk_1m(clk_1m),
         .rst(rst),
         .a(addr_ext),
         .dout(do_timer),

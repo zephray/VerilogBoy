@@ -21,7 +21,7 @@ module decode(/*AUTOARG*/
    IME_set, IME_reset, regfile_data_gate, A_data_gate, F_data_gate,
    alu_data_gate, regfile_addr_gate, interrupt_data_gate,
    alu_data1_in_sel, alu_data0_in_sel, addr_ff00_sel, alu_op,
-   alu_size, halt, debug_halt,
+   alu_size, halt, debug_halt, clk_1m,
    // Inputs
    bp_step, bp_continue, bp_pc, instruction, taken, interrupt,
    IME_data, clock, reset
@@ -67,6 +67,9 @@ module decode(/*AUTOARG*/
    output reg         halt;
    output reg         debug_halt;        
    
+   // Machine cycle clock output for synchronize.
+   output             clk_1m;
+   
    // Inputs ///////////////////////////////////////////////////////////////////
 
    input              bp_step, bp_continue, bp_pc;
@@ -108,6 +111,7 @@ module decode(/*AUTOARG*/
    
    assign m_cycle = cycle[4:2];
    assign t_cycle = cycle[1:0];
+   assign clk_1m = cycle[2];
 
    // Register number decoding
    reg [4:0]          rn_in, rn_out;
