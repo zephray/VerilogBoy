@@ -45,6 +45,9 @@ module dvi_mixer(
     wire [7:0] gb_r;
     wire [7:0] gb_g;
     wire [7:0] gb_b;
+    wire [7:0] gb_grid_r;
+    wire [7:0] gb_grid_g;
+    wire [7:0] gb_grid_b;
 
     //Background colors
     wire [7:0] bg_r;
@@ -58,6 +61,7 @@ module dvi_mixer(
     //X,Y positions of GB display
     wire [7:0] gb_x;
     wire [7:0] gb_y;
+    wire gb_grid; // If it's on grid line
 
     //VGA font
     wire [6:0] font_ascii;
@@ -71,9 +75,11 @@ module dvi_mixer(
     wire [7:0] out_b;
 
     wire signal_in_gb_range;
-    assign out_r = (signal_in_gb_range) ? (gb_r) : (bg_r);
-    assign out_g = (signal_in_gb_range) ? (gb_g) : (bg_g);
-    assign out_b = (signal_in_gb_range) ? (gb_b) : (bg_b);
+    assign out_r = (signal_in_gb_range) ? ((gb_grid) ? (gb_grid_r) : (gb_r)) : (bg_r);
+    assign out_g = (signal_in_gb_range) ? ((gb_grid) ? (gb_grid_g) : (gb_g)) : (bg_g);
+    assign out_b = (signal_in_gb_range) ? ((gb_grid) ? (gb_grid_b) : (gb_b)) : (bg_b);
+    
+    wire signal_in_text_range = ((dvi_y <= 20) || (dvi_y >= 460));
 
     always @(negedge clk)
     begin
@@ -90,10 +96,13 @@ module dvi_mixer(
     assign font_ascii[6:0] = dbg_char[6:0];
     assign font_row[3:0] = dvi_y[3:0];
     assign font_col[2:0] = dvi_x[2:0];
-    assign bg_r[7:0] = (font_pixel) ? (font_fg_color) : (font_bg_color);
-    assign bg_g[7:0] = (font_pixel) ? (font_fg_color) : (font_bg_color);
-    assign bg_b[7:0] = (font_pixel) ? (font_fg_color) : (font_bg_color);
+    wire [7:0] text_r = (font_pixel) ? (font_fg_color) : (font_bg_color);
+    wire [7:0] text_g = (font_pixel) ? (font_fg_color) : (font_bg_color);
+    wire [7:0] text_b = (font_pixel) ? (font_fg_color) : (font_bg_color);
     assign dbg_sync = dvi_vs;
+    assign bg_r[7:0] = (signal_in_text_range) ? (text_r) : (8'hbe);
+    assign bg_g[7:0] = (signal_in_text_range) ? (text_g) : (8'h9e);
+    assign bg_b[7:0] = (signal_in_text_range) ? (text_b) : (8'h16);
 
     // Gameboy Input
     reg [7:0] gb_v_counter;
@@ -154,14 +163,16 @@ module dvi_mixer(
         gb_rd_data <= gb_buffer[gb_rd_addr];
     end
     
-    assign gb_r[7:0] = (gb_rd_data == 2'b11) ? (8'h00) : 
-                      ((gb_rd_data == 2'b10) ? (8'h55) : 
-                      ((gb_rd_data == 2'b01) ? (8'hAA) : (8'hFF)));
-    assign gb_g[7:0] = gb_r[7:0];
-    assign gb_b[7:0] = gb_r[7:0];
-    //assign gb_g[7:0] = gb_x[7:0];
-    //assign gb_b[7:0] = gb_y[7:0];
+    assign {gb_r[7:0], gb_g[7:0], gb_b[7:0]} = 
+        (gb_rd_data == 2'b11) ? (24'h212f25) : 
+       ((gb_rd_data == 2'b10) ? (24'h35573e) : 
+       ((gb_rd_data == 2'b01) ? (24'h597d3a) : (24'h8b9a26)));
+    assign {gb_grid_r[7:0], gb_grid_g[7:0], gb_grid_b[7:0]} = 
+        (gb_rd_data == 2'b11) ? (24'h605b1f) : 
+       ((gb_rd_data == 2'b10) ? (24'h6c732e) : 
+       ((gb_rd_data == 2'b01) ? (24'h818a2c) : (24'h9f9c20)));
     
+    //BE9E16
     dvi_timing dvi_timing(
       .clk(clk),
       .rst(rst),
@@ -172,6 +183,7 @@ module dvi_mixer(
       .y(dvi_y),
       .gb_x(gb_x),
       .gb_y(gb_y),
+      .gb_grid(gb_grid),
       .gb_en(signal_in_gb_range),
       .enable(dvi_blank)
       //.address()
