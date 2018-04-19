@@ -285,6 +285,21 @@ module top(
     
     // Cartridge
     wire [9:0] rom_bank; //debug output
+    wire [14:0] cartram_addr;
+    wire [7:0] cartram_din;
+    wire [7:0] cartrom_dout;
+    wire [7:0] cartram_dout;
+    wire cartram_cs_n;
+    wire cartram_we;
+    wire [16:13] mbc5_ram_a;
+    
+    blockram32k br_cartram(
+        .clka(clk_16),
+        .ena(1'b1),
+        .wea(cartram_we),
+        .addra(cartram_addr),
+        .dina(cartram_din),
+        .douta(cartram_dout));
     
     mbc5 mbc5(
         .gb_clk(clk_gb),
@@ -295,16 +310,22 @@ module top(
         .gb_rd(gb_rd),
         .gb_rst(reset),
         .rom_a(SRAM_FLASH_A[21:13]),//Flash in 16bit mode
-        .ram_a(),
-        .rom_cs(),
-        .ram_cs(),
+        .ram_a(mbc5_ram_a), // RAM is only 1 page big in size
+        .rom_cs_n(),
+        .ram_cs_n(cartram_cs_n),
         .ddir(),
         .rom_bank(rom_bank)
     );
     
+    assign cartram_we = gb_wr & (~cartram_cs_n);
+    assign cartrom_dout = gb_a[0] ? (SRAM_FLASH_D[15:8]) : (SRAM_FLASH_D[7:0]);
+    assign cartram_addr[14:0] = {mbc5_ram_a[14:13], gb_a[12:0]};
+    assign cartram_din = gb_dout;
+    
     assign SRAM_FLASH_A[12:0] = gb_a[13:1];
     assign SRAM_FLASH_A[30:22] = 18'b0;
-    assign gb_din[7:0] = gb_a[0] ? (SRAM_FLASH_D[15:8]) : (SRAM_FLASH_D[7:0]);
+    assign gb_din[7:0] = (cartram_cs_n == 1'b0) ? (cartram_dout) : (cartrom_dout);
+    
     assign SRAM_FLASH_WE_B = 1;
     assign FLASH_CE_B = 0;
     assign FLASH_OE_B = 0;

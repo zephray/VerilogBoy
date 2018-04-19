@@ -28,8 +28,8 @@ module mbc5(
     input gb_rst,
     output [22:14] rom_a,
     output [16:13] ram_a,
-    output rom_cs,
-    output ram_cs,
+    output rom_cs_n,
+    output ram_cs_n,
     output ddir,
     output reg [8:0] rom_bank
     );
@@ -50,8 +50,8 @@ module mbc5(
     assign ram_addr_en =  (gb_addr >= 16'hA000)&(gb_addr <= 16'hBFFF); //Request Addr in RAM range
     assign rom_addr_lo =  (gb_addr >= 16'h0000)&(gb_addr <= 16'h3FFF); //Request Addr in LoROM range
 
-    assign rom_cs = ((rom_addr_en) & (gb_rst == 0)) ? 0 : 1; //ROM output enable
-    assign ram_cs = ((ram_addr_en) & (ram_en) & (gb_rst == 0)) ? 0 : 1; //RAM output enable
+    assign rom_cs_n = ((rom_addr_en) & (gb_rst == 0)) ? 0 : 1; //ROM output enable
+    assign ram_cs_n = ((ram_addr_en) & (ram_en) & (gb_rst == 0)) ? 0 : 1; //RAM output enable
 
     assign rom_a[22:14] = rom_addr_lo ? 9'b0 : rom_bank[8:0];
     assign ram_a[16:13] = ram_bank[3:0];
@@ -63,7 +63,7 @@ module mbc5(
     // 1       L     L
     //assign DDIR = (((rom_addr_en) | (ram_addr_en))&(GB_WR)) ? 1 : 0;
     // (ROM_CS = 0 | RAM_CS = 0) & RD = 0 -> output, otherwise, input
-    assign ddir = (((rom_cs) | (ram_cs)) & (gb_rd)) ? 1 : 0;
+    assign ddir = (((rom_cs_n) | (ram_cs_n)) & (gb_rd)) ? 1 : 0;
 
     wire rom_bank_lo_clk;
     wire rom_bank_hi_clk;

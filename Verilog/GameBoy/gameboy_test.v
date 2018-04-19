@@ -104,8 +104,8 @@ module gameboy_test;
         .gb_rst(rst),
         .rom_a(rom_addr[22:14]),
         .ram_a(),
-        .rom_cs(),
-        .ram_cs(),
+        .rom_cs_n(),
+        .ram_cs_n(),
         .ddir(),
         .rom_bank(rom_bank)
     );
