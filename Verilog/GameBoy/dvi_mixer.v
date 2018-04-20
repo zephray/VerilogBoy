@@ -40,6 +40,10 @@ module dvi_mixer(
     output reg [7:0] dvi_g,
     output reg [7:0] dvi_b
     );
+    
+    localparam GB_LIGHT = 24'h8b9a26; // Used for pixel 11
+    localparam GB_DARK  = 24'h212f25; // Used for pixel 00
+    localparam GB_BACK  = 24'hbe9e16;
 
     //Decoded GameBoy Input colors
     wire [7:0] gb_r;
@@ -100,9 +104,9 @@ module dvi_mixer(
     wire [7:0] text_g = (font_pixel) ? (font_fg_color) : (font_bg_color);
     wire [7:0] text_b = (font_pixel) ? (font_fg_color) : (font_bg_color);
     assign dbg_sync = dvi_vs;
-    assign bg_r[7:0] = (signal_in_text_range) ? (text_r) : (8'hbe);
-    assign bg_g[7:0] = (signal_in_text_range) ? (text_g) : (8'h9e);
-    assign bg_b[7:0] = (signal_in_text_range) ? (text_b) : (8'h16);
+    assign bg_r[7:0] = (signal_in_text_range) ? (text_r) : (GB_BACK[23:16]);
+    assign bg_g[7:0] = (signal_in_text_range) ? (text_g) : (GB_BACK[15:8]);
+    assign bg_b[7:0] = (signal_in_text_range) ? (text_b) : (GB_BACK[7:0]);
 
     // Gameboy Input
     reg [7:0] gb_v_counter;
@@ -163,14 +167,19 @@ module dvi_mixer(
         gb_rd_data <= gb_buffer[gb_rd_addr];
     end
     
-    assign {gb_r[7:0], gb_g[7:0], gb_b[7:0]} = 
-        (gb_rd_data == 2'b11) ? (24'h212f25) : 
-       ((gb_rd_data == 2'b10) ? (24'h35573e) : 
-       ((gb_rd_data == 2'b01) ? (24'h597d3a) : (24'h8b9a26)));
-    assign {gb_grid_r[7:0], gb_grid_g[7:0], gb_grid_b[7:0]} = 
-        (gb_rd_data == 2'b11) ? (24'h605b1f) : 
-       ((gb_rd_data == 2'b10) ? (24'h6c732e) : 
-       ((gb_rd_data == 2'b01) ? (24'h818a2c) : (24'h9f9c20)));
+    // Assume the input brightness range is 0 - 63 (6bit) and will get mapped into 8bits
+    // It should just be linear mapping. Iout = (Iin / 63) * (BRI - DAK) + DAK; 
+    // When it's border, it should be Iout = Inormal * 0.6 + Ibg * 0.4 -> (Inormal * 10 + Ibg * 6) / 16;
+    
+    wire gb_l_raw[5:0] = (gb_rd_data == 2'b11) ? (6'b000000) :
+                        ((gb_rd_data == 2'b10) ? (6'b010101) :
+                        ((gb_rd_data == 2'b01) ? (6'b101010) : (6'b111111)));
+    assign gb_r[7:0] = (gb_l_raw * (GB_LIGHT[23:16] - GB_DARK[23:16]) / 64) + GB_DARK[23:16];
+    assign gb_g[7:0] = (gb_l_raw * (GB_LIGHT[15: 8] - GB_DARK[15: 8]) / 64) + GB_DARK[15: 8];
+    assign gb_b[7:0] = (gb_l_raw * (GB_LIGHT[ 7: 0] - GB_DARK[ 7: 0]) / 64) + GB_DARK[ 7: 0];
+    assign gb_grid_r[7:0] = ((gb_r[7:0] * 10) + (GB_BACK[23:16] * 6)) / 16;
+    assign gb_grid_g[7:0] = ((gb_g[7:0] * 10) + (GB_BACK[15: 8] * 6)) / 16;
+    assign gb_grid_b[7:0] = ((gb_b[7:0] * 10) + (GB_BACK[ 7: 0] * 6)) / 16;
     
     //BE9E16
     dvi_timing dvi_timing(
