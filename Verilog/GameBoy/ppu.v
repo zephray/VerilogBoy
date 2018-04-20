@@ -306,7 +306,7 @@ module ppu(
     
     reg window_triggered; // Indicate whether window has been triggered, should be replaced by a edge detector
     wire render_window_or_bg = window_triggered;
-    wire window_trigger = (((h_pix_output - 8'd1) == (reg_wx))&&(v_pix >= reg_wy)&&(reg_win_en)&&(~window_triggered)) ? 1 : 0;
+    wire window_trigger = (((h_pix_output) == (reg_wx))&&(v_pix >= reg_wy)&&(reg_win_en)&&(~window_triggered)) ? 1 : 0;
     
     wire [2:0] line_to_tile_v_offset_bg = v_pix_in_map[2:0]; // Current line in a tile being rendered
     wire [4:0] line_in_tile_v_bg = v_pix_in_map[7:3]; // Current tile Y coordinate being rendered
