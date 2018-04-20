@@ -67,13 +67,17 @@ module sound_noise(
         (counter_width == 0) ? ({(lfsr[0] ^ lfsr[1]), lfsr[14:1]}) :
                                ({8'b0, (lfsr[0] ^ lfsr[1]), lfsr[6:1]});
     
+    always@(posedge start)
+    begin
+        adjusted_freq_dividing_ratio <=
+                (freq_dividing_ratio == 3'b0) ? (5'd1) : ((freq_dividing_ratio * 4) - 1);
+        latched_shift_clock_freq <= shift_clock_freq;
+    end
+    
     always@(posedge clk_shift, posedge start)
     begin
         if (start) begin
             lfsr <= {15{1'b1}};
-            adjusted_freq_dividing_ratio <=
-                (freq_dividing_ratio == 3'b0) ? (5'd1) : ((freq_dividing_ratio * 4) - 1);
-            latched_shift_clock_freq <= shift_clock_freq;
         end
         else begin
             lfsr <= lfsr_next;
