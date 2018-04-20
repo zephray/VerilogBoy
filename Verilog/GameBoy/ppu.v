@@ -91,9 +91,9 @@ module ppu(
     reg [7:0] reg_wy;   //$FF4A Window Y Position (R/W)
     reg [7:0] reg_wx;   //$FF4B Window X Position (R/W)
     
-    // Some next state register, gets updated into reg during posedge
-    reg [7:0] reg_ly_next;
-    reg [1:0] reg_mode_next; // Next mode based on next state
+    // Some interrupt related register
+    reg [7:0] reg_ly_last;
+    reg [1:0] reg_mode_last; // Next mode based on next state
     
     wire reg_lcd_en = reg_lcdc[7];          //0=Off, 1=On
     wire reg_win_disp_sel = reg_lcdc[6];    //0=9800-9BFF, 1=9C00-9FFF
@@ -108,7 +108,7 @@ module ppu(
     wire reg_vblank_int = reg_stat[4];
     wire reg_hblank_int = reg_stat[3];
     wire reg_coin_flag = reg_stat[2];
-    wire [1:0] reg_mode_flag = reg_stat[1:0];
+    wire [1:0] reg_mode = reg_stat[1:0];
     
     localparam PPU_MODE_H_BLANK    = 2'b00;
     localparam PPU_MODE_V_BLANK    = 2'b01;
@@ -131,13 +131,13 @@ module ppu(
     wire addr_in_vram = (a >= 16'h8000 && a <= 16'h9FFF);
     wire addr_in_oam  = (a >= 16'hFE00 && a <= 16'hFE9F);
     
-    wire vram_access_ext = ((reg_mode_next == PPU_MODE_H_BLANK)||
-                            (reg_mode_next == PPU_MODE_V_BLANK)||
-                            (reg_mode_next == PPU_MODE_OAM_SEARCH));
+    wire vram_access_ext = ((reg_mode == PPU_MODE_H_BLANK)||
+                            (reg_mode == PPU_MODE_V_BLANK)||
+                            (reg_mode == PPU_MODE_OAM_SEARCH));
     wire vram_access_int = ~vram_access_ext;
-    wire oam_access_ext = ((reg_mode_next == PPU_MODE_H_BLANK)||
-                           (reg_mode_next == PPU_MODE_V_BLANK));
-    wire oam_access_int = ~oam_access_int;
+    wire oam_access_ext = ((reg_mode == PPU_MODE_H_BLANK)||
+                           (reg_mode == PPU_MODE_V_BLANK));
+    wire oam_access_int = ~oam_access_ext;
     
     wire [12:0] window_map_addr = (reg_win_disp_sel) ? (13'h1C00) : (13'h1800);
     wire [12:0] bg_map_addr = (reg_bg_disp_sel) ? (13'h1C00) : (13'h1800);
@@ -294,7 +294,7 @@ module ppu(
     wire [2:0] h_extra = reg_scx % 8; //Extra line length when SCX % 8 != 0
     reg [7:0] h_pix_render; // Horizontal Render Pixel pointer
     reg [7:0] h_pix_output; // Horizontal Output Pixel counter
-    wire [7:0] h_pix_obj = h_pix_output + 8'd1; // Coordinate used to trigger the object rendering
+    wire [7:0] h_pix_obj = h_pix_output + 1'b1; // Coordinate used to trigger the object rendering
     wire [7:0] v_pix = v_count;
     wire [7:0] v_pix_in_map = v_pix + reg_scy;
     wire [7:0] v_pix_in_win = v_pix - reg_wy;
@@ -346,8 +346,8 @@ module ppu(
     reg obj_valid_list [0:9]; // Is obj visible entry valid
     reg [3:0] oam_visible_count; // ???
     
-    reg [7:0] oam_search_x;
-    reg [7:0] oam_search_y;
+    wire [7:0] oam_search_x;
+    wire [7:0] oam_search_y;
     wire [7:0] obj_size_h = (reg_obj_size == 1'b1) ? (8'd16) : (8'd8);
     wire [7:0] obj_h_upper_boundary = (v_pix + 8'd16);
     wire [7:0] obj_h_lower_boundary = obj_h_upper_boundary - obj_size_h;
@@ -361,7 +361,7 @@ module ppu(
     reg [3:0] obj_trigger_id_next;
     always@(h_pix_obj, obj_trigger_id) begin
         obj_trigger_id_from[10] = OBJ_TRIGGER_NOT_FOUND; // There is no more after the 10th
-        for (i = 0; i < 10; i = i + 1) begin
+        for (i = 9; i >= 0; i = i - 1) begin
             obj_trigger_id_from[i] = 
                 ((h_pix_obj == obj_trigger_list[i])&&(obj_valid_list[i])) ? (i) : (obj_trigger_id_from[i+1]);
                 // See if this one match, if not, cascade down.
@@ -405,6 +405,7 @@ module ppu(
         for (i = 0; i < 8; i = i + 1) begin
             if (
                     ((current_obj_tile_data_1[i] != 1'b0)||(current_obj_tile_data_0[i] != 1'b0))&&
+                    ((pf_data[32+i*4+1] == PPU_PAL_BG[1])&&(pf_data[32+i*4+0] == PPU_PAL_BG[0]))&&
                     (
                         ((current_obj_to_bg_priority)&&(pf_data[32+i*4+3] == 1'b0)&&(pf_data[32+i*4+2] == 1'b0))|| 
                         (~current_obj_to_bg_priority)
@@ -419,8 +420,8 @@ module ppu(
             else begin
                 merge_result[i*4+3] = pf_data[32+i*4+3];
                 merge_result[i*4+2] = pf_data[32+i*4+2];
-                merge_result[i*4+1] = PPU_PAL_BG[1];
-                merge_result[i*4+0] = PPU_PAL_BG[0];
+                merge_result[i*4+1] = pf_data[32+i*4+1];
+                merge_result[i*4+0] = pf_data[32+i*4+0];
             end
         end
     end
@@ -430,38 +431,41 @@ module ppu(
             || (r_state == S_OFRD1A) || (r_state == S_OFRD1B)) ? 1'b1 : 1'b0;
         
     
-    // Next Mode Logic, based on next state
-    always @ (*)
+    // Current mode logic, based on current state
+    always @ (posedge clk)
     begin
-        case (r_next_state)
-            S_IDLE: reg_mode_next = PPU_MODE_V_BLANK;
-            S_BLANK: reg_mode_next = (is_in_v_blank) ? (PPU_MODE_V_BLANK) : (PPU_MODE_H_BLANK);
-            S_OAMX: reg_mode_next = PPU_MODE_OAM_SEARCH;
-            S_OAMY: reg_mode_next = PPU_MODE_OAM_SEARCH;
-            S_FTIDA: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_FTIDB: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_FRD0A: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_FRD0B: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_FRD1A: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_FRD1B: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_FWAITA: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_FWAITB: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_SWW: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_OAMRDA: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_OAMRDB: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_OFRD0A: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_OFRD0B: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_OFRD1A: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_OFRD1B: reg_mode_next = PPU_MODE_PIX_TRANS;
-            S_OWB: reg_mode_next = PPU_MODE_PIX_TRANS;
-            default: reg_mode_next = PPU_MODE_V_BLANK;
+        case (r_state)
+            S_IDLE: reg_stat[1:0] <= PPU_MODE_V_BLANK;
+            S_BLANK: reg_stat[1:0] <= (is_in_v_blank) ? (PPU_MODE_V_BLANK) : (PPU_MODE_H_BLANK);
+            S_OAMX: reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
+            S_OAMY: reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
+            S_FTIDA: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_FTIDB: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_FRD0A: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_FRD0B: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_FRD1A: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_FRD1B: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_FWAITA: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_FWAITB: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_SWW: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_OAMRDA: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_OAMRDB: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_OFRD0A: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_OFRD0B: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_OFRD1A: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_OFRD1B: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            S_OWB: reg_stat[1:0] <= PPU_MODE_PIX_TRANS;
+            default: reg_stat[1:0] <= PPU_MODE_V_BLANK;
         endcase
     end
+
+    assign oam_search_y = oam_data_out[7:0];
+    assign oam_search_x = oam_data_out[15:8];
 
     // Render logic
     always @(posedge clk)
     begin
-        reg_ly_next <= v_pix[7:0];
+        reg_ly <= v_pix[7:0];
         
         case (r_state)
             // nothing to do for S_IDLE
@@ -478,8 +482,7 @@ module ppu(
                 // and output 8 null pixels starting from the 4th clock
             end
             S_OAMX: begin
-                oam_search_y <= oam_data_out[7:0];
-                oam_search_x <= oam_data_out[15:8];
+                oam_rd_addr_int <= oam_search_count * 4;
             end
             S_OAMY: begin
                 if ((oam_search_y <= obj_h_upper_boundary)&&
@@ -493,7 +496,6 @@ module ppu(
                     oam_visible_count <= oam_visible_count + 1'b1;
                 end
                 oam_search_count <= oam_search_count + 1'b1;
-                oam_rd_addr_int <= (oam_search_count + 1'b1) * 4;
             end
             S_FTIDA: vram_addr_bg <= current_map_address;
             S_FTIDB: current_tile_id <= vram_data_out;
@@ -515,9 +517,23 @@ module ppu(
                 current_obj_flags <= oam_data_out[15:8];
             end
             S_OFRD0A: vram_addr_obj <= current_obj_address_0;
-            S_OFRD0B: current_obj_tile_data_0 <= vram_data_out;
+            S_OFRD0B:
+                if (current_obj_x_flip == 1'b1)
+                    current_obj_tile_data_0[7:0] <= {
+                        vram_data_out[0], vram_data_out[1], vram_data_out[2], vram_data_out[3], 
+                        vram_data_out[4], vram_data_out[5], vram_data_out[6], vram_data_out[7]
+                    };
+                else
+                    current_obj_tile_data_0 <= vram_data_out;
             S_OFRD1A: vram_addr_obj <= current_obj_address_1;
-            S_OFRD1B: current_obj_tile_data_1 <= vram_data_out;
+            S_OFRD1B:
+                if (current_obj_x_flip == 1'b1)
+                    current_obj_tile_data_1[7:0] <= {
+                        vram_data_out[0], vram_data_out[1], vram_data_out[2], vram_data_out[3], 
+                        vram_data_out[4], vram_data_out[5], vram_data_out[6], vram_data_out[7]
+                    };
+                else
+                    current_obj_tile_data_1 <= vram_data_out;
             // nothing to do for S_OWB
         endcase
     end
@@ -583,7 +599,12 @@ module ppu(
                 end
             end
         end
+        else if (r_state == S_OAMRDA) begin
+            h_pix_output <= h_pix_output - 1'b1; //revert adding
+            valid <= 1'b0;
+        end
         else if (r_state == S_OWB) begin
+            h_pix_output <= h_pix_output + 1'b1; //restore adding
             pf_data <= {merge_result[31:0], pf_data[31:0]};
             valid <= 1'b0;
         end
@@ -603,6 +624,7 @@ module ppu(
     always @(posedge clk)
     begin
         if (rst) begin
+            //h_pix_obj <= 8'b0;
             r_state <= 0;
             r_next_backup <= 0;
             obj_trigger_id <= OBJ_TRIGGER_NOT_FOUND;//not triggered
@@ -629,6 +651,7 @@ module ppu(
                 end
             end
             else begin
+                //h_pix_obj <= h_pix_output + 8'd2;
                 r_state <= r_next_state;
                 // Finished one object, and there is no more currently
                 if (r_state == S_OWB) begin
@@ -679,31 +702,30 @@ module ppu(
     end
     
     // Interrupt
+    always @(*) reg_stat[2] = (reg_ly == reg_lyc) ? 1 : 0;
     always @(posedge clk)
     begin
         if (rst) begin
             int_vblank_req <= 0;
             int_lcdc_req <= 0;
-            reg_ly[7:0] <= 0;
-            reg_stat[2] <= 0;
-            reg_stat[1:0] <= PPU_MODE_V_BLANK;
+            reg_ly_last[7:0] <= 0;
+            //reg_stat[1:0] <= PPU_MODE_V_BLANK;
         end
         else
         begin
-            if ((reg_mode_next == PPU_MODE_V_BLANK)&&(reg_mode_flag != PPU_MODE_V_BLANK))
+            if ((reg_mode == PPU_MODE_V_BLANK)&&(reg_mode_last != PPU_MODE_V_BLANK))
                 int_vblank_req <= 1;
-            if (((reg_lyc_int == 1'b1)&&(reg_ly_next == reg_lyc)&&(reg_ly != reg_lyc))||
-                ((reg_oam_int == 1'b1)&&(reg_mode_next == PPU_MODE_OAM_SEARCH)&&(reg_mode_flag != PPU_MODE_OAM_SEARCH))||
-                ((reg_vblank_int == 1'b1)&&(reg_mode_next == PPU_MODE_V_BLANK)&&(reg_mode_flag != PPU_MODE_V_BLANK))||
-                ((reg_hblank_int == 1'b1)&&(reg_mode_next == PPU_MODE_H_BLANK)&&(reg_mode_flag != PPU_MODE_H_BLANK)))
+            if (((reg_lyc_int == 1'b1)&&(reg_ly == reg_lyc)&&(reg_ly_last != reg_lyc))||
+                ((reg_oam_int == 1'b1)&&(reg_mode == PPU_MODE_OAM_SEARCH)&&(reg_mode_last != PPU_MODE_OAM_SEARCH))||
+                ((reg_vblank_int == 1'b1)&&(reg_mode == PPU_MODE_V_BLANK)&&(reg_mode_last != PPU_MODE_V_BLANK))||
+                ((reg_hblank_int == 1'b1)&&(reg_mode == PPU_MODE_H_BLANK)&&(reg_mode_last != PPU_MODE_H_BLANK)))
                 int_lcdc_req <= 1;
             if (int_vblank_ack)
                 int_vblank_req <= 0;
             if (int_lcdc_ack)
                 int_lcdc_req <= 0;
-            reg_stat[2] <= (reg_ly_next == reg_lyc) ? 1 : 0;
-            reg_ly <= reg_ly_next;
-            reg_stat[1:0] <= reg_mode_next;
+            reg_ly_last <= reg_ly;
+            reg_mode_last <= reg_mode;
         end
     end
     
