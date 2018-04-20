@@ -42,6 +42,9 @@ module dvi_mixer(
     );
     
     localparam GB_LIGHT = 24'h8b9a26; // Used for pixel 11
+    localparam GB_MID3  = 24'h658635;
+    localparam GB_MID2  = 24'h456a3e;
+    localparam GB_MID1  = 24'h2d4b39;
     localparam GB_DARK  = 24'h212f25; // Used for pixel 00
     localparam GB_BACK  = 24'hbe9e16;
 
@@ -112,9 +115,11 @@ module dvi_mixer(
     reg [7:0] gb_v_counter;
     reg [7:0] gb_h_counter;
     
-    reg [1:0] gb_buffer [0:23039];
+    //reg [1:0] gb_buffer [0:23039];
+    reg [5:0] gb_buffer [0:23039]; // 6 bit depth, with STN response emulation
     wire gb_wr_valid = (gb_v_counter > 8'd0);
     wire [14:0] gb_wr_addr = ((gb_v_counter > 8'd0)?(gb_v_counter - 8'd1):8'd0) * 160 + gb_h_counter;
+    reg [5:0] gb_wr_exist_data;
     
     reg gb_vs_last;
     reg gb_hs_last;
@@ -134,6 +139,13 @@ module dvi_mixer(
         end
     end
     
+    wire [5:0]gb_target_color = (gb_pdat == 2'b11) ? (6'b000000) :
+                               ((gb_pdat == 2'b10) ? (6'b010101) :
+                               ((gb_pdat == 2'b01) ? (6'b101010) : (6'b111111)));
+                               
+    wire [6:0]gb_delta_color = ({1'b0, gb_target_color} + {1'b1, ~gb_wr_exist_data} + 7'b0000001);
+    wire [5:0]gb_next_color  = gb_wr_exist_data[5:0] + {gb_delta_color[6], gb_delta_color[6:2]};
+    
     always @(posedge clk)
     begin
         if (rst) begin
@@ -151,32 +163,48 @@ module dvi_mixer(
             else if (gb_valid) begin
                 if ((gb_pclk_last == 0)&&(gb_pclk == 1)) begin
                     gb_h_counter <= gb_h_counter + 1'b1;
-                    if (gb_wr_valid)
-                        gb_buffer[gb_wr_addr] <= gb_pdat;
+                    if (gb_wr_valid) begin
+                        gb_buffer[gb_wr_addr] <= gb_next_color;   
+                        //gb_buffer[gb_wr_addr] <= gb_target_color;
+                    end
                 end
             end
         end
     end
 
-    // Debug
     wire [14:0] gb_rd_addr = gb_y * 160 + gb_x;
-    reg [1:0] gb_rd_data;
+    reg [5:0] gb_rd_data;
     
     always @ (posedge clk)
     begin
         gb_rd_data <= gb_buffer[gb_rd_addr];
     end
     
+    always @ (negedge clk)
+    begin
+        gb_wr_exist_data <= gb_buffer[gb_wr_addr];
+    end
+    
     // Assume the input brightness range is 0 - 63 (6bit) and will get mapped into 8bits
-    // It should just be linear mapping. Iout = (Iin / 63) * (BRI - DAK) + DAK; 
+    // To get the correct color, it is not a single piece of linear.
+    //    Iout = (Iin / 63) * (BRI - DAK) + DAK; 
     // When it's border, it should be Iout = Inormal * 0.6 + Ibg * 0.4 -> (Inormal * 10 + Ibg * 6) / 16;
     
-    wire gb_l_raw[5:0] = (gb_rd_data == 2'b11) ? (6'b000000) :
-                        ((gb_rd_data == 2'b10) ? (6'b010101) :
-                        ((gb_rd_data == 2'b01) ? (6'b101010) : (6'b111111)));
-    assign gb_r[7:0] = (gb_l_raw * (GB_LIGHT[23:16] - GB_DARK[23:16]) / 64) + GB_DARK[23:16];
-    assign gb_g[7:0] = (gb_l_raw * (GB_LIGHT[15: 8] - GB_DARK[15: 8]) / 64) + GB_DARK[15: 8];
-    assign gb_b[7:0] = (gb_l_raw * (GB_LIGHT[ 7: 0] - GB_DARK[ 7: 0]) / 64) + GB_DARK[ 7: 0];
+    wire [5:0]gb_l_raw = gb_rd_data;
+    reg [23:0] gb_lup;
+    reg [23:0] gb_ldn;
+    always@(*)
+    begin
+        case (gb_l_raw[5:4])
+            2'b00: begin gb_lup = GB_MID1;  gb_ldn = GB_DARK; end
+            2'b01: begin gb_lup = GB_MID2;  gb_ldn = GB_MID1; end
+            2'b10: begin gb_lup = GB_MID3;  gb_ldn = GB_MID2; end
+            2'b11: begin gb_lup = GB_LIGHT; gb_ldn = GB_MID3; end
+        endcase
+    end
+    assign gb_r[7:0] = (gb_l_raw[3:0] * (gb_lup[23:16] - gb_ldn[23:16]) / 16) + gb_ldn[23:16];
+    assign gb_g[7:0] = (gb_l_raw[3:0] * (gb_lup[15: 8] - gb_ldn[15: 8]) / 16) + gb_ldn[15: 8];
+    assign gb_b[7:0] = (gb_l_raw[3:0] * (gb_lup[ 7: 0] - gb_ldn[ 7: 0]) / 16) + gb_ldn[ 7: 0];
     assign gb_grid_r[7:0] = ((gb_r[7:0] * 10) + (GB_BACK[23:16] * 6)) / 16;
     assign gb_grid_g[7:0] = ((gb_g[7:0] * 10) + (GB_BACK[15: 8] * 6)) / 16;
     assign gb_grid_b[7:0] = ((gb_b[7:0] * 10) + (GB_BACK[ 7: 0] * 6)) / 16;
