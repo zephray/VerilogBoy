@@ -533,6 +533,7 @@ module top(
     begin
         if (reset) begin
             bp_write <= 0;
+            bp_addr <= 16'hFFFF;
         end
         else begin
             if (bp_write)
