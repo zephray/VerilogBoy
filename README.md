@@ -49,13 +49,13 @@ This project is NOT built to be cycle exact accurate. Currently it does very poo
 
 | Test                 | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy     |
 | -------------------- | ---------- | ---- | -------- | ------ | ---- |----------------|
-| div write            | :x:        | :+1: | :x:      | :+1:   | :+1: | :+1: (a267b5b) |
-| rapid toggle         | :x:        | :x:  | :x:      | :x:    | :+1: | :x:  (a267b5b) |
-| tim00 div trigger    | :+1:       | :x:  | :+1:     | :x:    | :+1: | :x:  (a267b5b) |
+| div write            | :x:        | :+1: | :x:      | :+1:   | :+1: | :+1: (2b6360e) |
+| rapid toggle         | :x:        | :x:  | :x:      | :x:    | :+1: | :x:  (2b6360e) |
+| tim00 div trigger    | :+1:       | :x:  | :+1:     | :x:    | :+1: | :x:  (2b6360e) |
 | tim00                | :x:        | :+1: | :x:      | :+1:   | :+1: | :x:  (a267b5b) |
 | tim01 div trigger    | :x:        | :+1: | :x:      | :x:    | :+1: | :x:  (a267b5b) |
 | tim01                | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:  (a267b5b) |
-| tim10 div trigger    | :x:        | :+1: | :x:      | :x:    | :+1: | NA             |
+| tim10 div trigger    | :x:        | :+1: | :x:      | :x:    | :+1: | :x:  (2b6360e) |
 | tim10                | :x:        | :+1: | :x:      | :+1:   | :+1: | NA             |
 | tim11 div trigger    | :+1:       | :x:  | :x:      | :x:    | :+1: | NA             |
 | tim11                | :x:        | :+1: | :x:      | :+1:   | :+1: | NA             |
@@ -86,6 +86,10 @@ This project is NOT built to be cycle exact accurate. Currently it does very poo
 | Test            | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy     |
 | --------------- | ---------- | ---- | -------- | ----- | ---- |----------------|
 | sprite priority | :+1:       | :+1: | :+1:     | :+1:  | :x:  | :+1: (a267b5b) |
+
+## Logic resource usage
+
+Current design is using ~4K Virtex-5 Slice LUTs, or ~7K logic cell rating.
 
 ## How to use
 

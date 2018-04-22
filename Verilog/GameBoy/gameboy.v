@@ -53,6 +53,7 @@ module gameboy(
     input [15:0] bp_addr, // Debug breakpoint PC
     input bp_step, // Debug single step
     input bp_continue, // Debug continue
+    output [7:0] dma_chipscope,
     output [7:0] scx,
     output [7:0] scy,
     output [3:0] ch1_level,
@@ -111,9 +112,6 @@ module gameboy(
     wire [7:0] joystick_reg_data;
     wire [7:0] brom_data;
     
-    // Debug signals
-    wire [7:0] dma_chipscope;
-    
     // Interrupt Signals
     // IE: Interrupt Enable
     // IF: Interrupt Flag
@@ -135,8 +133,8 @@ module gameboy(
     wire int_lcdc_req;
     wire int_vblank_ack;
     wire int_lcdc_ack;
-    wire int_timer_req;
-    wire int_timer_ack;
+    wire int_tim_req;
+    wire int_tim_ack;
    
     //DMA
     dma gb80_dma(
@@ -164,13 +162,13 @@ module gameboy(
     
     assign int_lcdc_ack = IF_data[I_LCDC];
     assign int_vblank_ack = IF_data[I_VBLANK];
-    assign int_timer_ack = IF_data[I_TIMER];
+    assign int_tim_ack = IF_data[I_TIMER];
     
-    assign IF_load = int_lcdc_req | int_vblank_req | int_timer_req | (addr_in_IF & mem_we);
+    assign IF_load = int_lcdc_req | int_vblank_req | int_tim_req | (addr_in_IF & mem_we);
     
     assign IF_in_int[I_VBLANK] = int_vblank_req | (IF_data[I_VBLANK] & IF_load);
     assign IF_in_int[I_LCDC] = int_lcdc_req | (IF_data[I_LCDC] & IF_load);
-    assign IF_in_int[I_TIMER] = int_timer_req | (IF_data[I_TIMER] & IF_load);
+    assign IF_in_int[I_TIMER] = int_tim_req | (IF_data[I_TIMER] & IF_load);
    
     assign IF_in = (addr_in_IF & mem_we) ? data_ext : IF_in_int;
     

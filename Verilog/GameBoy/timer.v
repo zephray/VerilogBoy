@@ -68,7 +68,7 @@ module timer(
     end
     
     // Bus RW - Sequential Write
-    always @(posedge clk_1m)
+    always @(posedge clk)
     begin
         last_clk_tim <= clk_tim;
         if (rst) begin
@@ -77,6 +77,7 @@ module timer(
             reg_tma <= 0;
             reg_tac <= 0;
             div <= 0;
+            int_tim_req <= 0;
         end
         else begin
             div <= div + 1'b1;
@@ -91,7 +92,7 @@ module timer(
                     {carry, reg_tima} <= reg_tima + 1'b1;
                 end
                 else begin
-                    //Overflow is delayed by 1 CYCLE (4 clocks)
+                    //Overflow is delayed by 1 CYCLE (4 clocks), not quite implemented yet due to CPU limitation
                     if (carry) begin
                         reg_tima <= reg_tma;
                         carry <= 1'b0;
