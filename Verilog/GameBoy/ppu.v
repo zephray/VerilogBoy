@@ -171,7 +171,8 @@ module ppu(
     assign oam_wr_addr = a[7:0];
     assign oam_rd_addr = (oam_access_ext) ? (a[7:0]) : (oam_rd_addr_int); 
     assign oam_data_in = din;
-    assign oam_we = (addr_in_oam)&(wr)&(oam_access_ext);
+    //assign oam_we = (addr_in_oam)&(wr)&(oam_access_ext);
+    assign oam_we = (addr_in_oam)&(wr); // What if always allow OAM access?
     
     // 8 bit WR, 8 bit RD, 8KB VRAM
     wire        vram_we;
@@ -538,6 +539,24 @@ module ppu(
         endcase
     end
     
+    reg [31:0] half_merge_result;
+    always @(current_fetch_result, pf_data) begin
+        for (i = 0; i < 8; i = i + 1) begin
+            if ((pf_data[32+i*4+1] == PPU_PAL_BG[1])&&(pf_data[32+i*4+0] == PPU_PAL_BG[0])) begin
+                half_merge_result[i*4+3] = current_fetch_result[i*4+3];
+                half_merge_result[i*4+2] = current_fetch_result[i*4+2];
+                half_merge_result[i*4+1] = current_fetch_result[i*4+1];
+                half_merge_result[i*4+0] = current_fetch_result[i*4+0];
+            end
+            else begin
+                half_merge_result[i*4+3] = pf_data[32+i*4+3];
+                half_merge_result[i*4+2] = pf_data[32+i*4+2];
+                half_merge_result[i*4+1] = pf_data[32+i*4+1];
+                half_merge_result[i*4+0] = pf_data[32+i*4+0];
+            end
+        end
+    end
+    
     // Output logic
     always @(posedge clk)
     begin
@@ -568,7 +587,8 @@ module ppu(
                 valid <= 1'b0;
                 if (r_state == S_FTIDA) begin
                 // One batch done, and they can be push into pipeline, but could not be output yet
-                    pf_data[63:32] <= current_fetch_result[31:0];
+                // We need to be careful not to overwrite the sprites...
+                    pf_data[63:32] <= half_merge_result[31:0];
                 end
             end
             else if (((pf_empty == PF_INITA)&&((r_state == S_FRD1A)||(r_state == S_FRD1B)))
@@ -715,14 +735,14 @@ module ppu(
         begin
             if ((reg_mode == PPU_MODE_V_BLANK)&&(reg_mode_last != PPU_MODE_V_BLANK))
                 int_vblank_req <= 1;
+            else if (int_vblank_ack)
+                int_vblank_req <= 0;
             if (((reg_lyc_int == 1'b1)&&(reg_ly == reg_lyc)&&(reg_ly_last != reg_lyc))||
                 ((reg_oam_int == 1'b1)&&(reg_mode == PPU_MODE_OAM_SEARCH)&&(reg_mode_last != PPU_MODE_OAM_SEARCH))||
                 ((reg_vblank_int == 1'b1)&&(reg_mode == PPU_MODE_V_BLANK)&&(reg_mode_last != PPU_MODE_V_BLANK))||
                 ((reg_hblank_int == 1'b1)&&(reg_mode == PPU_MODE_H_BLANK)&&(reg_mode_last != PPU_MODE_H_BLANK)))
                 int_lcdc_req <= 1;
-            if (int_vblank_ack)
-                int_vblank_req <= 0;
-            if (int_lcdc_ack)
+            else if (int_lcdc_ack)
                 int_lcdc_req <= 0;
             reg_ly_last <= reg_ly;
             reg_mode_last <= reg_mode;

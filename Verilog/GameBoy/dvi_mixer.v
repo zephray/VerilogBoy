@@ -38,7 +38,9 @@ module dvi_mixer(
     output dvi_blank,
     output reg [7:0] dvi_r,
     output reg [7:0] dvi_g,
-    output reg [7:0] dvi_b
+    output reg [7:0] dvi_b,
+    // Debug
+    input input_disable
     );
     
     localparam GB_LIGHT = 24'h8b9a26; // Used for pixel 11
@@ -114,6 +116,7 @@ module dvi_mixer(
     // Gameboy Input
     reg [7:0] gb_v_counter;
     reg [7:0] gb_h_counter;
+    reg latched_input_disable;
     
     //reg [1:0] gb_buffer [0:23039];
     reg [5:0] gb_buffer [0:23039]; // 6 bit depth, with STN response emulation
@@ -155,6 +158,7 @@ module dvi_mixer(
         else begin
             if ((gb_vs_last == 1)&&(gb_vs == 0)) begin
                 gb_v_counter <= 0;
+                latched_input_disable <= input_disable;
             end
             else if ((gb_hs_last == 1)&&(gb_hs == 0)) begin
                 gb_h_counter <= 0;
@@ -163,7 +167,7 @@ module dvi_mixer(
             else if (gb_valid) begin
                 if ((gb_pclk_last == 0)&&(gb_pclk == 1)) begin
                     gb_h_counter <= gb_h_counter + 1'b1;
-                    if (gb_wr_valid) begin
+                    if ((gb_wr_valid)&&(!latched_input_disable)) begin
                         gb_buffer[gb_wr_addr] <= gb_next_color;   
                         //gb_buffer[gb_wr_addr] <= gb_target_color;
                     end
