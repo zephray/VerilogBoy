@@ -45,12 +45,12 @@ module dma(/*AUTOARG*/
    // DMA data blocks //////////////////////////////////////////////////////////
 
    wire [15:0]  temp_addr;
-   wire [7:0]   dma_data, temp_data;
+   reg [7:0]   dma_data;
+   reg [7:0]    temp_data;
    reg [7:0]    count, next_count;
    wire         dma_sel;
    reg          temp_data_gate, temp_load, temp_addr_rw, temp_addr_gate;
 
-   assign dma_chipscope = dma_data;
    // Select for DMA output address write, read
    assign temp_addr = (temp_addr_rw) ? {dma_data, count} : {8'hfe, count};
    
@@ -68,73 +68,97 @@ module dma(/*AUTOARG*/
                                .in(temp_data),
                                .en(temp_data_gate));
    
-   register #(8) dma_reg(.q(dma_data),
-                         .d(data_ext),
-                         .load(dma_sel & mem_we),
-                         .reset(reset),
-                         .clock(clock));
 
-   register #(8) temp_reg(.q(temp_data),
-                          .d(data_ext),
-                          .load(temp_load),
-                          .reset(reset),
-                          .clock(clock));
-   
    // DMA transfer logic ///////////////////////////////////////////////////////
    
-`define DMA_WAIT 'd0
-`define DMA_TRANSFER_READ 'd1
-`define DMA_TRANSFER_WRITE 'd2
+localparam DMA_WAIT = 'd0;
+localparam DMA_TRANSFER_READ_ADDR  = 'd1;
+localparam DMA_TRANSFER_READ_DATA  = 'd2;
+localparam DMA_TRANSFER_WRITE_DATA = 'd3;
+localparam DMA_TRANSFER_WRITE_WAIT = 'd4;
+   reg [2:0]    cs, ns;
    
-   reg [1:0]    cs, ns;
+   assign dma_chipscope[7:5] = cs[2:0];
+   assign dma_chipscope[4] = (cs[2:0] == DMA_WAIT) ? 1'b0 : 1'b1;
 
-   always @(*) begin
-      next_count = count;
-      {dma_mem_we, dma_mem_re, cpu_mem_disable} = 3'd0;
-      {temp_addr_rw, temp_data_gate, temp_load, temp_addr_gate} = 4'd0;
+   always @(posedge clock) begin
+      //next_count = count;
+      //{dma_mem_we, dma_mem_re, cpu_mem_disable} = 3'd0;
+      //{temp_addr_rw, temp_data_gate, temp_load, temp_addr_gate} = 4'd0;
       case (cs)
-        `DMA_WAIT: begin
-           if (dma_sel & mem_we) begin
-              // Transfer starts on next cycle
-              ns = `DMA_TRANSFER_READ;
-           end else begin
-              ns = `DMA_WAIT;
-           end
+        DMA_WAIT: begin
+            dma_mem_we <= 1'b0;
+            dma_mem_re <= 1'b0;
+            cpu_mem_disable <= 1'b0;
+            temp_addr_rw <= 1'b0;
+            temp_data_gate <= 1'b0;
+            temp_addr_gate <= 1'b0;
+            if (dma_sel & mem_we) begin
+                // Transfer starts on next cycle
+                dma_data <= data_ext;
+            end
         end
-        `DMA_TRANSFER_READ: begin
-           cpu_mem_disable = 1'b1;
-           if (count == 8'ha0) begin
-              // Finished
-              next_count = 8'h0;
-              ns = `DMA_WAIT;
-           end else begin
-              // Load the temp register with data from memory
-              temp_addr_rw = 1'b1; // Output read address
-              temp_addr_gate = 1'b1;
-              temp_load = 1'b1;
-              dma_mem_re = 1'b1;
-              ns = `DMA_TRANSFER_WRITE;
-           end
+        DMA_TRANSFER_READ_ADDR: begin
+            dma_mem_we <= 1'b0;
+            cpu_mem_disable <= 1'b1;
+            temp_data_gate <= 1'b0;
+            if (count == 8'ha0) begin
+                // Finished
+                next_count <= 8'h0;
+            end else begin
+                // Load the temp register with data from memory
+                temp_addr_rw <= 1'b1; // Output read address
+                temp_addr_gate <= 1'b1;
+                dma_mem_re <= 1'b1;
+            end
         end
-        `DMA_TRANSFER_WRITE: begin
-           cpu_mem_disable = 1'b1;
-           // Write the temp register to memory
-           temp_addr_rw = 1'b0; // Output write address
-           temp_addr_gate = 1'b1;
-           temp_data_gate = 1'b1;
-           dma_mem_we = 1'b1;
-           ns = `DMA_TRANSFER_READ;
-           next_count = count + 8'd1;
+        DMA_TRANSFER_READ_DATA: begin
+            cpu_mem_disable <= 1'b1;
+            // Basically wait
+        end
+        DMA_TRANSFER_WRITE_DATA: begin
+            // Read data
+            cpu_mem_disable <= 1'b1;
+            temp_data <= data_ext;
+            dma_mem_re <= 1'b0;
+            // Write the temp register to memory
+            temp_addr_rw <= 1'b0; // Output write address
+            temp_addr_gate <= 1'b1;
+            temp_data_gate <= 1'b1;
+            dma_mem_we <= 1'b1;
+        end
+        DMA_TRANSFER_WRITE_WAIT: begin
+            next_count <= count + 8'd1;
         end
         default: begin
-           ns = `DMA_WAIT;
         end
       endcase
    end
 
+    always @(*) begin
+        case (cs)
+        DMA_WAIT: 
+            if (dma_sel & mem_we) begin
+                ns = DMA_TRANSFER_READ_ADDR;
+            end else begin
+                ns = DMA_WAIT;
+            end
+        DMA_TRANSFER_READ_ADDR: 
+            if (count == 8'ha0) begin
+                ns = DMA_WAIT;
+            end else begin
+                ns = DMA_TRANSFER_READ_DATA;
+            end
+        DMA_TRANSFER_READ_DATA:  ns = DMA_TRANSFER_WRITE_DATA;
+        DMA_TRANSFER_WRITE_DATA: ns = DMA_TRANSFER_WRITE_WAIT;
+        DMA_TRANSFER_WRITE_WAIT: ns = DMA_TRANSFER_READ_ADDR; 
+        default: ns = DMA_WAIT;
+      endcase
+    end
+
    always @(posedge clock or posedge reset) begin
       if (reset) begin
-         cs <= `DMA_WAIT;
+         cs <= DMA_WAIT;
          count <= 8'h0;
       end else begin
          cs <= ns;
