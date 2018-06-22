@@ -87,13 +87,154 @@ WR, Write Enable, Low Active
 
 Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing diagram. WR doesn't seems to pulse during a high page write.
 
-## Instruction Timing
+## Instructions
+
+## Common Encodings
+
+### 16bit Reg addressing encoding 1 (e_ad1)
+* 2'b00: BC
+* 2'b01: DE
+* 2'b10: HL
+* 2'b11: SP
+
+### 16bit Reg addressing encoding 2 (e_ad2)
+* 2'b00: BC
+* 2'b01: DE
+* 2'b10: HL+
+* 2'b11: HL-
+
+### 16bit Reg addressing encoding 3 (e_ad3)
+* 2'b00: BC
+* 2'b01: DE
+* 2'b10: HL
+* 2'b11: AF
+
+### 8bit Reg addressing encoding 1 (e_ab1)
+* 3'b000: B
+* 3'b001: C
+* 3'b010: D
+* 3'b011: E
+* 3'b100: H
+* 3'b101: L
+* 3'b110: databus
+* 3'b111: A
+
+### 8bit Reg addressing encoding 2 (e_ab2)
+* e_ab1 with LSB moved to MSB (021)
+
+### ALU operations (e_alu)
+* 3'b000 ADD
+* 3'b001 ADC
+* 3'b010 SUB
+* 3'b011 SBC
+* 3'b100 AND
+* 3'b101 XOR
+* 3'b110 OR
+* 3'b111 CP
+
+## Load 16bit immediate to 16bit register
+
+* LD rr, d16
+* 3 bytes long
+* 3 M-cycles to execute
+* No flags shall be altered
+* 8'b00rr0001
+* Use e_ad1 for rr encoding
+
+## Load 8bit Immediate to 8bit Register/ to Memory
+
+* LD r, d8 / LD (HL), d8
+* 2 bytes long
+* 2 (reg)/ 3 (mem) M-cycles to execute
+* No flags shall be altered
+* 8'b00rrr110
+* Use e_ab2 for rrr encoding
+
+## Load 8bit Register to 8bit Register/ to/ from Memory
+
+* LD rd, rs
+* 1 byte long
+* 1 (reg)/ 2 (mem) M-cycles to execute
+* No flags shall be altered
+* 8'b01dddsss
+* Use e_ab2 for ddd encoding
+* Use e_ab1 for sss encoding
+* Note that LD (HL), (HL) is impossible, it is replaced by HALT
+
+## Load Register to Memory
+
+* LD (rr), A
+* 1 byte long
+* 2 M-cycles to execute
+* No flags shall be altered
+* If self increment/decrement is involved, it should happen after the access
+* 8'b00dd0010
+* Use e_ad2 for rr encoding
+
+## Load Memory to Register
+
+* LD A, (rr)
+* 8'b00dd1110
+* Otherwise the same as load reg to mem
+
+## Load SP to Immediate Address
+
+* LD (a16), SP
+* 3 bytes long
+* 5 M-cycles to execute
+* No flags shall be altered
+* 8'b00001000
+
+## 16bit Register Self Increment/ Decrement
+
+* INC dd / DEC dd
+* 1 byte long
+* 2 M-cycles to execute
+* No flags shall be altered
+* 8'b00dd0111 (INC) / 8'b00dd1011 (DEC)
+* Use e_ad1 for dd encoding
+
+## 8bit Register/ Memory Self Increment/ Decrement
+
+* INC d / DEC d / INC (HL) / DEC (HL)
+* 1 byte long
+* 1 (reg)/ 3 (mem) M-cycles to execute
+* Zero, Substract, and Half-Carry flag are altered
+* 8'b00ddd100 (INC) / 8'b00ddd101 (DEC)
+* Use e_ab2 for ddd encoding
+
+## 8bit ALU Operations
+
+* ADD r / ADC r / SUB r / SBC r / AND r / XOR r / OR r / CP r
+* 1 byte (reg/mem) / 2 (imm) long
+* 1 (reg) / 2 (mem) / 2 (imm) M-cycles to execute
+* Flags depending on operation
+* 8'b1iaaarrr
+* i: 0 - Read from (HL), 1 - Use immediate value
+* Use e_alu for aaa encoding
+* Use e_ab1 for rrr encoding
 
 ## Microarchitecture
 
 Note: the microarchitecutre part is mainly my guess of the GB CPU based on the given documents and tested behavior. I am implementing the CPU as follows.
 
 BCDEHL are in the register file, while A, F, PC, and SP are not.
+
+One M-cycle is 4 T-cycle, and each T-cycle is a T-FSM state/stage.
+
+### T-FSM
+
+T-FSM is a FSM running with the main 4 MiHz clock. It has 5 states, 1 idle and 4 for normal operation.
+
+* S0: Idle
+* S1: Setup Address
+* S2: Setup Data for write cycle, Latch data for read cycle 
+* S3: Decode/ Execute
+* S4: Write-back
+
+### M-FSM
+
+M-FSM is a FSM running only in S3 state in T-FSM, it could also be called as decoder FSM, it would emit the control signal for this M-cycle.
 
 ## Reference
 
