@@ -132,6 +132,14 @@ Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing di
 * 3'b110 OR
 * 3'b111 CP
 
+## Load SP to Immediate Address
+
+* LD (a16), SP
+* 3 bytes long
+* 5 M-cycles to execute
+* No flags shall be altered
+* 8'b00001000
+
 ## Load 16bit immediate to 16bit register
 
 * LD rr, d16
@@ -140,26 +148,6 @@ Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing di
 * No flags shall be altered
 * 8'b00rr0001
 * Use e_ad1 for rr encoding
-
-## Load 8bit Immediate to 8bit Register/ to Memory
-
-* LD r, d8 / LD (HL), d8
-* 2 bytes long
-* 2 (reg)/ 3 (mem) M-cycles to execute
-* No flags shall be altered
-* 8'b00rrr110
-* Use e_ab2 for rrr encoding
-
-## Load 8bit Register to 8bit Register/ to/ from Memory
-
-* LD rd, rs
-* 1 byte long
-* 1 (reg)/ 2 (mem) M-cycles to execute
-* No flags shall be altered
-* 8'b01dddsss
-* Use e_ab2 for ddd encoding
-* Use e_ab1 for sss encoding
-* Note that LD (HL), (HL) is impossible, it is replaced by HALT
 
 ## Load Register to Memory
 
@@ -171,19 +159,31 @@ Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing di
 * 8'b00dd0010
 * Use e_ad2 for rr encoding
 
+## Load 8bit Immediate to 8bit Register/ to Memory
+
+* LD r, d8 / LD (HL), d8
+* 2 bytes long
+* 2 (reg)/ 3 (mem) M-cycles to execute
+* No flags shall be altered
+* 8'b00rrr110
+* Use e_ab2 for rrr encoding
+
 ## Load Memory to Register
 
 * LD A, (rr)
-* 8'b00dd1110
+* 8'b00dd1010
 * Otherwise the same as load reg to mem
 
-## Load SP to Immediate Address
+## Load 8bit Register to 8bit Register/ to/ from Memory
 
-* LD (a16), SP
-* 3 bytes long
-* 5 M-cycles to execute
+* LD rd, rs
+* 1 byte long
+* 1 (reg)/ 2 (mem) M-cycles to execute
 * No flags shall be altered
-* 8'b00001000
+* 8'b01dddsss
+* Use e_ab2 for ddd encoding
+* Use e_ab1 for sss encoding
+* Note that LD (HL), (HL) is impossible, it is replaced by HALT
 
 ## 16bit Register Self Increment/ Decrement
 
