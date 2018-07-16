@@ -58,6 +58,7 @@ These projects are used as references. Again, thanks for sharing.
 
  - https://github.com/freecores/genesys_ddr2
  - https://github.com/Gekkio/mooneye-gb
+ - https://github.com/ZipCPU/s6soc
 
 ## Legalese
 
