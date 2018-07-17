@@ -132,6 +132,29 @@ Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing di
 * 3'b110 OR
 * 3'b111 CP
 
+### Special ALU operations (e_alu_sp)
+* 2'b00 DAA
+* 2'b01 CPL
+* 2'b10 SCF
+* 2'b11 CCF
+
+### Bitwise ALU operations part 1 (e_alu_b1)
+* 3'b000 RLC
+* 3'b001 RRC
+* 3'b010 RL
+* 3'b011 RR
+* 3'b100 SLA
+* 3'b101 SRA
+* 3'b110 SWAP
+* 3'b111 SRL
+
+### Bitwise ALU operations part 2 (e_alu_b2)
+
+* 2'b00 Used by other opcodes
+* 2'b01 BIT
+* 2'b10 RES
+* 2'b11 SET
+
 ## Load SP to Immediate Address
 
 * LD (a16), SP
@@ -214,6 +237,35 @@ Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing di
 * Use e_alu for aaa encoding
 * Use e_ab1 for rrr encoding
 
+## 8bit Special ALU Operations
+
+* DAA / SCF / CPL / CCF
+* 1 byte long
+* 1 M-cycle to execute
+* Flag depends
+* 8'b001ss1111
+* Use e_alu_sp for ss encoding
+
+## 8bit Bitwise ALU Operations Part 1
+
+* RLC r / RRC r / RL r / RR r / SLA r / SRA r / SWAP r / SRL r
+* 1 byte long (not include CB)
+* 1 (reg) / 3 (mem) to execute
+* Flag depends
+* 8'b00bbbrrr
+* Use e_alu_b1 for bbb encoding
+* Use e_ab1 for rrr encoding
+
+## 8bit Bitwise ALU Operations Part 2
+
+* BIT n, r / RES n, r / SET n, r
+* 1 byte long (not include CB)
+* 1 (reg) / 2 (memwb) / 3 (memtest) to execute
+* Flags depends
+* 8'bccnnnrrr
+* Use e_alu_b2 for cc encoding
+* Use e_ab1 for rrr encoding
+
 ## Microarchitecture
 
 Note: the microarchitecutre part is mainly my guess of the GB CPU based on the given documents and tested behavior. I am implementing the CPU as follows.
@@ -226,7 +278,7 @@ One M-cycle is 4 T-cycle, and each T-cycle is a T-FSM state/stage.
 
 T-FSM is a FSM running with the main 4 MiHz clock. It has 5 states, 1 idle and 4 for normal operation.
 
-* S0: Idle
+* S0: Idle 
 * S1: Setup Address
 * S2: Setup Data for write cycle, Latch data for read cycle 
 * S3: Decode/ Execute
@@ -235,6 +287,24 @@ T-FSM is a FSM running with the main 4 MiHz clock. It has 5 states, 1 idle and 4
 ### M-FSM
 
 M-FSM is a FSM running only in S3 state in T-FSM, it could also be called as decoder FSM, it would emit the control signal for this M-cycle.
+
+If the instruction finishes this cycle, next cycle would be S1. 
+
+* S0: Idle 
+* S1: Initial Decode
+* S2: Rdata Cycle
+
+Example:
+
+ADD A, B, 1 cycle operation
+
+During M0 - S1, M-FSM instruct ALU OpA to be A, ALU OpB to be B, ALU Res WB En.
+
+ADD A, (HL), 2 cycle operation
+
+During M0 - S1, M-FSM instruct ALU OpA to be A, ALU OpB to be Data Bus, ALU Res WB NEN, HL output to be next cycle ABUS Src, next state is S2
+
+During M1 - S2, M-FSM instruct ALU Res WB EN, PC output to be next cycle ABUS Src, next state is S1
 
 ## Reference
 
