@@ -1,5 +1,5 @@
-GameBoy
-=======
+VerilogBoy
+==========
 
 Coding for fun - the hard way. Trying to implement a Game Boy® compatible machine with Verilog. This is my course final project for CMPEN275 (Digital Design Laboratory) at PSU. I am trying to keep it well commented and documented. 
 
@@ -19,7 +19,7 @@ There are three major parts needs to be implemented: the Game Boy CPU (8-bit CIS
 
 ## Hardware
 
-Currently targeting on Xilinx ML505/XUPV5 and Terasic DE10-Lite.
+Currently targeting on Xilinx ML505/XUPV5 and Terasic DE10-Lite. A dedicated handheld is in developement.
 
 ## Progress
 
