@@ -56,6 +56,8 @@ The processor can do one memory read or memory write in one M-cycle, since the i
 
 The processor is also only capable of doing 1 8-bit ALU operation each M-cycle, if the instruction need to do 16-bit ALU operation, additional 1 M-cycle may be needed to complete the operation.
 
+The processor also has a prefetch queue with the length of 1 byte.
+
 ## Bus Timing
 
 The GB CPU has one 8080 bus compatible bus. The bus supports only memory access, not IO access. All the ROM, RAM, and MMIO peripherals are on the same bus. Here is a timing diagram:
@@ -268,43 +270,53 @@ Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing di
 
 ## Microarchitecture
 
-Note: the microarchitecutre part is mainly my guess of the GB CPU based on the given documents and tested behavior. I am implementing the CPU as follows.
+Note: This is NOT the microarchitecture of the GameBoy CPU, but that of the VerilogBoy CPU. It is a non-pipelined multi-cycle CISC core with hardwired control logic. To optimize the resource usage, the first stage decoding is actually a 512 entries LUT.
 
 BCDEHL are in the register file, while A, F, PC, and SP are not.
 
-One M-cycle is 4 T-cycle, and each T-cycle is a T-FSM state/stage.
+One M-cycle is 4 T-cycle. 
 
-### T-FSM
+### CT-FSM
 
-T-FSM is a FSM running with the main 4 MiHz clock. It has 5 states, 1 idle and 4 for normal operation.
+CT-FSM is a FSM running with the main 4 MiHz clock. It takes care of all the bus operations and instruction execution. It has 4 states,  always executed in a loop, from S0 to S3. To be clear, I am describing it from 2 perspectives: bus operation and instruction execution.
 
-* S0: Idle 
+Bus Operation:
+
+* S0: Wait
 * S1: Setup Address
-* S2: Setup Data for write cycle, Latch data for read cycle 
-* S3: Decode/ Execute
-* S4: Write-back
+* S2: Wait
+* S3: Setup Data for write cycle, Latch data for read cycle 
 
-### M-FSM
+Instruction Execution:
 
-M-FSM is a FSM running only in S3 state in T-FSM, it could also be called as decoder FSM, it would emit the control signal for this M-cycle.
+* S0: Decoding & Execution
+* S1: Register Write Back
+* S2: PC Increment Cycle 1 
+* S3: PC Increment Cycle 2
 
-If the instruction finishes this cycle, next cycle would be S1. 
+### EX-FSM
 
-* S0: Idle 
-* S1: Initial Decode
-* S2: Rdata Cycle
+EX-FSM is a FSM running only in S0 state in CT-FSM. The reason of having this FSM is that the CPU might need multiple M cycles to finish the execution of a single instruction, the FSM would keep track of which cycle it is in. Means the state of this FSM should always match the M cycle number.
+
+If the instruction finishes this cycle, next cycle would be S0.
+
+Main tasks of this FSM:
+
+* Determine if this M-cycle would be memory write, memory read, or instruction fetch.
+* Determine the input numbers of the ALU.
+* Determine if the output of ALU should be write back to register.
+* Determine if PC needs to be incremented.
 
 Example:
 
 ADD A, B, 1 cycle operation
-
-During M0 - S1, M-FSM instruct ALU OpA to be A, ALU OpB to be B, ALU Res WB En.
+During M0 - S1, EX-FSM instruct ALU OpA to be A, ALU OpB to be B, ALU Res WB En.
 
 ADD A, (HL), 2 cycle operation
 
-During M0 - S1, M-FSM instruct ALU OpA to be A, ALU OpB to be Data Bus, ALU Res WB NEN, HL output to be next cycle ABUS Src, next state is S2
+During M0 - S1, EX-FSM instruct ALU OpA to be A, ALU OpB to be Data Bus, ALU Res WB NEN, HL output to be next cycle ABUS Src, next state is S2
 
-During M1 - S2, M-FSM instruct ALU Res WB EN, PC output to be next cycle ABUS Src, next state is S1
+During M1 - S2, EX-FSM instruct ALU Res WB EN, PC output to be next cycle ABUS Src, next state is S1
 
 ## Reference
 
@@ -312,3 +324,4 @@ During M1 - S2, M-FSM instruct ALU Res WB EN, PC output to be next cycle ABUS Sr
 * http://sgate.emt.bme.hu/patai/publications/z80guide/app1a.html
 * http://www.devrs.com/gb/files/GBCPU_Instr.html
 * https://github.com/Gekkio/mooneye-gb/blob/master/docs/accuracy.markdown
+* https://gekkio.fi/files/gb-docs/gbctr.pdf

@@ -1,7 +1,7 @@
 VerilogBoy
 ==========
 
-Coding for fun - the hard way. Trying to implement a Game Boy® compatible machine with Verilog. This is my course final project for CMPEN275 (Digital Design Laboratory) at PSU. I am trying to keep it well commented and documented. 
+Coding for fun - the hard way. Trying to implement a Game Boy® compatible machine with Verilog. It was my course final project for CMPEN275 (Digital Design Laboratory) at PSU. I am trying to keep it well commented and documented. 
 
 ## Goals of the project
 
@@ -28,7 +28,7 @@ Refactoring in progress. Previous version could run *The Legend of Zelda: Link's
 GameBoy Related:
  - [ ] CPU <- Refactor in progress
  - [x] PPU
- - [ ] Sound
+ - [x] Sound
  - [x] Timer
  - [x] Link
  - [x] Keypad
@@ -67,8 +67,6 @@ I'm not affiliated with Nintendo in any way. Game Boy® is a registered trademar
 ## License
 
 The Game Boy® boot ROM code is copyrighted material and intellectual properity of Nintendo®. It is provided solely for educational purpose only.
-
-The GB-Z80 cpu code (cpu.v, cpu.vh, alu.v, and regfile.v) is originally written by Joseph Carlos, and according to his requirement, this files should only be used for non-commercial purpose.
 
 All other software codes are licensed under MPL 2.0.
 
