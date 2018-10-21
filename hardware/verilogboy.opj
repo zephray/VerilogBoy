@@ -1,0 +1,216 @@
+(ExpressProject ""
+  (ProjectVersion "19981106")
+  (ProjectType "PCB")
+  (Folder "Design Resources"
+    (Folder "Library"
+      (File ".\library1.olb"
+        (Type "Schematic Library")))
+    (File ".\verilogboy.dsn"
+      (Type "Schematic Design"))
+    (BuildFileAddedOrDeleted "x")
+    (CompileFileAddedOrDeleted "x")
+    (NoModify)
+    (Netlist_TAB "8")
+    (OTHER_Part_Value "{Value}")
+    (OTHER_Netlist_File "VERILOGBOY.asc")
+    (OTHER_Netlist_File2 "VERILOGBOY.CMP")
+    (OTHER_View_Output "FALSE")
+    (OTHER_View_Output2 "FALSE")
+    (OTHER_Formatter "orPadspcb.dll")
+    (OTHER_PCB_Footprint "{PCB Footprint}")
+    (OTHER_Switch0 "FALSE")
+    (OTHER_Switch1 "FALSE")
+    (OTHER_Switch2 "FALSE")
+    (OTHER_Switch3 "FALSE")
+    (OTHER_Switch4 "FALSE")
+    (OTHER_Switch5 "FALSE")
+    (OTHER_Switch6 "FALSE"))
+  (Folder "Outputs"
+    (File ".\verilogboy.asc"
+      (Type "Report")))
+  (Folder "Referenced Projects")
+  (PartMRUSelector
+    (CAP_NP
+      (FullPartName "CAP_NP.Normal")
+      (LibraryName "Q:\ORCADCIS\SYMBOLS\FCL_CAPACITOR.OLB")
+      (DeviceIndex "0"))
+    (RES
+      (FullPartName "RES.Normal")
+      (LibraryName "Q:\ORCADCIS\SYMBOLS\FCL_RESISTOR.OLB")
+      (DeviceIndex "0"))
+    (OFFPAGELEFT-L
+      (LibraryName "C:\PROGRAM FILES\ORCAD\CAPTURE\LIBRARY\CAPSYM.OLB")
+      (DeviceIndex "0"))
+    (OFFPAGELEFT-R
+      (LibraryName
+         "C:\CADENCE\CADENCE\CADENCE_SPB_16.6-2015\TOOLS\CAPTURE\LIBRARY\CAPSYM.OLB")
+      (DeviceIndex "0"))
+    (CONN_HDR_8X1
+      (FullPartName "CONN_HDR_8X1.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (GND
+      (LibraryName
+         "C:\CADENCE\CADENCE\CADENCE_SPB_16.6-2015\TOOLS\CAPTURE\LIBRARY\CAPSYM.OLB")
+      (DeviceIndex "0"))
+    (CONN_HDR_6X1
+      (FullPartName "CONN_HDR_6X1.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (STM32F103C8
+      (FullPartName "STM32F103C8C.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "2"))
+    (SIQ-02FVS3
+      (FullPartName "SIQ-02FVS3.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (CRYSTAL_JXS63
+      (FullPartName "CRYSTAL_JXS63.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (GD32F150G8
+      (FullPartName "GD32F150G8.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (VCC
+      (LibraryName
+         "C:\CADENCE\CADENCE\CADENCE_SPB_16.6-2015\TOOLS\CAPTURE\LIBRARY\CAPSYM.OLB")
+      (DeviceIndex "0"))
+    (MT25QL256ABA1EW9_9P
+      (FullPartName "MT25QL256ABA1EW9_9P.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (RT9193-33PB
+      (FullPartName "RT9193-33PB.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (PORTLEFT-L
+      (LibraryName
+         "C:\CADENCE\CADENCE\CADENCE_SPB_16.6-2015\TOOLS\CAPTURE\LIBRARY\CAPSYM.OLB")
+      (DeviceIndex "0"))
+    (AML-B16C15012Q
+      (FullPartName "AML-B16C15012Q.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (AXP209
+      (FullPartName "AXP209.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (XC6SLX16-1FTG256C
+      (FullPartName "XC6SLX16-1FTG256CE.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "4"))
+    (IS66WVE4M16
+      (FullPartName "IS66WVE4M16.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0")))
+  (GlobalState
+    (FileView
+      (Path "Design Resources")
+      (Path "Design Resources" "d:\github\gameboy\hardware\verilogboy.dsn")
+      (Path "Design Resources" "d:\github\gameboy\hardware\verilogboy.dsn"
+         "SCHEMATIC1")
+      (Path "Design Resources" "Library")
+      (Path "Design Resources" "Library"
+         "d:\github\gameboy\hardware\library1.olb")
+      (Path "Outputs")
+      (Select "Design Resources" "d:\github\gameboy\hardware\verilogboy.dsn"))
+    (HierarchyView)
+    (Doc
+      (Type "COrCapturePMDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 0 200 0 415"))
+      (Tab 0))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 50 1054 50 503")
+        (Scroll "0 0")
+        (Zoom "104")
+        (Occurrence "/"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "5-BANKS"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 75 2213 75 899")
+        (Scroll "-35 127")
+        (Zoom "208")
+        (Occurrence "/"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "1-POWER"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 125 2263 125 949")
+        (Scroll "-540 -2")
+        (Zoom "104")
+        (Occurrence "/"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "3-RAM"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 150 1154 150 603")
+        (Scroll "0 0")
+        (Zoom "104")
+        (Occurrence "/"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "4-AUDIO"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 175 886 175 625")
+        (Scroll "0 0")
+        (Zoom "104")
+        (Occurrence "/"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "2-SYSCON"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 25 736 25 475")
+        (Scroll "0 0")
+        (Zoom "104")
+        (Occurrence "/"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "7-KEY"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 125 911 125 410")
+        (Scroll "632 1007")
+        (Zoom "416")
+        (Occurrence "/"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "6-LCD"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 2 3 -1 -1 -8 -30 25 761 25 431")
+        (Scroll "-269 -9")
+        (Zoom "104")
+        (Occurrence "/"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "9-USB"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 150 886 150 556")
+        (Scroll "0 0")
+        (Zoom "104")
+        (Occurrence "/"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
+      (Schematic "SCHEMATIC1")
+      (Page "8-SDCARD")))
+  (MPSSessionName "Wenting")
+  (ISPCBBASICLICENSE "false"))
