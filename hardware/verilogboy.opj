@@ -24,12 +24,21 @@
     (OTHER_Switch3 "FALSE")
     (OTHER_Switch4 "FALSE")
     (OTHER_Switch5 "FALSE")
-    (OTHER_Switch6 "FALSE"))
+    (OTHER_Switch6 "FALSE")
+    (Board_sim_option "VHDL_flow"))
   (Folder "Outputs"
     (File ".\verilogboy.asc"
       (Type "Report")))
   (Folder "Referenced Projects")
   (PartMRUSelector
+    (CONN_AUDIOJACK_5P
+      (FullPartName "CONN_AUDIOJACK_5P.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
+    (HDR_1X3
+      (FullPartName "HDR_1X3.Normal")
+      (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (DeviceIndex "0"))
     (CAP_NP
       (FullPartName "CAP_NP.Normal")
       (LibraryName "Q:\ORCADCIS\SYMBOLS\FCL_CAPACITOR.OLB")
@@ -123,6 +132,17 @@
         (Placement "44 0 1 -1 -1 -8 -30 0 200 0 415"))
       (Tab 0))
     (Doc
+      (Type "COrPartDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 175 1505 175 724")
+        (PackageScroll "0 0")
+        (PackageZoom "1")
+        (PartPackage "Part")
+        (Scroll "2575 806")
+        (Zoom "504"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (Package "CONN_AUDIOJACK_5P"))
+    (Doc
       (Type "COrSchematicDoc")
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 50 1054 50 503")
@@ -136,8 +156,8 @@
       (Type "COrSchematicDoc")
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 75 2213 75 899")
-        (Scroll "-35 127")
-        (Zoom "208")
+        (Scroll "-540 -2")
+        (Zoom "104")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
@@ -155,8 +175,8 @@
     (Doc
       (Type "COrSchematicDoc")
       (Frame
-        (Placement "44 0 1 -1 -1 -8 -30 150 1154 150 603")
-        (Scroll "0 0")
+        (Placement "44 2 3 -1 -1 -8 -30 150 1154 150 603")
+        (Scroll "-269 -9")
         (Zoom "104")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
@@ -186,8 +206,8 @@
       (Type "COrSchematicDoc")
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 125 911 125 410")
-        (Scroll "632 1007")
-        (Zoom "416")
+        (Scroll "0 441")
+        (Zoom "208")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
@@ -195,8 +215,8 @@
     (Doc
       (Type "COrSchematicDoc")
       (Frame
-        (Placement "44 2 3 -1 -1 -8 -30 25 761 25 431")
-        (Scroll "-269 -9")
+        (Placement "44 0 1 -1 -1 -8 -30 25 761 25 431")
+        (Scroll "0 0")
         (Zoom "104")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
