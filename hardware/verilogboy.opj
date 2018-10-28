@@ -31,6 +31,21 @@
       (Type "Report")))
   (Folder "Referenced Projects")
   (PartMRUSelector
+    (OFFPAGELEFT-R
+      (LibraryName "C:\CADENCE\SPB_15.7\TOOLS\CAPTURE\LIBRARY\CAPSYM.OLB")
+      (DeviceIndex "0"))
+    (OFFPAGELEFT-L
+      (LibraryName
+         "C:\CADENCE\CADENCE\CADENCE_SPB_16.6-2015\TOOLS\CAPTURE\LIBRARY\CAPSYM.OLB")
+      (DeviceIndex "0"))
+    (GND
+      (LibraryName
+         "C:\CADENCE\CADENCE\CADENCE_SPB_16.6-2015\TOOLS\CAPTURE\LIBRARY\CAPSYM.OLB")
+      (DeviceIndex "0"))
+    (RES
+      (FullPartName "RES.Normal")
+      (LibraryName "Q:\ORCADCIS\SYMBOLS\FCL_RESISTOR.OLB")
+      (DeviceIndex "0"))
     (CONN_AUDIOJACK_5P
       (FullPartName "CONN_AUDIOJACK_5P.Normal")
       (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
@@ -43,24 +58,9 @@
       (FullPartName "CAP_NP.Normal")
       (LibraryName "Q:\ORCADCIS\SYMBOLS\FCL_CAPACITOR.OLB")
       (DeviceIndex "0"))
-    (RES
-      (FullPartName "RES.Normal")
-      (LibraryName "Q:\ORCADCIS\SYMBOLS\FCL_RESISTOR.OLB")
-      (DeviceIndex "0"))
-    (OFFPAGELEFT-L
-      (LibraryName "C:\PROGRAM FILES\ORCAD\CAPTURE\LIBRARY\CAPSYM.OLB")
-      (DeviceIndex "0"))
-    (OFFPAGELEFT-R
-      (LibraryName
-         "C:\CADENCE\CADENCE\CADENCE_SPB_16.6-2015\TOOLS\CAPTURE\LIBRARY\CAPSYM.OLB")
-      (DeviceIndex "0"))
     (CONN_HDR_8X1
       (FullPartName "CONN_HDR_8X1.Normal")
       (LibraryName "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
-      (DeviceIndex "0"))
-    (GND
-      (LibraryName
-         "C:\CADENCE\CADENCE\CADENCE_SPB_16.6-2015\TOOLS\CAPTURE\LIBRARY\CAPSYM.OLB")
       (DeviceIndex "0"))
     (CONN_HDR_6X1
       (FullPartName "CONN_HDR_6X1.Normal")
@@ -129,25 +129,14 @@
     (Doc
       (Type "COrCapturePMDoc")
       (Frame
-        (Placement "44 0 1 -1 -1 -8 -30 0 200 0 415"))
+        (Placement "44 2 3 -1 -1 -8 -30 0 200 0 415"))
       (Tab 0))
-    (Doc
-      (Type "COrPartDoc")
-      (Frame
-        (Placement "44 0 1 -1 -1 -8 -30 175 1505 175 724")
-        (PackageScroll "0 0")
-        (PackageZoom "1")
-        (PartPackage "Part")
-        (Scroll "2575 806")
-        (Zoom "504"))
-      (Path "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
-      (Package "CONN_AUDIOJACK_5P"))
     (Doc
       (Type "COrSchematicDoc")
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 50 1054 50 503")
-        (Scroll "0 0")
-        (Zoom "104")
+        (Scroll "0 19")
+        (Zoom "170")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
@@ -156,8 +145,8 @@
       (Type "COrSchematicDoc")
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 75 2213 75 899")
-        (Scroll "-540 -2")
-        (Zoom "104")
+        (Scroll "-278 0")
+        (Zoom "158")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
@@ -166,8 +155,8 @@
       (Type "COrSchematicDoc")
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 125 2263 125 949")
-        (Scroll "-540 -2")
-        (Zoom "104")
+        (Scroll "-278 0")
+        (Zoom "158")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
@@ -175,9 +164,9 @@
     (Doc
       (Type "COrSchematicDoc")
       (Frame
-        (Placement "44 2 3 -1 -1 -8 -30 150 1154 150 603")
-        (Scroll "-269 -9")
-        (Zoom "104")
+        (Placement "44 0 1 -1 -1 -8 -30 150 1154 150 603")
+        (Scroll "0 0")
+        (Zoom "158")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
@@ -187,7 +176,7 @@
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 175 886 175 625")
         (Scroll "0 0")
-        (Zoom "104")
+        (Zoom "158")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
@@ -197,7 +186,7 @@
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 25 736 25 475")
         (Scroll "0 0")
-        (Zoom "104")
+        (Zoom "158")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
@@ -206,8 +195,8 @@
       (Type "COrSchematicDoc")
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 125 911 125 410")
-        (Scroll "0 441")
-        (Zoom "208")
+        (Scroll "0 0")
+        (Zoom "158")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
@@ -227,10 +216,21 @@
       (Frame
         (Placement "44 0 1 -1 -1 -8 -30 150 886 150 556")
         (Scroll "0 0")
-        (Zoom "104")
+        (Zoom "157")
         (Occurrence "/"))
       (Path "D:\GITHUB\GAMEBOY\HARDWARE\VERILOGBOY.DSN")
       (Schematic "SCHEMATIC1")
-      (Page "8-SDCARD")))
+      (Page "8-SDCARD"))
+    (Doc
+      (Type "COrPartDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -30 175 1505 175 724")
+        (PackageScroll "0 0")
+        (PackageZoom "1")
+        (PartPackage "Part")
+        (Scroll "2575 806")
+        (Zoom "504"))
+      (Path "D:\GITHUB\GAMEBOY\HARDWARE\LIBRARY1.OLB")
+      (Package "CONN_AUDIOJACK_5P")))
   (MPSSessionName "Wenting")
   (ISPCBBASICLICENSE "false"))
