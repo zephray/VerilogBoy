@@ -84,12 +84,12 @@ Register file read source selection.
 00 - Idle cycle
 01 - Instruction Fetch
 10 - Write cycle
-11 - Read cycle
+11 - Read cycle (Imm or Data)
 
 ## db_src
 
 00 - A register
-01 - 
+01 - ALU result
 10 - Register file
 11 - Databus Buffer
 
@@ -100,11 +100,19 @@ Register file read source selection.
 10 - HL register
 11 - SP register
 
-## pc_inc 
+## ct_op
 
-needed ??
+Operation of CT-FSM at this M-cycle.
+
+00 - Nothing
+01 - PC + 1
+10 - SP - 1
+11 - SP + 1
 
 ## flags_wen
 
 Will the flag being written to F register?
 
+## next
+
+Does this instruction end at this cycle
