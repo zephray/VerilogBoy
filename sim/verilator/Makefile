@@ -7,41 +7,44 @@
 ##   The makefile build the verilator simulation of the VerilogBoy.
 ################################################################################
 
-all: vb_sim
-
-CXX      := g++
-CFLAGS   := -Wall -Og -g
-OBJDIR   := obj_dir
-TOOLS    := ../../tools
-RTLD     := ../../rtl
-RTLOBJD  := $(RTLD)/obj_dir
+CXX	:= g++
+OBJDIR  := obj_pc
+RTLD	:= ../rtl
+ifeq ($(VERILATOR_ROOT),)
 VERILATOR_ROOT ?= $(shell bash -c 'verilator -V|grep VERILATOR_ROOT | head -1 | sed -e " s/^.*=\s*//"')
-VROOT    := $(VERILATOR_ROOT)
-VINCS    := -I$(VROOT)/include -I$(VROOT)/include/vltstd
-INCS     := -I$(RTLOBJD) -I$(RTLD) -I$(VROOT)/include -I$(TOOLS) $(VINCS)
-SOURCES  := vb_sim.cpp
-VLSRCS   := verilated.cpp verilated_vcd_c.cpp
-VLOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o
-VLIB     := $(addprefix $(VROOT)/include/,$(VLSRCS))
-RAWLIB   := $(RTLOBJD)/Vgameboy__ALL.a
-OBJECTS  := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES) $(VLSRCS)))
-LIBS     := $(RAWLIB)
+endif
+VROOT   := $(VERILATOR_ROOT)
+GFXFLAGS:= `pkg-config sdl2 --cflags`
+GFXLIBS := `pkg-config sdl2 --cflags --libs`
+FLAGS	:= -Wall -Og -g -faligned-new
+VINCD   := $(VROOT)/include
+INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I$(VINCD) -I$(VINCD)/vltstd
+OBJS    := memsim.o cpusim.o cpubus.o cpucore.o
+VOBJDR	:= $(RTLD)/obj_dir
+VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o
+PROGRAMS := vb_sim
+all:	$(PROGRAMS)
 
+%.o: $(OBJDIR)/%.o
+$(OBJDIR)/%.o: %.cpp
+	$(mk-objdir)
+	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
 
-$(OBJDIR)/%.o: %.cpp $(OBJDIR)/
-	$(CXX) $(CFLAGS) $(INCS) -c $< -o $@
+$(OBJDIR)/%.o: $(VINCD)/%.cpp
+	$(mk-objdir)
+	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
 
-$(OBJDIR)/%.o: $(VROOT)/include/%.cpp $(OBJDIR)/
-	$(CXX) $(CFLAGS) $(INCS) -c $< -o $@
+vb_sim: $(OBJDIR)/busmaster_tb.o $(OBJS)
+vb_sim: $(VOBJS) $(VOBJDR)/Vbusmaster__ALL.a
+	$(CXX) $(GFXLIBS) $(INCS) $^ $(VOBJDR)/Vbusmaster__ALL.a $(GFXLIBS) -lelf -o $@
 
-vb_sim: $(OBJECTS)
-	$(CXX) $(CFLAGS) $(INCS) $(OBJECTS) $(LIBS) -o $@
-
-$(OBJDIR)/:
-	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
+define	mk-objdir
+	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
+endef
 
 .PHONY: clean
 clean:
+	rm -f *.vcd
 	rm -rf $(OBJDIR)/
-	rm -f ./vb_sim
-	
+	rm -f $(PROGRAMS)
+
