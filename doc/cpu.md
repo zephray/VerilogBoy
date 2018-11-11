@@ -15,9 +15,9 @@ The Game Boy CPU have one bank of general purpose 8-bit registers:
 
 These 8-bit registers may be accessed as 16-bit registers:
 
-*BC
-*DE
-*HL
+* BC
+* DE
+* HL
 
 There are two SF 8-bit registers:
 
@@ -87,7 +87,7 @@ CS, RAM Access Enable, Low Active
 RD: Read Enable, Low Active
 WR, Write Enable, Low Active
 
-Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing diagram. WR doesn't seems to pulse during a high page write.
+Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing diagram. But since LDH instruction doesn't introduce any extra delay, we can assume high page access is invisible from outside.
 
 ## Instructions
 
@@ -270,9 +270,9 @@ Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing di
 
 ## Microarchitecture
 
-Note: This is NOT the microarchitecture of the GameBoy CPU, but that of the VerilogBoy CPU. It is a non-pipelined multi-cycle CISC core with hardwired control logic. To optimize the resource usage, the first stage decoding is actually a 512 entries LUT.
+Note: This is NOT the microarchitecture of the GameBoy CPU, but that of the VerilogBoy CPU. It is a non-pipelined multi-cycle CISC core with hardwired control logic. To optimize the resource usage, the first stage decoding is actually a 256 entries LUT.
 
-BCDEHL are in the register file, while A, F, PC, and SP are not.
+BCDEHLSP are in the register file, while A, F, and PC are not.
 
 One M-cycle is 4 T-cycle. 
 
@@ -282,7 +282,7 @@ CT-FSM is a FSM running with the main 4 MiHz clock. It takes care of all the bus
 
 Bus Operation:
 
-* S0: Wait
+* S0: High Page access from last M-cycle
 * S1: Setup Address
 * S2: Wait
 * S3: Setup Data for write cycle, Latch data for read cycle 
@@ -291,8 +291,8 @@ Instruction Execution:
 
 * S0: Decoding & Execution
 * S1: Register Write Back
-* S2: PC Increment Cycle 1 
-* S3: PC Increment Cycle 2
+* S2: PC Increment Cycle 1 / SP Operation Cycle 1
+* S3: PC Increment Cycle 2 / SP Operation Cycle 2
 
 ### EX-FSM
 
@@ -317,6 +317,64 @@ ADD A, (HL), 2 cycle operation
 During M0 - S1, EX-FSM instruct ALU OpA to be A, ALU OpB to be Data Bus, ALU Res WB NEN, HL output to be next cycle ABUS Src, next state is S2
 
 During M1 - S2, EX-FSM instruct ALU Res WB EN, PC output to be next cycle ABUS Src, next state is S1
+
+```
+       -----------             -----------             -----------             -----------             -----------
+   ___|           |___________|           |___________|           |___________|           |___________|
+      ^ S3 - Instr Fetch      ^ S0 - Control Unit     ^ S1 - Output PC low    ^ S2 - Output PC high   ^ S3 - ALU Free
+                                                      ^ S1 - Output Last PC
+                                                      ^ S1 - Register WB      ^ PC low WB             ^ PC high WB
+```
+
+JR:
+Cycle 0: Fetch PC (JR); Calculate PC + 1
+Cycle 1: JR execution, Fetching PC + 1, PC + 2 interrupted.
+Cycle 2: r ready, calculate PC + r low byte
+Cycle 3: calculate PC + r high byte, save to PC, and output to bus (!!!)
+
+PUSH:
+Cycle 0: Fetch PC (PUSH); Calculate PC + 1
+Cycle 1: ALU: Nothing. No bus op. PC + 1 circuit use to calculate SP - 1
+Cycle 2: ALU: Fetch B; DATA from Regfile; PC + 1 circuit use to calculate SP - 1
+Cycle 3: ALU: Fetch C; DATA from Regfile; PC + 1 stopped.
+Cycle 4: PC + 2 calculated; Fetch PC + 1;
+
+
+POP:
+Cycle 0: Fetch PC (POP), Calculate PC + 1
+Cycle 1: ALU: Nothing. DATA Read from SP. PC + 1 circuit use to calculate SP + 1
+Cycle 2: ALU: Data buffer to C; Data Read from SP. PC + 1 circuit use to calculate SP + 1
+Cycle 3: ALU: Data buffer to B; Fetch PC + 1; Calculate PC + 1
+
+LD (nn), A:
+Cycle 0: Fetch PC, Calculate PC + 1
+Cycle 1: ALU do nothing. Fetch PC + 1 (Imm), Calculate PC + 1
+Cycle 2: ALU do nothing. Fetch PC + 1 (Imm), Stop PC calculation.
+Cycle 3: ALU do nothing. Data write from A to TEMP. Stop PC calculation.
+Cycle 4: ALU do nothing. Fetch PC + 1; Calculate PC + 1;
+
+LD A, (nn):
+Cycle 0: Fetch PC, Calculate PC + 1
+Cycle 1: ALU do nothing. Fetch PC + 1 (Imm), Calculate PC + 1
+Cycle 2: ALU do nothing. Fetch PC + 1 (Imm), Stop PC calculation.
+Cycle 3: ALU do nothing. Data read from TEMP. Stop PC calculation.
+Cycle 4: ALU store data buffer to A. Fetch PC + 1; Calculate PC + 1;
+
+RST:
+Cycle 0: Fetch PC, Calculate PC + 1
+Cycle 1: ALU: Nothing. No bus op. PC + 1 circuit use to calculate SP - 1
+Cycle 2: ALU: Nothing; DATA from PCl to SP; PC + 1 circuit use to calculate SP - 1
+Cycle 3: ALU: 16bit PC from Opcode; DATA from PCh to SP; Stop PC calculation.
+Cycle 4: Fetch new PC; Calculate PC + 1
+
+CALL nn:
+Cycle 0: Fetch PC, Calculate PC + 1
+Cycle 1: ALU do nothing. Fetch PC + 1 (Imm), Stop PC calculation.
+Cycle 2: ALU do nothing. Fetch PC + 1 (Imm), Stop PC calculation.
+Cycle 3: ALU: Nothing. No bus op. PC + 1 circuit use to calculate SP - 1
+Cycle 4: ALU: Nothing; DATA from PCl to SP; PC + 1 circuit use to calculate SP - 1
+Cycle 5: ALU: 16bit PC from Temp; DATA from PCh to SP; Stop PC calculation.
+Cycle 6: Fetch new PC; Calculate PC + 1
 
 ## Reference
 
