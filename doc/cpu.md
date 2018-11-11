@@ -15,9 +15,9 @@ The Game Boy CPU have one bank of general purpose 8-bit registers:
 
 These 8-bit registers may be accessed as 16-bit registers:
 
-*BC
-*DE
-*HL
+* BC
+* DE
+* HL
 
 There are two SF 8-bit registers:
 
@@ -272,7 +272,7 @@ Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing di
 
 Note: This is NOT the microarchitecture of the GameBoy CPU, but that of the VerilogBoy CPU. It is a non-pipelined multi-cycle CISC core with hardwired control logic. To optimize the resource usage, the first stage decoding is actually a 512 entries LUT.
 
-BCDEHL are in the register file, while A, F, PC, and SP are not.
+BCDEHLSP are in the register file, while A, F, and PC are not.
 
 One M-cycle is 4 T-cycle. 
 
@@ -317,6 +317,22 @@ ADD A, (HL), 2 cycle operation
 During M0 - S1, EX-FSM instruct ALU OpA to be A, ALU OpB to be Data Bus, ALU Res WB NEN, HL output to be next cycle ABUS Src, next state is S2
 
 During M1 - S2, EX-FSM instruct ALU Res WB EN, PC output to be next cycle ABUS Src, next state is S1
+
+```
+       -----------             -----------             -----------             -----------             -----------
+   ___|           |___________|           |___________|           |___________|           |___________|
+      ^ S3 - Instr Fetch      ^ S0 - Control Unit     ^ S1 - Output PC low    ^ S2 - Output PC high   ^ S3 - ALU Free
+                                                      ^ S1 - Output Last PC
+                                                      ^ S1 - Register WB      ^ PC low WB             ^ PC high WB
+```
+
+```
+In the JR case:
+Cycle 0: Fetching PC (JR), PC + 1 is calculated
+Cycle 1: JR execution, Fetching PC + 1, PC + 2 interrupted.
+Cycle 2: r ready, calculate PC + r low byte
+Cycle 3: calculate PC + r high byte, save to PC, and output to bus (!!!)
+```
 
 ## Reference
 
