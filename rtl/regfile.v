@@ -22,6 +22,7 @@ module regfile(
     output [15:0] rdw,
     output [7:0] h, // H, L output for 16bit addition
     output [7:0] l, 
+    output [15:0] sp, // SP output for addressing
     input [2:0] wrn,
     input [7:0] wr,
     input we

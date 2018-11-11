@@ -27,6 +27,7 @@ module cpu(
     );
 
     reg  [7:0]  opcode;
+    wire [2:0]  m_cycle;
     wire [1:0]  alu_src_a;
     wire [2:0]  alu_src_b;
     wire [1:0]  alu_op_prefix;
@@ -36,12 +37,19 @@ module cpu(
     wire        pc_we;
     wire [2:0]  rf_wr_sel;
     wire [2:0]  rf_rd_sel;
+    wire [1:0]  bus_op;
+    wire [1:0]  db_src;
+    wire [1:0]  ab_src;
+    wire        pc_inc;
+    wire        flags_we;
+    wire        next;
 
     wire [2:0]  rf_rdn;
     wire [7:0]  rf_rd;
     wire [15:0] rf_rdw;
     wire [7:0]  rf_h;
     wire [7:0]  rf_l;
+    wire [15:0] rf_sp;
     wire [2:0]  rf_wrn;
     wire [7:0]  rf_wr;
     wire        rf_we;
@@ -72,8 +80,8 @@ module cpu(
     wire [3:0]  flags_wr;
     wire        flags_we;
     
-    wire [7:0]  db_wr;
-    wire [7:0]  db_rd;
+    wire [7:0]  db_wr; // Data into buffer
+    wire [7:0]  db_rd; // Data out from buffer
     wire        db_we;
 
     wire [15:0] imm_ext;
@@ -101,7 +109,13 @@ module cpu(
         .pc_src(pc_src),
         .pc_we(pc_we),
         .rf_wr_sel(rf_wr_sel),
-        .rf_rd_sel(rf_rd_sel)
+        .rf_rd_sel(rf_rd_sel),
+        .bus_op(bus_op),
+        .db_src(db_src),
+        .ab_src(ab_src),
+        .pc_inc(pc_inc),
+        .flags_we(flags_we),
+        .next(next)
     );
 
     // Data Bus Buffer
@@ -113,9 +127,19 @@ module cpu(
             db_wr_buffer <= db_wr;
     end
     assign db_rd = db_rd_buffer;
+    assign db_wr = (
+        (db_src == 2'b00) ? (acc_rd) : (
+        (db_src == 2'b01) ? (alu_result) : (
+        (db_src == 2'b10) ? (rf_rd) : (
+        (db_src == 2'b11) ? (db_rd) : ()))));
 
     // Address Bus Buffer
     wire [15:0] ab_wr;
+    assign ab_wr = (
+        (ab_src == 2'b00) ? (pc_rd) : (
+        (ab_src == 2'b01) ? (temp_rd) : (
+        (ab_src == 2'b10) ? ({rf_h, rf_l}) : (
+        (ab_src == 2'b11) ? (rf_sp) : ()))));
     // TBD
 
     // Bus Control Signals
@@ -226,6 +250,10 @@ module cpu(
     wire [1:0] ct_next_state;
 
     assign ct_next_state = ct_state + 2'b01;
+    always @(posedge clk) begin
+        ct_state <= ct_next_state;
+    end
+
 
     // CT - FSM / Bus Operation 
     always @(posedge clk) begin
@@ -309,6 +337,21 @@ module cpu(
     assign alu_op_src = (ct_state == 2'b00) ? (alu_op_src_ex) : (alu_op_src_ct);
     assign alu_dst = (ct_state == 2'b00) ? (alu_dst_ex) : (alu_dst_ct);
     assign pc_b_sel = pc_b_sel_ct;
+
+    // EX - FSM / Mutli-M-cycle Instruction Handling
+    reg  [2:0] ex_state;
+    wire [2:0] ex_next_state;
+
+    assign ex_next_state = (next) ? (ex_state + 3'd1) : (3'd0);
+
+    always @(posedge clk) begin
+        if (ct_state == 2'b01) begin
+            // next signal is ready
+            ex_state <= ex_next_state;
+        end
+    end
+
+    assign m_cycle = ex_state;
 
 endmodule
 
