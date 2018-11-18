@@ -376,6 +376,22 @@ Cycle 4: ALU: Nothing; DATA from PCl to SP; PC + 1 circuit use to calculate SP -
 Cycle 5: ALU: 16bit PC from Temp; DATA from PCh to SP; Stop PC calculation.
 Cycle 6: Fetch new PC; Calculate PC + 1
 
+RET:
+Cycle 0: Fetch PC, Calculate PC + 1
+Cycle 1: ALU: Nothing. Read SP. PC + 1 circuit use to calculate SP + 1
+Cycle 2: ALU: Copy from Databus to PCl; Read SP + 1; PC + 1 circuit use to calculate SP + 1
+Cycle 3: ALU: Copy from Databus to PCh; Databus no op. Stop PC calculation.
+Cycle 4: Fetch new PC; Calculate PC + 1
+
+RET cc:
+Cycle 0: Fetch PC, Calculate PC + 1
+Cycle 1: Check condition and decide if need to continue
+Cycle 2: If taken, same as ret start from Cycle 1; If not, fetch new PC; Calculate PC + 1
+
+
+
+
+
 ## Reference
 
 * http://www.pastraiser.com/cpu/gameboy/gameboy_opcodes.html
