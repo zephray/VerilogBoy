@@ -28,7 +28,9 @@ module gameboy(
     output rd, // Read Enable
     output cs, // External RAM Chip Select
     // Keyboard input
+    /* verilator lint_off UNUSED */
     input [7:0] key,
+    /* verilator lint_on UNUSED */
     // LCD output
     output hs, // Horizontal Sync Output
     output vs, // Vertical Sync Output
@@ -40,14 +42,6 @@ module gameboy(
     output [19:0] right
     );
     
-    // Bus & Memory Signals
-    wire [15:0] soc_a;     // SoC Internal Address Bus
-    wire [7:0]  soc_din;   // SoC Internal Data Bus, Slave to Master
-    wire [7:0]  soc_dout;  // SoC Internal Data Bus, Master to Slave
-
-    wire soc_wr; // SoC Bus Master Memory Write Enable
-    wire soc_rd; // SoC Bus Master Memory Read Enable
-
     // CPU
     wire        cpu_wr;   // CPU Write Enable
     wire        cpu_rd;   // CPU Read Enable
@@ -68,11 +62,20 @@ module gameboy(
         
     // Bus Multiplexing
     // Currently CPU is the only bus master
-    assign soc_wr = cpu_wr;
-    assign soc_rd = cpu_rd;
-    assign soc_din[7:0] = cpu_din[7:0];
-    assign soc_dout[7:0] = cpu_dout[7:0];
-    assign soc_a[15:0] = cpu_a[15:0];
+    assign wr = cpu_wr;
+    assign rd = cpu_rd;
+    assign cpu_din[7:0] = din[7:0];
+    assign dout[7:0] = cpu_dout[7:0];
+    assign a[15:0] = cpu_a[15:0];
+    assign cs = cpu_wr | cpu_rd;
 
+    // Disable unused signals
+    assign hs = 0;
+    assign vs = 0;
+    assign cpl = 0;
+    assign pixel = 0;
+    assign valid = 0;
+    assign left = 0;
+    assign right = 0;
 
 endmodule

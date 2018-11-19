@@ -25,7 +25,7 @@ VERILATOR := $(VERILATOR_ROOT)/bin/verilator
 endif
 VFLAGS := -Wall -MMD --trace -cc 
 
-SRC := gameboy.v cpu.v 
+SRC := gameboy.v cpu.v control.v singlereg.v regfile.v alu.v
 
 $(VOBJ)/Vgameboy__ALL.a: $(VOBJ)/Vgameboy.cpp $(VOBJ)/Vgameboy.h
 $(VOBJ)/Vgameboy__ALL.a: $(VOBJ)/Vgameboy.mk

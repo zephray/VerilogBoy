@@ -18,6 +18,7 @@
 module alu(
     input [7:0] alu_a,
     input [7:0] alu_b,
+    input [2:0] alu_bit_index,
     output [7:0] alu_result,
     input [3:0] alu_flags_in,
     output [3:0] alu_flags_out,
@@ -67,7 +68,8 @@ module alu(
     reg [4:0]        result_high;
     wire [2:0]       bit_index;
     reg carry;
-
+ 
+    assign bit_index = alu_bit_index;
 
     always@(*) begin
         alu_flags_out = 4'b0;
@@ -77,21 +79,21 @@ module alu(
         intermediate_result1 = 9'd0;
         intermediate_result2 = 9'd0;
         case (alu_op)
-            ALU_ADD, ALU_ADC: begin
-                carry = (alu_op == `ALU_ADC) ? alu_flags_in[F_C] : 1'b0;
+            OP_ADD, OP_ADC: begin
+                carry = (alu_op == OP_ADC) ? alu_flags_in[F_C] : 1'b0;
                 result_low = {1'b0, alu_b[3:0]} + {1'b0, alu_a[3:0]} + 
                     {4'b0, carry};
                 alu_flags_out[F_H] = result_low[4];
                 result_high = {1'b0, alu_b[7:4]} + 
                     {1'b0, alu_a[7:4]} + 
-                    result_low[4];
+                    {4'b0, result_low[4]};
                 alu_flags_out[F_C] = result_high[4];
                 alu_result = {result_high[3:0], result_low[3:0]};
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_SUB, ALU_SBC: begin
+            OP_SUB, OP_SBC: begin
                 alu_flags_out[F_N] = 1'b1;
-                carry = (alu_op == `ALU_SBC) ? alu_flags_in[F_C] : 1'b0;
+                carry = (alu_op == OP_SBC) ? alu_flags_in[F_C] : 1'b0;
                 result_low = {1'b0, alu_b[3:0]} + 
                     ~({1'b0, alu_a[3:0]} + 
                     {4'b0, carry}) + 5'b1;
@@ -103,20 +105,20 @@ module alu(
                 alu_result = {result_high[3:0], result_low[3:0]};
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_AND: begin
+            OP_AND: begin
                 alu_flags_out[F_H] = 1'b1;
                 alu_result = alu_b & alu_a;
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_OR: begin
+            OP_OR: begin
                 alu_result = alu_b | alu_a;
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_XOR: begin
+            OP_XOR: begin
                 alu_result = alu_b ^ alu_a;
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_DAA: begin
+            OP_DAA: begin
             // This is a stupid instruction.
                 if (~alu_flags_in[F_N]) begin
                     if (alu_flags_in[F_H] | 
@@ -157,66 +159,66 @@ module alu(
                 alu_flags_out[F_Z] = (intermediate_result2[7:0] == 8'd0) ? 
                                         1'b1 : 1'b0;
             end
-            ALU_NOT: begin
+            /*OP_NOT: begin
                 alu_flags_out[F_Z] = alu_flags_in[F_Z];
                 alu_flags_out[F_N] = 1'b1;
                 alu_flags_out[F_H] = 1'b1;
                 alu_flags_out[F_C] = alu_flags_in[F_C];
                 alu_result = ~alu_b;
-            end
-            ALU_CCF: begin
+            end*/
+            OP_CCF: begin
                 alu_flags_out[F_Z] = alu_flags_in[F_Z];
                 alu_flags_out[F_C] = ~alu_flags_in[F_C];
                 alu_result = alu_a;
             end
-            ALU_SCF: begin
+            OP_SCF: begin
                 alu_flags_out[F_Z] = alu_flags_in[F_Z];
                 alu_flags_out[F_C] = 1'b1;
                 alu_result = alu_a;
             end
-            ALU_RLC: begin
+            OP_RLC: begin
                 alu_result[0] = alu_b[7];
                 alu_result[7:1] = alu_b[6:0];
                 alu_flags_out[F_C] = alu_b[7];
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_RL: begin
+            OP_RL: begin
                 alu_result[0] = alu_flags_in[F_C];
                 alu_result[7:1] = alu_b[6:0];
                 alu_flags_out[F_C] = alu_b[7];
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_RRC: begin
+            OP_RRC: begin
                 alu_result[7] = alu_b[0];
                 alu_result[6:0] = alu_b[7:1];
                 alu_flags_out[F_C] = alu_b[0];
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_RR: begin
+            OP_RR: begin
                 alu_result[7] = alu_flags_in[F_C];
                 alu_result[6:0] = alu_b[7:1];
                 alu_flags_out[F_C] = alu_b[0];
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_SL: begin
+            OP_SLA: begin
                 alu_result[7:1] = alu_b[6:0];
                 alu_result[0] = 1'b0;
                 alu_flags_out[F_C] = alu_b[7];
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_SRA: begin
+            OP_SRA: begin
                 alu_result[7] = alu_b[7];
                 alu_result[6:0] = alu_b[7:1];
                 alu_flags_out[F_C] = alu_b[0];
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_SRL: begin
+            OP_SRL: begin
                 alu_result[7] = 1'b0;
                 alu_result[6:0] = alu_b[7:1];
                 alu_flags_out[F_C] = alu_b[0];
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            ALU_BIT: begin
+            OP_BIT: begin
             // Bit index must be in data0[5:3]
                 alu_flags_out[F_C] = alu_flags_in[F_C];
                 alu_flags_out[F_H] = 1'b1;
@@ -224,17 +226,17 @@ module alu(
                 alu_flags_out[F_Z] = ~alu_b[bit_index];
                 alu_result = alu_a;
             end
-            ALU_SET: begin
+            OP_SET: begin
                 alu_flags_out = alu_flags_in;
                 alu_result = alu_b;
                 alu_result[bit_index] = 1'b1;
             end
-            ALU_RES: begin
+            OP_RES: begin
                 alu_flags_out = alu_flags_in;
                 alu_result = alu_b;
                 alu_result[bit_index] = 1'b0;
             end
-            ALU_SWAP: begin
+            OP_SWAP: begin
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'd1: 1'd0;
                 alu_flags_out[F_H] = 1'b0;
                 alu_flags_out[F_C] = 1'b0;
