@@ -1,7 +1,7 @@
 VerilogBoy
 ==========
 
-Coding for fun - the hard way. Trying to implement a Game Boy® compatible machine with Verilog. It was my course final project for CMPEN275 (Digital Design Laboratory) at PSU. I am trying to keep it well commented and documented. 
+Coding for fun - the hard way. Trying to implement a Game Boy® compatible machine with Verilog. It was my course final project for CMPEN275 (Digital Design Laboratory) at PSU. Now I am refining it and trying to build a physical game console around it. I am trying to keep it well commented and documented. 
 
 ## Goals of the project
 
@@ -15,7 +15,7 @@ The main system architecture is designed as follows:
 
 ![Architecture](https://cdn.hackaday.io/images/6958041523363605244.jpg)
 
-There are three major parts needs to be implemented: the Game Boy CPU (8-bit CISC Processor, Intel 8080 like), the PPU (or GPU), the Sound unit. Several interfacing modules are needed to support the IO capability provided by the FPGA development board. Game ROM would be stored in on-board NOR flash, and RAM would be implemented with on-chip Block RAM.
+There are three major parts needs to be implemented: the Game Boy CPU (8-bit CISC Processor, Intel 8080 like), the PPU (Pixel Processing Unit), and the sound unit. Several interfacing modules are needed to support the IO capability provided by the FPGA development board. Game ROM would be stored in on-board NOR flash, and RAM would be implemented with on-chip Block RAM.
 
 ## Hardware
 
@@ -33,7 +33,7 @@ GameBoy Related:
  - [x] Link
  - [x] Keypad
 
-Board Related:
+Board Related (ML505):
  - [x] DVI Interface
  - [x] AC'97 Interface
  - [x] Cartridge (Emulated with FlashROM)
@@ -68,7 +68,7 @@ I'm not affiliated with Nintendo in any way. Game Boy® is a registered trademar
 
 The Game Boy® boot ROM code is copyrighted material and intellectual properity of Nintendo®. It is provided solely for educational purpose only.
 
-All other software codes are licensed under MPL 2.0.
+All other software codes are licensed under GNU GPL 3.0.
 
 All other HDL codes are licensed under OHDL 1.0.
 
