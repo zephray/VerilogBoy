@@ -28,23 +28,29 @@
 
 class MEMSIM {
 public: 
-    typedef unsigned char BUSW;
+    typedef unsigned char DBUSW;
+    typedef unsigned short ABUSW;
     typedef unsigned char uchar;
 
-    BUSW *m_mem, m_len, m_delay;
+    DBUSW *m_mem;
+    ABUSW m_len;
+    int m_delay;
     int delay_count;
+    uchar last_wr;
+    uchar last_rd;
+    DBUSW last_data;
     
     MEMSIM(const unsigned int nwords, const unsigned int delay=27);
     ~MEMSIM(void);
     void load(const char *fname);
     void load(const unsigned int addr, const char *buf,const size_t len);
-    void apply(const BUSW wr_data, const BUSW address, const uchar wr_enable, 
-        const uchar rd_enable, BUSW &rd_data);
-    void operator()(const BUSW wr_data, const BUSW address, const uchar wr_enable, 
-        const uchar rd_enable, BUSW &rd_data) {
+    void apply(const DBUSW wr_data, const ABUSW address, const uchar wr_enable, 
+        const uchar rd_enable, DBUSW &rd_data);
+    void operator()(const DBUSW wr_data, const ABUSW address, 
+        const uchar wr_enable, const uchar rd_enable, DBUSW &rd_data) {
         apply(wr_data, address, wr_enable, rd_enable, rd_data);
     }
-    BUSW &operator[](const BUSW addr) { return m_mem[addr]; }
+    DBUSW &operator[](const ABUSW addr) { return m_mem[addr]; }
 };
 
 #endif
