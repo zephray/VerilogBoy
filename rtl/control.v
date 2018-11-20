@@ -34,7 +34,9 @@ module control(
     output [1:0] ab_src,
     output [1:0] ct_op,
     output       flags_we,
-    output       next
+    output       next,
+    output       stop,
+    output       halt
     );
 
     wire [1:0] cond_bit = {opcode[7], opcode[0]}; // 00 - NZ 01 - NC 10 - Z 11 - C
@@ -50,7 +52,8 @@ module control(
     wire [27:0] decoding_output;
     // opcode is available one clock earlier, perfect
     always @(posedge clk) begin
-        decoding_output <= decoding_lut[opcode];
+        // input should be high low nibble swapped
+        decoding_output <= decoding_lut[{opcode[3:0], opcode[7:4]}];
     end
 
     always @(*) begin
@@ -59,9 +62,17 @@ module control(
         alu_dst, pc_we, rf_wr_sel, rf_rd_sel, bus_op, 
         db_src, ab_src, ct_op, flags_we, next} = decoding_output;
         pc_src = 2'b00;
+        stop = 1'b0;
+        halt = 1'b0;
         case (m_cycle)
         3'd0: begin
             // First cycle is usually handled by the decoding lut
+            if (opcode == 8'h10) begin
+                stop = 1'b1;
+            end
+            else if (opcode == 8'h76) begin
+                halt = 1'b1;
+            end
         end
         3'd1: begin
             if (opcode == 8'h10) begin
@@ -69,6 +80,7 @@ module control(
             end
             else begin
                 // otherwise, use the same output as the first, except end here
+                bus_op = 2'b01; // Restore to normal instruction fetch
                 next = 0;
             end
         end

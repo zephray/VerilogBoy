@@ -39,7 +39,9 @@ module gameboy(
     output valid,
     // Sound output
     output [19:0] left,
-    output [19:0] right
+    output [19:0] right,
+    // Debug interface
+    output done
     );
     
     // CPU
@@ -56,8 +58,9 @@ module gameboy(
         .a(cpu_a),
         .dout(cpu_dout),
         .din(cpu_din),
-        .rd(cpu_wr),
-        .wr(cpu_rd));
+        .rd(cpu_rd),
+        .wr(cpu_wr),
+        .done(done));
         
         
     // Bus Multiplexing

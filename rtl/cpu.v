@@ -23,7 +23,8 @@ module cpu(
     output reg [7:0] dout,
     input [7:0] din,
     output reg rd,
-    output reg wr
+    output reg wr,
+    output wire done
     );
 
     reg  [7:0]  opcode;
@@ -43,6 +44,8 @@ module cpu(
     wire [1:0]  ct_op;
     wire        flags_we;
     wire        next;
+    wire        stop;
+    wire        halt;
 
     wire [2:0]  rf_rdn;
     wire [7:0]  rf_rd;
@@ -119,8 +122,16 @@ module cpu(
         .ab_src(ab_src),
         .ct_op(ct_op),
         .flags_we(flags_we),
-        .next(next)
+        .next(next),
+        .stop(stop),
+        .halt(halt)
     );
+    
+    always @(posedge clk) begin
+        done <= stop | halt; 
+        // only used to stop simulation if needed
+        // and delay 1 clk
+    end
 
     // Data Bus Buffer
     reg [7:0] db_wr_buffer;
@@ -429,7 +440,7 @@ module cpu(
     assign ex_next_state = (next) ? (ex_state + 3'd1) : (3'd0);
 
     always @(posedge clk) begin
-        if (ct_state == 2'b01) begin
+        if (ct_state == 2'b11) begin
             // next signal is ready
             ex_state <= ex_next_state;
         end
