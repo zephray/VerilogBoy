@@ -37,8 +37,8 @@ Selection source of alu_op
 
 00 - Instruction[5:3]
 01 - {1'b0, Instruction[7:6]}
-10 - Fixed ADD
-11 - Fixed SUB
+10 - Fixed ADD ; F to result
+11 - Fixed SUB ; A to F
 
 ## alu_dst
 
@@ -97,7 +97,7 @@ Register file read source selection.
 
 00 - PC register
 01 - temp register
-10 - HL register
+10 - Register file 16bit read out
 11 - SP register
 
 ## ct_op
@@ -109,7 +109,7 @@ Operation of CT-FSM at this M-cycle.
 10 - SP - 1
 11 - SP + 1
 
-## flags_wen
+## flags_we
 
 Will the flag being written to F register?
 

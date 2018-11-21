@@ -2,6 +2,8 @@
 
 The Game Boy® is powered by a 8-bit Intel 8080-like CISC processor. It is usually called as "GB-Z80", however, it is not a Z80 compatible processor, nor a 8080 compatible processor. This page is not a full document of the original GameBoy processor, but some brief description of the processor and some of my own understanding. The information in this page may or may not be correct.
 
+For a comprehensive and more reliable documentation of GB CPU, see https://github.com/Gekkio/gb-ctr.
+
 ## Registers
 
 The Game Boy CPU have one bank of general purpose 8-bit registers:
@@ -87,7 +89,7 @@ CS, RAM Access Enable, Low Active
 RD: Read Enable, Low Active
 WR, Write Enable, Low Active
 
-Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing diagram. But since LDH instruction doesn't introduce any extra delay, we can assume high page access is invisible from outside.
+Note: See GB-CTR for more information.
 
 ## Instructions
 
@@ -216,7 +218,7 @@ Note: It is currently unclear about high page (0xFF00 - 0xFFFF) access timing di
 * 1 byte long
 * 2 M-cycles to execute
 * No flags shall be altered
-* 8'b00dd0111 (INC) / 8'b00dd1011 (DEC)
+* 8'b00dd0011 (INC) / 8'b00dd1011 (DEC)
 * Use e_ad1 for dd encoding
 
 ## 8bit Register/ Memory Self Increment/ Decrement
@@ -339,12 +341,11 @@ Cycle 2: ALU: Fetch B; DATA from Regfile; PC + 1 circuit use to calculate SP - 1
 Cycle 3: ALU: Fetch C; DATA from Regfile; PC + 1 stopped.
 Cycle 4: PC + 2 calculated; Fetch PC + 1;
 
-
 POP:
 Cycle 0: Fetch PC (POP), Calculate PC + 1
 Cycle 1: ALU: Nothing. DATA Read from SP. PC + 1 circuit use to calculate SP + 1
-Cycle 2: ALU: Data buffer to C; Data Read from SP. PC + 1 circuit use to calculate SP + 1
-Cycle 3: ALU: Data buffer to B; Fetch PC + 1; Calculate PC + 1
+Cycle 2: ALU: Data buffer to B; Data Read from SP. PC + 1 circuit use to calculate SP + 1
+Cycle 3: ALU: Data buffer to C; Fetch PC + 1; Calculate PC + 1
 
 LD (nn), A:
 Cycle 0: Fetch PC, Calculate PC + 1
