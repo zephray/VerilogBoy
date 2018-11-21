@@ -41,9 +41,9 @@ module alu(
     localparam OP_SRA = 5'b01101;
     localparam OP_SWAP= 5'b01110;
     localparam OP_SRL = 5'b01111;
-    //           unused 5'b10000
+    localparam OP_LF  = 5'b10000; // Load Flags
     //           unused 5'b10001
-    //           unused 5'b10010
+    localparam OP_SF  = 5'b10010; // Save Flags
     //           unused 5'b10011
     localparam OP_DAA = 5'b10100;
     localparam OP_CPL = 5'b10101;
@@ -242,6 +242,13 @@ module alu(
                 alu_flags_out[F_C] = 1'b0;
                 alu_flags_out[F_N] = 1'b0;
                 alu_result = {alu_b[3:0], alu_b[7:4]};
+            end
+            OP_SF: begin
+                alu_flags_out = alu_a[7:4];
+                alu_result = alu_b;
+            end
+            OP_LF: begin
+                alu_result = {alu_flags_in, 4'b0};
             end
             default: begin
                 alu_result = alu_a;

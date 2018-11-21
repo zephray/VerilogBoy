@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `default_nettype wire
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: Wenting Zhang
 // 
@@ -13,7 +13,7 @@
 // 
 // Additional Comments: 
 //   See doc/cpu_internal.md for signal definitions
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 module cpu(
     input clk,
@@ -38,17 +38,20 @@ module cpu(
     wire        pc_we;
     wire [2:0]  rf_wr_sel;
     wire [2:0]  rf_rd_sel;
+    wire [1:0]  rf_rdw_sel;
     wire [1:0]  bus_op;
     wire [1:0]  db_src;
     wire [1:0]  ab_src;
     wire [1:0]  ct_op;
     wire        flags_we;
+    wire        high_mask;
     wire        next;
     wire        stop;
     wire        halt;
 
     wire [2:0]  rf_rdn;
     wire [7:0]  rf_rd;
+    wire [1:0]  rf_rdwn;
     wire [15:0] rf_rdw;
     wire [7:0]  rf_h;
     wire [7:0]  rf_l;
@@ -101,10 +104,11 @@ module cpu(
     wire [1:0] alu_dst_ex;
     wire [2:0] rf_wr_sel_ex;
     wire [2:0] rf_rd_sel_ex;
+    wire       flags_we_ex;
 
     control control(
         .clk(clk),
-        .opcode(opcode),
+        .opcode_early(opcode),
         .m_cycle(m_cycle),
         .f_z(flags_rd[3]),
         .f_c(flags_rd[0]),
@@ -117,11 +121,13 @@ module cpu(
         .pc_we(pc_we),
         .rf_wr_sel(rf_wr_sel_ex),
         .rf_rd_sel(rf_rd_sel_ex),
+        .rf_rdw_sel(rf_rdw_sel),
         .bus_op(bus_op),
         .db_src(db_src),
         .ab_src(ab_src),
         .ct_op(ct_op),
-        .flags_we(flags_we),
+        .flags_we(flags_we_ex),
+        .high_mask(high_mask),
         .next(next),
         .stop(stop),
         .halt(halt)
@@ -153,10 +159,9 @@ module cpu(
     wire [15:0] ab_wr;
     assign ab_wr = (
         (ab_src == 2'b00) ? (pc_rd) : (
-        (ab_src == 2'b01) ? (temp_rd) : (
-        (ab_src == 2'b10) ? ({rf_h, rf_l}) : (
+        (ab_src == 2'b01) ? ((high_mask) ? ({8'hFF, temp_rd[15:8]}) : (temp_rd)) : (
+        (ab_src == 2'b10) ? ((high_mask) ? ({8'hFF, rf_rdw[7:0]}) : (rf_rdw)) : (
         (ab_src == 2'b11) ? (rf_sp) : (0)))));
-    // TBD
 
     // Regisiter file
     regfile regfile(
@@ -164,6 +169,7 @@ module cpu(
         .rst(rst),
         .rdn(rf_rdn),
         .rd(rf_rd),
+        .rdwn(rf_rdwn),
         .rdw(rf_rdw),
         .h(rf_h),
         .l(rf_l),
@@ -176,7 +182,7 @@ module cpu(
     assign rf_we = (alu_dst == 2'b10);
     assign rf_wrn = rf_wr_sel;
     assign rf_rdn = rf_rd_sel;
-
+    assign rf_rdwn = rf_rdw_sel;
 
     // Register A
     singlereg #(8) acc(
@@ -201,7 +207,7 @@ module cpu(
         (pc_src == 2'b11) ? (16'b0) : (0)))));
     assign pc_we_l = ((alu_dst == 2'b01) && (pc_b_sel == 1'b0)) ? (1) : (0);
     assign pc_we_h = ((alu_dst == 2'b01) && (pc_b_sel == 1'b1)) ? (1) : (0);
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst)
             pc <= 16'b0;
         else begin
@@ -275,33 +281,30 @@ module cpu(
 
     assign ct_next_state = ct_state + 2'b01;
     always @(posedge clk) begin
-        ct_state <= ct_next_state;
+        if (rst)
+            ct_state <= 2'b00;
+        else
+            ct_state <= ct_next_state;
     end
 
     reg [15:0] imm_reg;
     assign temp_rd = imm_reg;
-    assign imm_ext = {{8{imm_reg[15]}}, imm_reg[15:8]};
+    assign imm_ext = {{8{imm_reg[7]}}, imm_reg[7:0]};
 
     // CT - FSM / Bus Operation 
     always @(posedge clk) begin
         case (ct_state)
         2'b00: begin
-            // Bus Idle
-            rd <= 0;
-            wr <= 0;
-            dout <= 8'b0;
-        end
-        2'b01: begin
             // Setup Address
             a <= ab_wr;
             rd <= ((bus_op == 2'b01)||(bus_op == 2'b11)) ? (1) : (0);
             wr <= 0;
             phi <= 1;
         end
-        2'b10: begin
+        2'b01: begin
             // Read in progress
         end
-        2'b11: begin
+        2'b10: begin
             if (bus_op == 2'b10) begin
                 // Write cycle
                 wr <= 1;
@@ -316,14 +319,21 @@ module cpu(
                 // Data Read cycle
                 wr <= 0;
                 db_rd_buffer <= din;
-                if (m_cycle == 3'd1) imm_reg[15:8] <= din;
-                else if (m_cycle == 3'd2) imm_reg[7:0] <= din; 
+                // mcycle is slower
+                if (m_cycle == 3'd0) imm_reg[7:0] <= din;
+                else if (m_cycle == 3'd1) imm_reg[15:8] <= din; 
             end
             else begin
                 wr <= 0;
             end
             rd <= 0;
             phi <= 0;
+        end
+        2'b11: begin
+            // Bus Idle
+            rd <= 0;
+            wr <= 0;
+            dout <= 8'b0;
         end
         endcase
     end
@@ -332,14 +342,22 @@ module cpu(
     reg  [1:0] alu_src_a_ct;
     reg  [2:0] alu_src_b_ct;
     wire [1:0] alu_op_prefix_ct = 2'b00;
-    wire [1:0] alu_op_src_ct;
+    reg  [1:0] alu_op_src_ct;
     reg  [1:0] alu_dst_ct;
     reg  [2:0] rf_wr_sel_ct;
     reg  [2:0] rf_rd_sel_ct;
     reg        pc_b_sel_ct; 
       
  
-    always @(posedge clk) begin
+    always @(*) begin
+        // Do nothing by default
+        alu_src_a_ct = 2'b00;  // From A
+        alu_src_b_ct = 3'b010; // Constant 0
+        alu_op_src_ct = 2'b10; // Add
+        alu_dst_ct = 2'b00;    // To A
+        rf_wr_sel_ct = 3'b000;
+        rf_rd_sel_ct = 3'b000;
+        pc_b_sel_ct = 1'b0;
         case (ct_state)
         2'b00: begin
             // Decoding and Execution
@@ -350,34 +368,30 @@ module cpu(
             case (ct_op)
             2'b00: begin
                 // Do nothing
-                alu_src_a_ct <= 2'b00;  // From A
-                alu_src_b_ct <= 3'b010; // Constant 0
-                alu_op_src_ct <= 2'b10; // Add
-                alu_dst_ct <= 2'b00;    // To A
             end
             2'b01: begin
                 // Calculate PC low + 1
-                pc_b_sel_ct <= 1'b0;
-                alu_src_a_ct <= 2'b01;  // From PC byte
-                alu_src_b_ct <= 3'b011; // Constant 1
-                alu_op_src_ct <= 2'b10; // Add
-                alu_dst_ct <= 2'b01;    // To PC byte
+                pc_b_sel_ct = 1'b0;
+                alu_src_a_ct = 2'b01;  // From PC byte
+                alu_src_b_ct = 3'b011; // Constant 1
+                alu_op_src_ct = 2'b10; // Add
+                alu_dst_ct = 2'b01;    // To PC byte
             end
             2'b10: begin
                 // Calculate SP low - 1
-                rf_rd_sel_ct <= 3'b111; // Read from SP low
-                rf_wr_sel_ct <= 3'b111; // Write to SP low
-                alu_src_a_ct <= 2'b10;  // From register file
-                alu_src_b_ct <= 3'b011; // Constant 1
-                alu_op_src_ct <= 2'b11; // Sub
+                rf_rd_sel_ct = 3'b111; // Read from SP low
+                rf_wr_sel_ct = 3'b111; // Write to SP low
+                alu_src_a_ct = 2'b10;  // From register file
+                alu_src_b_ct = 3'b011; // Constant 1
+                alu_op_src_ct = 2'b11; // Sub
             end
             2'b11: begin
                 // Calculate SP low + 1
-                rf_rd_sel_ct <= 3'b111; // Read from SP low
-                rf_wr_sel_ct <= 3'b111; // Write to SP low
-                alu_src_a_ct <= 2'b10;  // From register file
-                alu_src_b_ct <= 3'b011; // Constant 1
-                alu_op_src_ct <= 2'b10; // Add
+                rf_rd_sel_ct = 3'b111; // Read from SP low
+                rf_wr_sel_ct = 3'b111; // Write to SP low
+                alu_src_a_ct = 2'b10;  // From register file
+                alu_src_b_ct = 3'b011; // Constant 1
+                alu_op_src_ct = 2'b10; // Add
             end
             endcase
         end
@@ -386,40 +400,36 @@ module cpu(
             case (ct_op)
             2'b00: begin
                 // Do nothing
-                alu_src_a_ct <= 2'b00;  // From A
-                alu_src_b_ct <= 3'b010; // Constant 0
-                alu_op_src_ct <= 2'b10; // Add
-                alu_dst_ct <= 2'b00;    // To A
             end
             2'b01: begin
                 // Calculate PC high + carry
-                pc_b_sel_ct <= 1'b1;
-                alu_src_a_ct <= 2'b01;  // From PC byte
-                alu_src_b_ct <= 3'b001; // Carry
-                alu_op_src_ct <= 2'b10; // Ad
-                alu_dst_ct <= 2'b01;    // To PC byte
+                pc_b_sel_ct = 1'b1;
+                alu_src_a_ct = 2'b01;  // From PC byte
+                alu_src_b_ct = 3'b001; // Carry
+                alu_op_src_ct = 2'b10; // Ad
+                alu_dst_ct = 2'b01;    // To PC byte
             end
             2'b10: begin
                 // Calculate SP high - carry
-                rf_rd_sel_ct <= 3'b110; // Read from SP high
-                rf_wr_sel_ct <= 3'b110; // Write to SP high
-                alu_src_a_ct <= 2'b10;  // From register file
-                alu_src_b_ct <= 3'b001; // Carry
-                alu_op_src_ct <= 2'b11; // Sub
+                rf_rd_sel_ct = 3'b110; // Read from SP high
+                rf_wr_sel_ct = 3'b110; // Write to SP high
+                alu_src_a_ct = 2'b10;  // From register file
+                alu_src_b_ct = 3'b001; // Carry
+                alu_op_src_ct = 2'b11; // Sub
             end
             2'b11: begin
                 // Calculate SP high + carry
-                rf_rd_sel_ct <= 3'b110; // Read from SP high
-                rf_wr_sel_ct <= 3'b110; // Write to SP high
-                alu_src_a_ct <= 2'b10;  // From register file
-                alu_src_b_ct <= 3'b001; // Carryt 1
-                alu_op_src_ct <= 2'b10; // Add
+                rf_rd_sel_ct = 3'b110; // Read from SP high
+                rf_wr_sel_ct = 3'b110; // Write to SP high
+                alu_src_a_ct = 2'b10;  // From register file
+                alu_src_b_ct = 3'b001; // Carryt 1
+                alu_op_src_ct = 2'b10; // Add
             end
             endcase
         end
         2'b11: begin
             // End, it is safe to overwrite DB as doing nothing
-            alu_dst_ct <= 2'b11;
+            alu_dst_ct = 2'b11;
         end
         endcase
     end
@@ -431,6 +441,7 @@ module cpu(
     assign alu_dst = (ct_state == 2'b00) ? (alu_dst_ex) : (alu_dst_ct);
     assign rf_wr_sel = (ct_state == 2'b00) ? (rf_wr_sel_ex) : (rf_wr_sel_ct);
     assign rf_rd_sel = (ct_state == 2'b00) ? (rf_rd_sel_ex) : (rf_rd_sel_ct);
+    assign flags_we = (ct_state == 2'b00) ? (flags_we_ex) : (1'b0);
     assign pc_b_sel = pc_b_sel_ct;
 
     // EX - FSM / Mutli-M-cycle Instruction Handling
@@ -440,10 +451,12 @@ module cpu(
     assign ex_next_state = (next) ? (ex_state + 3'd1) : (3'd0);
 
     always @(posedge clk) begin
-        if (ct_state == 2'b11) begin
-            // next signal is ready
-            ex_state <= ex_next_state;
-        end
+        if (rst)
+            ex_state <= 3'd0;
+        else
+            if (ct_state == 2'b11) begin
+                ex_state <= ex_next_state;
+            end
     end
 
     assign m_cycle = ex_state;

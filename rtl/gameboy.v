@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `default_nettype wire
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: Wenting Zhang
 // 
@@ -8,13 +8,13 @@
 // Module Name:    gameboy 
 // Project Name:   VerilogBoy
 // Description: 
-//   Gameboy main file. This is the file connect the CPU and all the peripherals
-//   in the LR35902 together.
+//   Gameboy main file. This is the file connect the CPU and all the
+//   peripherals in the LR35902 together.
 // Dependencies: 
 //   cpu
 // Additional Comments: 
 //   Hardware specific code should be implemented outside of this file
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 module gameboy(
     input rst, // Async Reset Input
@@ -45,8 +45,8 @@ module gameboy(
     );
     
     // CPU
-    wire        cpu_wr;   // CPU Write Enable
     wire        cpu_rd;   // CPU Read Enable
+    wire        cpu_wr;   // CPU Write Enable
     wire [7:0]  cpu_din;  // CPU Data Bus, to CPU
     wire [7:0]  cpu_dout; // CPU Data Bus, from CPU
     wire [15:0] cpu_a;    // CPU Address Bus

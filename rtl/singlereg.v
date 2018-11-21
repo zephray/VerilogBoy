@@ -27,7 +27,7 @@ module singlereg(clk, rst, wr, rd, we);
 
     assign rd = data;
 
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst)
             data <= 0;
         else
