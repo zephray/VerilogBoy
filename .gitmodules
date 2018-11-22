@@ -1,0 +1,3 @@
+[submodule "target/vb/mcu/libopencm3"]
+	path = target/vb/mcu/libopencm3
+	url = https://github.com/libopencm3/libopencm3
