@@ -1,3 +1,4 @@
+# Xilinx ISE files
 obj_dir/
 isim/
 _xmsgs/
@@ -14,6 +15,11 @@ top_*
 *.cfi
 *.hex
 *.prm
+
+# C object files
+*.d
+*.o
+*.elf
 
 # Windows image file caches
 Thumbs.db

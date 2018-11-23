@@ -1,40 +1,30 @@
 INSTALL
 =======
 
-# Build the test or simulator to be run on a PC
+# Environment
 
-## Environment
+All targets can be built in Linux. I am using Arch Linux. It is possible to build some or all targets in Windows, but not tested.
 
-If you would like to run the Verilator test and/or simulation, a Unix-like
-environment is required. I am using Ubuntu 16.04 LTS.
-
-## Dependencies
+# Dependencies
 
 You need these things installed prior to the building process:
 
 * gcc, make, etc.
+* arm-none-eabi-gcc arm-none-eabi-newlib
 * verilator
 * rgbds
+* openocd (If you would like to flash MCU image over JTAG)
+
+# Build the test or simulator to be run on a PC
 
 ## Build
 
 run '''make'''
 
-# Build the bitstream to be run on an FPGA
+# Build binaries for VerilogBoy hardware
 
-## Environment
+## FPGA
 
-If you would like to run it on the FPGA board, depeding on the specific board,
-Xilinx ISE or Intel Quartus would be required to synthesis and generate the
-bitstream.
+## MCU
 
-## Dependencies 
-
-Since there are several init files for BlockRAM need to be generated for the
-build, you do need a working C compiling and GBASM assembling environment.
-Specifically, you need to have gcc, make, and rgbds installed.
-
-## Build
-
-To be added.
-
+To build the firmware, run '''make vb_mcu'''
