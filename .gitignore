@@ -5,6 +5,7 @@ _xmsgs/
 iseconfig/
 tmp/
 top_*
+impact*
 
 *.map
 *.obj
@@ -15,6 +16,11 @@ top_*
 *.cfi
 *.hex
 *.prm
+*.ncd
+*.xml
+*.html
+*.xwbt
+*.gise
 
 # C object files
 *.d
