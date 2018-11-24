@@ -29,7 +29,7 @@ Currently targeting on Xilinx ML505/XUPV5 and Terasic DE10-Lite. I am also build
  - Video output: On-board VGA or DVI encoder (CH7301C)
  - Audio output: On-board AC'97 codec (AD1981B)
 
-## Terasic DE10-Lite (de10lite)
+### Terasic DE10-Lite (de10lite)
 
  - FPGA: Intel MAX10
  - RAM: ?
@@ -37,7 +37,7 @@ Currently targeting on Xilinx ML505/XUPV5 and Terasic DE10-Lite. I am also build
  - Video output: On-board VGA R2R DAC
  - Audio output: None
 
-## VerilogBoy Handheld (vbh)
+### VerilogBoy Handheld (vbh)
 
  - FPGA: Xilinx Spartan-6 XC6SLX16
  - RAM: Using on-board PSRAM for VRAM/WRAM

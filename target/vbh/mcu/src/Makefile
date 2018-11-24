@@ -17,8 +17,8 @@
 ## along with this library.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
-BINARY = vb_mcu
-OBJS = usb_cdc.o misc.o axp.o
+BINARY = vbh_mcu
+OBJS = usb_cdc.o misc.o axp.o fpga_if.o
 
 OPENCM3_DIR = ../libopencm3
 LDSCRIPT = ../stm32f103x8.ld

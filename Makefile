@@ -21,6 +21,10 @@ rtl:
 sim: rtl
 	cd sim/verilator; $(MAKE) --no-print-directory
 	
+.PHONY: vbh_mcu
+vbh_mcu:
+	cd target/vbh/mcu/src; $(MAKE) --no-print-directory
+
 .PHONY: clean
 clean:
 	cd doc; $(MAKE) --no-print-directory clean

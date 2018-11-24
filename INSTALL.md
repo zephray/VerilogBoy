@@ -14,6 +14,7 @@ You need these things installed prior to the building process:
 * verilator
 * rgbds
 * openocd (If you would like to flash MCU image over JTAG)
+* Xilinx ISE 14.7 (to build ml505 target or vbh target)
 
 # Build the test or simulator to be run on a PC
 
@@ -21,10 +22,12 @@ You need these things installed prior to the building process:
 
 run '''make'''
 
-# Build binaries for VerilogBoy hardware
+# Build binaries for VerilogBoy Handheld
 
 ## FPGA
 
+To build the firmware, open fpga.xise under target/vbh/fpga folder with Xilinx ISE 14.7, and double click generate programming file.
+
 ## MCU
 
-To build the firmware, run '''make vb_mcu'''
+To build the firmware, run '''make vbh_mcu'''
