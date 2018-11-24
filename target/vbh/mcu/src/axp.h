@@ -45,5 +45,6 @@ void axp_twsi_send_ack(bool ack);
 bool axp_read_reg(uint8_t addr, uint8_t *data);
 bool axp_write_reg(uint8_t addr, uint8_t data);
 void axp_init(void);
+void axp_printinfo(void);
 
 #endif

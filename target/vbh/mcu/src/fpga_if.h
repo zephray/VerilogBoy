@@ -13,47 +13,19 @@
     You should have received a copy of the GNU General Public License along
     with this program.  If not, see <http://www.gnu.org/licenses/> for a copy.
 
-    Description: VerilogBoy MCU Firmware main source code
+    Description: FPGA communication functions
 
     Copyright (C) 2018 Wenting Zhang
 
 *******************************************************************************/
+#ifndef __FPGA_H__
+#define __FPGA_H__
 
 #include "inc.h"
-#include "usb_cdc.h"
-#include "misc.h"
-#include "axp.h"
-#include "fpga_if.h"
 
-int main(void)
-{
-    // Setup MCU
-	rcc_clock_setup_in_hse_24mhz_out_72mhz();
-	delay_setup();
-	rcc_periph_clock_enable(RCC_GPIOA);
+void fpga_setup(void);
+void fpga_write_reg(uint8_t addr, uint8_t data);
+uint8_t fpga_read_reg(uint8_t addr);
+void fpga_init(void);
 
-    // Init PMU
-    axp_init();
-
-    // Setup PC USB Connection
-	usb_disconnect();
-	usbcdc_init();
-
-    // Wait for debug console to connect
-	delay_ms(2000);
-    printf("\r\n\r\n");
-	printf("VerilogBoy Debug Console\r\n");
-    printf("Built on %s\r\n\r\n", __DATE__);
-
-    // Show PMU configuration
-    axp_printinfo();
-
-    // Init FPGA IF
-    fpga_setup();
-    
-	while(1) {
-        delay_ms(10000);
-        fpga_init();
-    }
-
-}
+#endif

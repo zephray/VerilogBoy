@@ -27,15 +27,16 @@
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <libopencm3/stm32/rcc.h>
-#include <libopencm3/stm32/flash.h>
+
 #include <libopencm3/cm3/systick.h>
-#include <libopencm3/usb/usbd.h>
-#include <libopencm3/usb/cdc.h>
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/cm3/nvic.h>
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/desig.h>
 #include <libopencm3/stm32/gpio.h>
-
+#include <libopencm3/stm32/spi.h>
+#include <libopencm3/usb/usbd.h>
+#include <libopencm3/usb/cdc.h>
 
 #endif

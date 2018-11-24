@@ -337,11 +337,13 @@ int _write(int file, char *ptr, int len)
 {
     int i;
 
-    if (file == STDOUT_FILENO || file == STDERR_FILENO) {
-        for (i = 0; i < len; i++) {
-        usbcdc_putc(ptr[i]);
+    if (usb_ready) {
+        if (file == STDOUT_FILENO || file == STDERR_FILENO) {
+            for (i = 0; i < len; i++) {
+                usbcdc_putc(ptr[i]);
+            }
+            return i;
         }
-        return i;
     }
     errno = EIO;
     return -1;

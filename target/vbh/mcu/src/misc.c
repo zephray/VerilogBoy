@@ -115,6 +115,16 @@ void delay_us_loop(uint32_t t)
 	}
 }
 
+void delay_fast_loop(uint32_t t)
+{
+	int i;
+	while(t--) {
+		for (i=0;i<10;i++) {
+			__asm("nop");
+		}
+	}
+}
+
 void sys_tick_handler(void)
 {
     if (timing_delay != 0x00)

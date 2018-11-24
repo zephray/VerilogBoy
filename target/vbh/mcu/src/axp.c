@@ -166,16 +166,27 @@ bool axp_write_reg(uint8_t addr, uint8_t data) {
     return result;
 }
 
-void axp_init(void) {
-    uint8_t value;
+#define USE_1V8_RAM
+#undef USE_3V3_RAM 
 
+void axp_init(void) {
     rcc_periph_clock_enable(AXP_GPIO_RCC);
     gpio_set_mode(AXP_SCL_PORT, GPIO_MODE_OUTPUT_10_MHZ, 
         GPIO_CNF_OUTPUT_PUSHPULL, AXP_SCL_PIN);
 
     axp_write_reg(0x23, 20); // Set DCDC2 to 1.2V
+#ifdef USE_3V3_RAM
+    axp_write_reg(0x12, 0x1B); // Turn off LDO 2, 3
+    axp_write_reg(0xF8, 15); // Set LDO 2 to 3.3V, LDO 4 to 3.3V
+#else
     axp_write_reg(0x28, 15); // Set LDO 2 to 1.8V, LDO 4 to 3.3V
     axp_write_reg(0x29, 44); // Set LDO 3 to 1.8V
+#endif
+    axp_write_reg(0x32, 0x18); // Set CHGLED Blinking
+}
+
+void axp_printinfo(void) {
+    uint8_t value;
 
     if (axp_read_reg(0x00, &value)) {
        printf((value & 0x20) ? "axp: VBUS exist\r\n" : "axp: VBUS doesn't exist\r\n"); 

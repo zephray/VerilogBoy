@@ -27,6 +27,7 @@ void rcc_clock_setup_in_hse_24mhz_out_72mhz(void);
 void delay_setup(void);
 void delay_us(uint32_t us);
 void delay_us_loop(uint32_t t);
+void delay_fast_loop(uint32_t t);
 void delay_ms(uint32_t ms);
 
 #endif

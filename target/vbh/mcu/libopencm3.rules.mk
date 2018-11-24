@@ -181,42 +181,42 @@ print-%:
 	@echo $*=$($*)
 
 %.images: %.bin %.hex %.srec %.list %.map
-	@#printf "*** $* images generated ***\n"
+	@printf "*** $* images generated ***\n"
 
 %.bin: %.elf
-	@#printf "  OBJCOPY $(*).bin\n"
+	@printf "  OBJCOPY $(*).bin\n"
 	$(Q)$(OBJCOPY) -Obinary $(*).elf $(*).bin
 
 %.hex: %.elf
-	@#printf "  OBJCOPY $(*).hex\n"
+	@printf "  OBJCOPY $(*).hex\n"
 	$(Q)$(OBJCOPY) -Oihex $(*).elf $(*).hex
 
 %.srec: %.elf
-	@#printf "  OBJCOPY $(*).srec\n"
+	@printf "  OBJCOPY $(*).srec\n"
 	$(Q)$(OBJCOPY) -Osrec $(*).elf $(*).srec
 
 %.list: %.elf
-	@#printf "  OBJDUMP $(*).list\n"
+	@printf "  OBJDUMP $(*).list\n"
 	$(Q)$(OBJDUMP) -S $(*).elf > $(*).list
 
 %.elf %.map: $(OBJS) $(LDSCRIPT) $(OPENCM3_DIR)/lib/lib$(LIBNAME).a
-	@#printf "  LD      $(*).elf\n"
+	@printf "  LD      $(*).elf\n"
 	$(Q)$(LD) $(TGT_LDFLAGS) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $(*).elf
 
 %.o: %.c
-	@#printf "  CC      $(*).c\n"
+	@printf "  CC      $(*).c\n"
 	$(Q)$(CC) $(TGT_CFLAGS) $(CFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -o $(*).o -c $(*).c
 
 %.o: %.cxx
-	@#printf "  CXX     $(*).cxx\n"
+	@printf "  CXX     $(*).cxx\n"
 	$(Q)$(CXX) $(TGT_CXXFLAGS) $(CXXFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -o $(*).o -c $(*).cxx
 
 %.o: %.cpp
-	@#printf "  CXX     $(*).cpp\n"
+	@printf "  CXX     $(*).cpp\n"
 	$(Q)$(CXX) $(TGT_CXXFLAGS) $(CXXFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -o $(*).o -c $(*).cpp
 
 clean:
-	@#printf "  CLEAN\n"
+	@printf "  CLEAN\n"
 	$(Q)$(RM) $(GENERATED_BINARIES) generated.* $(OBJS) $(OBJS:%.o=%.d)
 
 stylecheck: $(STYLECHECKFILES:=.stylecheck)
