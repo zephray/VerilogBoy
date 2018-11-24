@@ -11,15 +11,39 @@ To be specific, it should be able to run the unmodified Game Boy machine code, p
 
 ## System Architecture
 
-The main system architecture is designed as follows:
+The main system architecture is designed as follows (outdated):
 
 ![Architecture](https://cdn.hackaday.io/images/6958041523363605244.jpg)
 
-There are three major parts needs to be implemented: the Game Boy CPU (8-bit CISC Processor, Intel 8080 like), the PPU (Pixel Processing Unit), and the sound unit. Several interfacing modules are needed to support the IO capability provided by the FPGA development board. Game ROM would be stored in on-board NOR flash, and RAM would be implemented with on-chip Block RAM.
+There are three major parts needs to be implemented: the Game Boy CPU (8-bit CISC Processor, Intel 8080 like), the PPU (Pixel Processing Unit), and the sound unit. Several interfacing modules are needed to support the IO capability provided by the specific hardware (FPGA development board or "VerilogBoy Handheld")
 
 ## Hardware
 
-Currently targeting on Xilinx ML505/XUPV5 and Terasic DE10-Lite. A dedicated handheld is in developement.
+Currently targeting on Xilinx ML505/XUPV5 and Terasic DE10-Lite. I am also building an FPGA-based handheld gaming console, called "VerilogBoy Handheld". All design sources of VerilogBoy Handheld is also hosted in this repository.
+
+### Xilinx ML505 (ml505)
+
+ - FPGA: Xilinx Virtex-5 XC5VLX50
+ - RAM: Using on-chip BlockRAM for VRAM/WRAM
+ - ROM: Using on-board FlashROM for game cartridge emulation
+ - Video output: On-board VGA or DVI encoder (CH7301C)
+ - Audio output: On-board AC'97 codec (AD1981B)
+
+## Terasic DE10-Lite (de10lite)
+
+ - FPGA: Intel MAX10
+ - RAM: ?
+ - ROM: Using Arduino GameBoy cartridge shield
+ - Video output: On-board VGA R2R DAC
+ - Audio output: None
+
+## VerilogBoy Handheld (vbh)
+
+ - FPGA: Xilinx Spartan-6 XC6SLX16
+ - RAM: Using on-board PSRAM for VRAM/WRAM
+ - ROM: Using on-board PSRAM for game cartridge emulation
+ - Video output: 1.54" MIPI-DSI 320x320 IPS TFT-LCD
+ - Audio output: On-board I2S codec (WM8960)
 
 ## Progress
 
@@ -27,17 +51,12 @@ Refactoring in progress. Previous version could run *The Legend of Zelda: Link's
 
 GameBoy Related:
  - [ ] CPU <- Refactor in progress
- - [x] PPU
- - [x] Sound
- - [x] Timer
- - [x] Link
- - [x] Keypad
 
-Board Related (ML505):
- - [x] DVI Interface
- - [x] AC'97 Interface
- - [x] Cartridge (Emulated with FlashROM)
- - [x] Controller Interface
+VerilogBoy Handheld Target:
+ - [ ] MIPI-DSI LCD
+ - [ ] SDIO Interface
+ - [ ] WM8960 Codec
+ - [ ] Joystick
 
 ## Accuracy
 
