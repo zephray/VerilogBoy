@@ -71,6 +71,7 @@ See INSTALL.md
 This project reused codes from several other projects. A great thanks to their efforts!
 
  - https://github.com/nightslide7/Gameboy
+ - https://github.com/twlostow/dsi-shield
  - https://github.com/MParygin/v.vga.font8x16
 
 These projects are used as references. Again, thanks for sharing.
