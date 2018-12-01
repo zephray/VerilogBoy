@@ -1,0 +1,273 @@
+\include{config}
+
+\ifnum \draft=1
+  \documentclass[a4paper, draft, oneside]{memoir}
+\else
+  \documentclass[a4paper, oneside]{memoir}
+\fi
+
+\usepackage[final]{graphicx}
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{subcaption}
+\usepackage{charter}
+\usepackage{mathpazo}
+\usepackage[ttdefault=true]{AnonymousPro}
+\usepackage{tabu}
+\usepackage{pdflscape}
+\usepackage{enumitem}
+\usepackage{ccicons}
+\usepackage[svgnames,table]{xcolor}
+\usepackage{tikz}
+\usepackage{tikz-timing}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{minted}
+\usepackage[most]{tcolorbox}
+\usepackage{fontawesome}
+\usepackage{hyperref}
+\usepackage[all]{hypcap}
+\usepackage{hyphenat}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\usemintedstyle{autumn}
+
+\graphicspath{{images/}}
+
+\bibliographystyle{plain}
+
+\title{VerilogBoy Handheld: Reference Manual}
+\author{Wenting Zhang\\ \url{https://wentingzhang.com}}
+
+\hypersetup{final,unicode=true,pdfborder={0 0 0},bookmarksnumbered=true,pdfpagemode=UseOutlines,pdfauthor=gekkio,pdftitle=\thetitle}
+
+\setlrmarginsandblock{2cm}{2cm}{*}
+\setulmarginsandblock{2cm}{2cm}{*}
+\checkandfixthelayout
+
+\newtcolorbox{warning}
+{colframe=Gold,colback=LemonChiffon,title=\faExclamationCircle,fonttitle=\small}
+
+\floatstyle{plaintop}
+\newfloat{register}{h}{lor}[chapter]
+\floatname{register}{Register}
+
+\newcommand{\bit}[1]{\texttt{#1}}
+\newcommand{\bin}[1]{\texttt{0b#1}}
+\newcommand{\hex}[1]{\texttt{0x#1}}
+\newcommand{\hexrange}[2]{\texttt{0x#1\hyp{}0x#2}}
+
+\setcounter{tocdepth}{4}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+
+\begin{titlingpage}
+	\vspace*{\baselineskip} % Whitespace at the top of the page
+	\vspace*{0.167\textheight} % Whitespace before the title
+	{\textbf{\LARGE VerilogBoy Handheld}}\\[\baselineskip] % First title line
+	{\Huge Reference Manual}\\[\baselineskip] % Main title line which draws the focus of the reader
+  {\Large \textit{Hardware and Software Interface}} % Subtitle
+  \vspace*{0.167\textheight}\par
+  {\Large Wenting Zhang\par} % Author name
+  {\large \today\par}
+	\vfill % Whitespace between the titles and the publisher
+  \ifdraftdoc
+    DRAFT\par
+  \fi
+  \href{http://creativecommons.org/licenses/by-sa/4.0/}{\Huge \ccbysa}\\
+  This work is licensed under a \href{http://creativecommons.org/licenses/by-sa/4.0/}{Creative Commons Attribution-ShareAlike 4.0 International License}.
+  \vspace*{3\baselineskip} % Whitespace at the bottom of the page
+\end{titlingpage}
+
+\hypersetup{pageanchor=true}
+
+\chapter*{Preface}
+\addcontentsline{toc}{chapter}{Preface}
+\phantomsection
+
+This documentation is mainly about the internal design of VerilogBoy Handheld. This document is intended to serve as a reference manual for developers. This is not a tutorial or a user manual or a service manual.
+
+\chapter*{How to read this document}
+\addcontentsline{toc}{chapter}{How to read this document}
+\phantomsection
+
+\begin{warning}
+  This is a warning about something.
+\end{warning}
+
+\section{Formatting of numbers}
+
+When a single bit is discussed in isolation, the value looks like this: \bit{0}, \bit{1}.
+
+Binary numbers are prefixed with \bin{} like this: \bin{0101101}, \bin{11011}, \bin{00000000}. Values are prefixed with zeroes when necessary, so the total number of digits always matches the number of digits in the value.
+
+Hexadecimal numbers are prefixed with \hex{} like this: \hex{1234}, \hex{DEADBEEF}, \hex{FF04}. Values are prefixed with zeroes when necessary, so the total number of characters always matches the number of nibbles in the value.
+
+Examples:
+
+\vspace{0.5cm}
+
+\begin{tabular}{l l l l}
+              & 4-bit      & 8-bit          & 16-bit     \\
+  \hline
+  Binary      & \bin{0101} & \bin{10100101} & \bin{0000101010100101} \\
+  Hexadecimal & \hex{5}    & \hex{A5}       & \hex{0AA5}
+\end{tabular}
+
+\section{Register definitions}
+
+\begin{register}[H]
+  \caption{\hex{1234} - This is a hardware register definition}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      R/W-0                          & R/W-1                   & U-1                             & R-0  & R-1                      & R-x & W-1 & U-0   \\
+      \multicolumn2{|c|}{VALUE<1:0>} & \cellcolor{LightGray} - & \multicolumn3{c|}{BIGVAL<7:5>} & FLAG & \cellcolor{LightGray} - \\
+      \rowfont{\rmfamily\small}
+      bit 7                          & 6                       & 5                               & 4    & 3                        & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \textbf{Top row legend:}
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[R]
+      Bit can be read.
+    \item[W]
+      Bit can be written. If the bit cannot be read, reading returns a constant
+      value defined in the bit list of the register in question.
+    \item[U]
+      Unimplemented bit. Writing has no effect, and reading returns a constant
+      value defined in the bit list of the register in question.
+    \item[-n]
+      Value after system reset: \bit{0}, \bit{1}, or x.
+    \item[\bit{1}]
+      Bit is set.
+    \item[\bit{0}]
+      Bit is cleared.
+    \item[x]
+      Bit is unknown (e.g. depends on external things such as user input).
+  \end{description}
+
+  \textbf{Middle row legend:} \\
+  {
+    \ttfamily
+    \begin{tabu} to 0.5\textwidth {|X[l]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      VALUE<1:0> & \rmfamily Bits 1 and 0 of VALUE \\
+      \cellcolor{LightGray} - & \rmfamily Unimplemented bit \\
+      BIGVAL<7:5> & \rmfamily Bits 7, 6, 5 of BIGVAL \\
+      FLAG & \rmfamily Single-bit value FLAG
+    \end{tabu}
+  }
+
+  \vspace{3mm}
+  \textbf{In this example:}
+  \begin{itemize}
+    \item{After system reset, VALUE is \bin{01}, BIGVAL is either \bin{010} or \bin{011}, FLAG is \bin{1}.}
+    \item{Bits 5 and 0 are unimplemented. Bit 5 always returns \bit{1}, and bit 0 always returns \bit{0}.}
+    \item{Both bits of VALUE can be read and written. When this register is written, bit 7 of the written value goes to bit 1 of VALUE.}
+    \item{FLAG can only be written to, so reads return a value that is defined elsewhere.}
+    \item{BIGVAL cannot be written to. Only bits 5-7 of BIGVAL are defined here, so look elsewhere for the low bits 0-4.}
+  \end{itemize}
+\end{register}
+
+\clearpage
+
+\tableofcontents
+
+\part{VerilogBoy Hardware Architecture}
+
+TODO
+
+\part{VerilogBoy MM Peripherials}
+
+\chapter{MIPI DSI controller (DSIC)}
+
+\section{DSIC introduction}
+
+The display serial interface (DSI) is part of a group of communication protocols defined by the MIPI\textregistered Alliance. The DSIC implements a MIPI\textregistered DSI host controller and MIPI\textregistered D-PHY to provide an interface between the system and a DSI-compliant display.
+
+Since the DSI specification is non-public and requires an NDA, the core was built using bits and pieces available throughout the Web: presentations, display controller/SOC datasheets, various application notes and Android kernel drivers. The author is not associated in any way with the MIPI Alliance. The core has never been verified for compliance with the DSI standard and it probably lacks many of its features.
+
+\section{DSIC main features}
+
+\begin{itemize}
+  \item Implement MIPI\textregistered D-PHY
+  \item Transmission of command mode packets through the MMPB interface
+  \item Transmission of video mode packets through the simple pixel FIFO interface
+  \item Support up to one D-PHY data lanes by default
+  \item Uni-direction transmission only
+  \item Support non-continuous clock in D-PHY clock lane
+  \item ECC and checksum capabilities
+  \item Support 24-bit RGB mode
+\end{itemize}
+
+\section{DSIC registers}
+
+\begin{register}[H]
+  \caption{\hex{10} - DSIC\_CTL - MIPI DSI Control}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      U-0                     & U-0                     & U-0                     & U-0                     & U-0                     & U-0                     & R/W-0        & R/W-0     \\
+      \cellcolor{LightGray} - & \cellcolor{LightGray} - & \cellcolor{LightGray} - & \cellcolor{LightGray} - & \cellcolor{LightGray} - & \cellcolor{LightGray} - & LP\_REQ      & CLK\_EN \\
+      \rowfont{\rmfamily\small}
+      bit 7                   & 6                       & 5                       & 4                       & 3                       & 2                       & 1            & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-2]
+      \textbf{Unimplemented}: Read as \bit{0}
+    \item[bit 1]
+      \textbf{LP\_REQ}: Request to switch to LP mode \\
+      \bin{1}= ?? \\
+      \bin{0}= ?? \\
+    \item[bit 0]
+      \textbf{CLK\_EN}: DSI clock lane output enable bit \\
+      \bin{1}= DSI clock output is enabled \\
+      \bin{0}= DSI clock output is disabled \\
+
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{11} - DSIC\_TXDR - DSI LP Mode Transmission Data Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      R/W-0 & R/W-0 & R/W-0 & R/W-0 & R/W-0 & R/W-0 & R/W-0 & R/W-0 \\
+      \multicolumn8{|c|}{TXDR<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{TXDR}: Raw byte to be sent in the LP mode.
+
+      Writing to this register will trigger the transmission immediately.
+
+  \end{description}
+\end{register}
+
+\part*{Appendices}
+\addcontentsline{toc}{part}{Appendices}
+\phantomsection
+
+\begin{appendices}
+\end{appendices}
+
+\end{document}
