@@ -24,13 +24,13 @@
 #include "misc.h"
 #include "axp.h"
 #include "fpga_if.h"
+#include "pwm.h"
 
 int main(void)
 {
     // Setup MCU
 	rcc_clock_setup_in_hse_24mhz_out_72mhz();
 	delay_setup();
-	rcc_periph_clock_enable(RCC_GPIOA);
 
     // Init PMU
     axp_init();
@@ -45,6 +45,9 @@ int main(void)
 	printf("VerilogBoy Debug Console\r\n");
     printf("Built on %s\r\n\r\n", __DATE__);
 
+    // Init Backlight PWM
+    pwm_init();
+
     // Show PMU configuration
     axp_printinfo();
 
@@ -52,8 +55,8 @@ int main(void)
     fpga_setup();
     
 	while(1) {
-        delay_ms(10000);
-        fpga_init();
+        //delay_ms(10000);
+        //fpga_init();
     }
 
 }

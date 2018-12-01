@@ -13,31 +13,27 @@
     You should have received a copy of the GNU General Public License along
     with this program.  If not, see <http://www.gnu.org/licenses/> for a copy.
 
-    Description: All library includes
+    Description: Wrapper file of timer PWM function
 
     Copyright (C) 2018 Wenting Zhang
 
 *******************************************************************************/
-#ifndef __INC_H__
-#define __INC_H__
+#ifndef __PWM_H__
+#define __PWM_H__
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <errno.h>
-#include <stdio.h>
-#include <unistd.h>
+#include "inc.h"
 
-#include <libopencm3/cm3/systick.h>
-#include <libopencm3/cm3/scb.h>
-#include <libopencm3/cm3/nvic.h>
-#include <libopencm3/stm32/rcc.h>
-#include <libopencm3/stm32/flash.h>
-#include <libopencm3/stm32/desig.h>
-#include <libopencm3/stm32/gpio.h>
-#include <libopencm3/stm32/spi.h>
-#include <libopencm3/stm32/timer.h>
-#include <libopencm3/usb/usbd.h>
-#include <libopencm3/usb/cdc.h>
+// Backlight is connected to PB3, TIM2 CH2
+#define PWM_TIM      TIM2
+#define PWM_RCC      RCC_TIM2
+#define PWM_GPIO     GPIOB
+#define PWM_GPIO_AF  GPIO_TIM2_FR_CH2
+#define PWM_GPIO_RCC RCC_GPIOB
+#define PWM_OC       TIM_OC2
+#define PWM_REMAP    AFIO_MAPR_TIM2_REMAP_FULL_REMAP
+#define SWJ_REMAP    AFIO_MAPR_SWJ_CFG_JTAG_OFF_SW_ON  // Needed by GPIO remap
+
+void pwm_init(void);
+void pwm_set_duty(unsigned char duty);
 
 #endif
