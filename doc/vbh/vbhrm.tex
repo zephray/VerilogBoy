@@ -78,7 +78,7 @@
   \ifdraftdoc
     DRAFT\par
   \fi
-  \href{http://creativecommons.org/licenses/by-sa/4.0/}{\Huge \ccbysa}\\
+  \href{http://creativecommons.org/licenses/by-sa/4.0/}{\Huge \ccbysa}\par
   This work is licensed under a \href{http://creativecommons.org/licenses/by-sa/4.0/}{Creative Commons Attribution-ShareAlike 4.0 International License}.
   \vspace*{3\baselineskip} % Whitespace at the bottom of the page
 \end{titlingpage}
@@ -218,30 +218,57 @@ Since the DSI specification is non-public and requires an NDA, the core was buil
     \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
       \everyrow{\hline}
       \hline
-      U-0                     & U-0                     & U-0                     & U-0                     & U-0                     & U-0                     & R/W-0        & R/W-0     \\
-      \cellcolor{LightGray} - & \cellcolor{LightGray} - & \cellcolor{LightGray} - & \cellcolor{LightGray} - & \cellcolor{LightGray} - & \cellcolor{LightGray} - & LP\_REQ      & CLK\_EN \\
+      U-0                     & R/W-0       & R/W-0         & R/W-0         & R/W-0         & R/W-0         & R/W-0        & R/W-0     \\
+      \cellcolor{LightGray} - & RST\_OUT    & FORCE\_LP     & TIM\_EN       & DATA\_INV     & CLK\_INV      & LP\_REQ      & CLK\_EN   \\
       \rowfont{\rmfamily\small}
-      bit 7                   & 6                       & 5                       & 4                       & 3                       & 2                       & 1            & bit 0
+      bit 7                   & 6                       & 5             & 4             & 3             & 2             & 1            & bit 0
     \end{tabu}
   }
 
   \begin{description}[leftmargin=5em, style=nextline]
-    \item[bit 7-2]
+    \item[bit 7]
       \textbf{Unimplemented}: Read as \bit{0}
+    \item[bit 6]
+      \textbf{RST\_OUT}: Set output level of LCD reset line
+    \item[bit 5]
+      \textbf{FORCE\_LP}: Force timing generator to stop and switch to LP mode 
+    \item[bit 4]
+      \textbf{TIM\_EN}: Timing generator enable bit 
+    \item[bit 3]
+      \textbf{DATA\_INV}: Set data lane inversion 
+    \item[bit 2]
+      \textbf{CLK\_INV}: Set clock lane inversion 
     \item[bit 1]
-      \textbf{LP\_REQ}: Request to switch to LP mode \\
-      \bin{1}= ?? \\
-      \bin{0}= ?? \\
+      \textbf{LP\_REQ}: Request to switch to LP mode 
+      Write \bin{1} to this bit will request the controller to switch to LP mode. Upon reading, this bit indicate if the controller is currently in the LP mode.
     \item[bit 0]
-      \textbf{CLK\_EN}: DSI clock lane output enable bit \\
-      \bin{1}= DSI clock output is enabled \\
-      \bin{0}= DSI clock output is disabled \\
+      \textbf{CLK\_EN}: DSI clock lane output enable bit 
 
   \end{description}
 \end{register}
 
 \begin{register}[H]
-  \caption{\hex{11} - DSIC\_TXDR - DSI LP Mode Transmission Data Register}
+  \caption{\hex{11} - DSIC\_TICK - DSI Tick Divider Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      R/W-0 & R/W-0 & R/W-0 & R/W-0 & R/W-0 & R/W-0 & R/W-0 & R/W-0 \\
+      \multicolumn8{|c|}{TICK<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{TICK}: Tick divider value. f$_{TICK}$ = f$_{DSI}$ / TICK. f$_{TICK}$ decides the speed of LP mode transmission.
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{12} - DSIC\_TXDR - DSI LP Mode Transmission Data Register}
   {
     \ttfamily
     \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
@@ -260,6 +287,210 @@ Since the DSI specification is non-public and requires an NDA, the core was buil
 
       Writing to this register will trigger the transmission immediately.
 
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{13} - DSIC\_HFP - DSI Timing HFP Length Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn8{|c|}{HFP<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{HFP}: Horizontal front porch length
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{14} - DSIC\_HBP - DSI Timing HBP Length Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn8{|c|}{HBP<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{HFP}: Horizontal back porch length
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{15} - DSIC\_HACTL - DSI Timing HACT Length Low Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn8{|c|}{HACT<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{HACT}: Horizontal active pixel length (This register only contain low 8 bits)
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{16} - DSIC\_HTL - DSI Timing HTotal Length Low Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn8{|c|}{HT<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{HT}: Horizontal total length (This register only contain low 8 bits)
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{17} - DSIC\_HATH - DSI Timing HACT and HTotal Length High Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn4{|c|}{HACT<11:8>} & \multicolumn4{|c|}{HT<11:8>}\\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-4]
+      \textbf{HACT}: Horizontal active pixel length (This register only contain high 4 bits)
+    \item[bit 3-0]
+      \textbf{HT}: Horizontal total length (This register only contain high 4 bits)
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{18} - DSIC\_VFP - DSI Timing VFP Length Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn8{|c|}{VFP<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{VFP}: Vertical front porch length
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{19} - DSIC\_VBP - DSI Timing VBP Length Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn8{|c|}{VBP<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{VFP}: Veritcal back porch length
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{1A} - DSIC\_VACTL - DSI Timing VACT Length Low Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn8{|c|}{VACT<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{VACT}: Vertical active pixel length (This register only contain low 8 bits)
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{1B} - DSIC\_VTL - DSI Timing VTotal Length Low Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn8{|c|}{VT<7:0>} \\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-0]
+      \textbf{VT}: Vertical total length (This register only contain low 8 bits)
+  \end{description}
+\end{register}
+
+\begin{register}[H]
+  \caption{\hex{1C} - DSIC\_VATH - DSI Timing VACT and VTotal Length High Register}
+  {
+    \ttfamily
+    \begin{tabu} to \textwidth {|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|X[c]|}
+      \everyrow{\hline}
+      \hline
+      W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 & W-0 \\
+      \multicolumn4{|c|}{VACT<11:8>} & \multicolumn4{|c|}{VT<11:8>}\\
+      \rowfont{\rmfamily\small}
+      bit 7   & 6   & 5   & 4   & 3   & 2   & 1   & bit 0
+    \end{tabu}
+  }
+
+  \begin{description}[leftmargin=5em, style=nextline]
+    \item[bit 7-4]
+      \textbf{VACT}: Vertical active pixel length (This register only contain high 4 bits)
+    \item[bit 3-0]
+      \textbf{VT}: Vertical total length (This register only contain high 4 bits)
   \end{description}
 \end{register}
 
