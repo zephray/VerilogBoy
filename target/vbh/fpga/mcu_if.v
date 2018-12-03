@@ -22,11 +22,14 @@ module mcu_if(
     output mcu_miso,
     input mcu_mosi,
     output mcu_irq,
-    output reg [7:0] bm_a,
-    input [7:0] bm_din,
-    output reg [7:0] bm_dout,
-    output reg bm_wr,
-    output reg bm_rd
+    output reg [7:0] wb_a,
+    input [7:0] wb_din,
+    output reg [7:0] wb_dout,
+    output reg wb_we,
+    output reg wb_cyc,
+    output reg wb_stb,
+    input wb_ack,
+    input wb_stall
     );
 
     // sync SCK
@@ -107,45 +110,56 @@ module mcu_if(
 
     localparam S_IDLE = 2'd0;
     localparam S_WAITR = 2'd1;
-    localparam S_READ = 2'd2;
-    localparam S_WAITW = 2'd3;
+    localparam S_WAITW = 2'd2;
 
     always @(posedge clk) begin
         if (rst) begin
-            bm_rd <= 1'b0;
-            bm_wr <= 1'b0;
+            wb_stb <= 1'b0;
+            wb_cyc <= 1'b0;
+            wb_we <= 1'b0;
         end    
         else begin
             case (state)
             S_IDLE: begin
                 if (read_cycle) begin
-                    bm_a <= addr_buf;
-                    bm_rd <= 1'b1;
-                    bm_wr <= 1'b0;
+                    wb_a <= addr_buf;
+                    wb_we <= 1'b0;
+                    wb_stb <= 1'b1;
+                    wb_cyc <= 1'b1;
                     state <= S_WAITR;
                 end
                 else if (write_cycle) begin
-                    bm_a <= addr_buf;
-                    bm_dout <= data_buf_out;
-                    bm_rd <= 1'b0;
-                    bm_wr <= 1'b1;
+                    wb_a <= addr_buf;
+                    wb_dout <= data_buf_out;
+                    wb_stb <= 1'b1;
+                    wb_cyc <= 1'b1;
+                    wb_we <= 1'b1;
                     state <= S_WAITW;
                 end
                 else begin
-                    bm_rd <= 1'b0;
-                    bm_wr <= 1'b0;
+                    wb_stb <= 1'b0;
+                    wb_cyc <= 1'b0;
+                    wb_we <= 1'b0;
                 end
             end
             S_WAITR: begin
-                state <= S_READ;
+                if (wb_ack) begin
+                    wb_we <= 1'b0;
+                    wb_cyc <= 1'b0;
+                    wb_stb <= 1'b0;
+                    data_buf_in <= wb_din;
+                    state <= S_IDLE;
+                end
             end
             S_WAITW: begin
-                //bm_wr <= 1'b0;
-                state <= S_IDLE;
+                if (wb_ack) begin
+                    wb_we <= 1'b0;
+                    wb_cyc <= 1'b0;
+                    wb_stb <= 1'b0;
+                    state <= S_IDLE;
+                end
             end
-            S_READ: begin
-                data_buf_in <= bm_din;
-                bm_rd <= 1'b0;
+            default: begin
                 state <= S_IDLE;
             end
             endcase

@@ -21,6 +21,11 @@
 
 /* dphy_serdes.v - the DSI SerDes, based on Xilinx IOSERDES primitves. */
 
+// Bank0: BUFPLL_X1Y5, BUFPLL_X1Y4
+// Bank1: BUFPLL_X2Y2, BUFPLL_X2Y3
+// Bank2: BUFPLL_X1Y0, BUFPLL_X1Y1
+// Bank3: BUFPLL_X0Y2, BUFPLL_X0Y3
+
 module dphy_serdes_plla (
                         input  clk_phy_i,
                         input  clk_dsi_i,
@@ -31,10 +36,10 @@ module dphy_serdes_plla (
                         output clk_serdes_o,
                         output serdes_strobe_o );
 
-   (* LOC = "BUFPLL_X0Y3" *)
-   BUFPLL
-     #(.DIVIDE        (8))
-   U_BufPLL
+    (* LOC = "BUFPLL_X0Y3" *)
+    BUFPLL
+        #(.DIVIDE      (8))
+    U_BufPLL
      (.IOCLK        (clk_serdes_o),
       .LOCK         (locked_o),
       .SERDESSTROBE (serdes_strobe_o),

@@ -274,7 +274,7 @@ module dphy_lane
      if(lp_state == `LP_HS_ACTIVE && hs_request_muxed && hs_valid_muxed)
        serdes_data_lastbit <= (lane_invert_i ? ~hs_data_muxed[7] : hs_data_muxed[7]);
    
-   always@(hs_data_muxed, hs_valid_muxed, lp_hs_entered, lp_state, serdes_data_lastbit)
+   always@(hs_data_muxed, hs_valid_muxed, lp_hs_entered, lp_state, serdes_data_lastbit, lane_invert_i)
      begin
         // trailing sequence when exiting HS (inverse of last transmitted bit)
         if(lp_state == `LP_HS_EXIT0 || lp_state == `LP_HS_EXIT1 || lp_state == `LP_HS_EXIT2)
