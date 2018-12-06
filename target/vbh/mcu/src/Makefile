@@ -18,7 +18,7 @@
 ##
 
 BINARY = vbh_mcu
-OBJS = usb_cdc.o misc.o axp.o fpga_if.o pwm.o
+OBJS = usb_cdc.o misc.o axp.o fpga_if.o pwm.o dsi.o
 
 OPENCM3_DIR = ../libopencm3
 LDSCRIPT = ../stm32f103x8.ld

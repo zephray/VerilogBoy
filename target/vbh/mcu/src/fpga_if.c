@@ -43,13 +43,13 @@ void fpga_setup(void) {
     spi_reset(SPI1);
 
     // Set up SPI in Master mode with:
-    // Clock baud rate: 1/32 of peripheral clock frequency
+    // Clock baud rate: 1/16 of peripheral clock frequency
     // Clock polarity: Idle Low
     // Clock phase: Data valid on 1st clock pulse
     // Data frame format: 8-bit
     // Frame format: MSB First
     // Basically SPI mode 0
-    spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_32, 
+    spi_init_master(SPI1, SPI_CR1_BAUDRATE_FPCLK_DIV_16, 
         SPI_CR1_CPOL_CLK_TO_0_WHEN_IDLE, SPI_CR1_CPHA_CLK_TRANSITION_1, 
         SPI_CR1_DFF_8BIT, SPI_CR1_MSBFIRST);
 
@@ -96,11 +96,15 @@ uint8_t fpga_read_reg(uint8_t addr) {
 
 void fpga_init(void) {
     //fpga_write_reg(0x2a, 0x55);
-    for (int i = 0; i < 0x100; i++) {
+    /*for (int i = 0; i < 0x100; i++) {
         fpga_write_reg(i, 255 - i);
     }
     for (int i = 0; i < 0x100; i++) {
         printf("fpga: read reg %02xh = %02xh\r\n", i, fpga_read_reg(i));
-    }
-    
+    }*/
+    uint8_t recv;
+    do {
+        delay_ms(200);
+        recv = fpga_read_reg(0x12);
+    } while (recv != 0xef);
 }

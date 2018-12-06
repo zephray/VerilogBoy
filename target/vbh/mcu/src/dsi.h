@@ -13,55 +13,41 @@
     You should have received a copy of the GNU General Public License along
     with this program.  If not, see <http://www.gnu.org/licenses/> for a copy.
 
-    Description: VerilogBoy MCU Firmware main source code
+    Description: VBMMP dsicore driver
 
     Copyright (C) 2018 Wenting Zhang
 
 *******************************************************************************/
+#ifndef __DSI_H__
+#define __DSI_H__
 
 #include "inc.h"
-#include "usb_cdc.h"
-#include "misc.h"
-#include "axp.h"
-#include "fpga_if.h"
-#include "pwm.h"
-#include "dsi.h"
 
-int main(void)
-{
-    // Setup MCU
-	rcc_clock_setup_in_hse_24mhz_out_72mhz();
-	delay_setup();
+#define REG_DSIC_CTL   0x10
+#define REG_DSIC_TICK  0x11
+#define REG_DSIC_TXDR  0x12
+#define REG_DSIC_HFP   0x13
+#define REG_DSIC_HBP   0x14
+#define REG_DSIC_HACTL 0x15
+#define REG_DSIC_HTL   0x16
+#define REG_DSIC_HATH  0x17
+#define REG_DSIC_VFP   0x18
+#define REG_DSIC_VBP   0x19
+#define REG_DSIC_VACTL 0x1A
+#define REG_DSIC_VTL   0x1B
+#define REG_DSIC_VATH  0x1C
 
-    // Setup PC USB Connection
-	usb_disconnect();
-	usbcdc_init();
+#define BIT_RST_OUT (1 << 6)
+#define BIT_TIM_EN (1 << 4)
+#define BIT_LP_REQ (1 << 1)
+#define BIT_CLK_EN (1 << 0)
 
-    // Init PMU
-    axp_init();
+uint8_t parity(uint32_t d);
+uint8_t dsi_ecc(uint32_t data);
+uint16_t dsi_crc(const uint8_t *d, int n);
+void dsi_lp_write_byte(uint8_t value);
+void dsi_lp_write_short(uint8_t ptype, uint8_t w0, uint8_t w1);
+void dsi_lp_write_long(int is_dcs, const unsigned char *data, int length);
+void dsi_init(void);
 
-    // Wait for debug console to connect
-	delay_ms(2000);
-    printf("\r\n\r\n");
-	printf("VerilogBoy Debug Console\r\n");
-    printf("Built on %s\r\n\r\n", __DATE__);
-
-    // Init Backlight PWM
-    pwm_init();
-
-    // Show PMU configuration
-    axp_printinfo();
-
-    // Init FPGA IF
-    printf("Contacting FPGA...");
-    fpga_setup();
-    fpga_init();
-    printf("Success.\r\n");
-    delay_ms(500);
-    dsi_init();
-    
-	while(1) {
-
-    }
-
-}
+#endif
