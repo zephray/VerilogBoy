@@ -31,8 +31,8 @@ module regfile(
 
     reg [7:0] regs [0:7];
 
-    wire [7:0] rdhigh = regs[{rdwn, 1'b0}];
-    wire [7:0] rdlow  = regs[{rdwn, 1'b1}];
+    wire [7:0] rdhigh = regs[{rdwn, 1'b1}];
+    wire [7:0] rdlow  = regs[{rdwn, 1'b0}];
     assign rdw = {rdhigh, rdlow};
     assign rd = regs[rdn];
     assign h = regs[3'd4];

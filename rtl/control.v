@@ -176,7 +176,7 @@ module control(
                 next = 1'b0;
                 if ((opcode[7:6] == 2'b00)&&(opcode[3:0] == 4'b0001)) begin
                     // 16bit Load Imm
-                    rf_wr_sel = {opcode[5:4], 1'b1};
+                    rf_wr_sel = {opcode[5:4], 1'b0};
                 end
                 else if ((opcode == 8'hC1) || (opcode == 8'hD1) || (opcode == 8'hE1)) begin
                     // POP BC/DE/HL
@@ -225,10 +225,10 @@ module control(
         decoding_lut[13] =  28'b0001000100000000000011000001;
         decoding_lut[14] =  28'b0001000101100000001100000101;
         decoding_lut[15] =  28'b1101000100000000001111000101;
-        decoding_lut[16] =  28'b1101000101000000001111000101;
-        decoding_lut[17] =  28'b1101000101000100001111000101;
-        decoding_lut[18] =  28'b1101000101001000001111000101;
-        decoding_lut[19] =  28'b1101000101001100001111000101;
+        decoding_lut[16] =  28'b1101000101000010001111000101;
+        decoding_lut[17] =  28'b1101000101000110001111000101;
+        decoding_lut[18] =  28'b1101000101001010001111000101;
+        decoding_lut[19] =  28'b1101000101001110001111000101;
         decoding_lut[20] =  28'b1001000101000000010100000100;
         decoding_lut[21] =  28'b1001000101000100010100000100;
         decoding_lut[22] =  28'b1001000101001000010100000100;
