@@ -384,6 +384,7 @@ module cpu(
                 alu_src_a_ct = 2'b10;  // From register file
                 alu_src_b_ct = 3'b011; // Constant 1
                 alu_op_src_ct = 2'b11; // Sub
+                alu_dst_ct = 2'b10;    // To register file
             end
             2'b11: begin
                 // Calculate SP low + 1
@@ -392,6 +393,7 @@ module cpu(
                 alu_src_a_ct = 2'b10;  // From register file
                 alu_src_b_ct = 3'b011; // Constant 1
                 alu_op_src_ct = 2'b10; // Add
+                alu_dst_ct = 2'b10;    // To register file
             end
             endcase
         end
@@ -416,6 +418,7 @@ module cpu(
                 alu_src_a_ct = 2'b10;  // From register file
                 alu_src_b_ct = 3'b001; // Carry
                 alu_op_src_ct = 2'b11; // Sub
+                alu_dst_ct = 2'b10;    // To register file
             end
             2'b11: begin
                 // Calculate SP high + carry
@@ -424,6 +427,7 @@ module cpu(
                 alu_src_a_ct = 2'b10;  // From register file
                 alu_src_b_ct = 3'b001; // Carryt 1
                 alu_op_src_ct = 2'b10; // Add
+                alu_dst_ct = 2'b10;    // To register file
             end
             endcase
         end

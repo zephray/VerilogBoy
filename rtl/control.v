@@ -118,6 +118,11 @@ module control(
                 // POP instruction 
                 next = 1'b1;
             end
+            else if ((opcode == 8'hC5) || (opcode == 8'hD5) || (opcode == 8'hE5) || (opcode == 8'hF5)) begin
+                // PUSH instruction
+                bus_op = 2'b10;
+                next = 1'b1;
+            end
             else if (opcode == 8'hE0) begin
                 // LDH (n), A
                 bus_op = 2'b10;
@@ -136,6 +141,11 @@ module control(
                 high_mask = 1'b1;
             end
             else if (opcode == 8'hC3) begin
+                next = 1'b1;
+            end
+            else if ((opcode == 8'h34) || (opcode == 8'h35)) begin
+                // INC (HL) / DEC (HL)
+                bus_op = 2'b10;
                 next = 1'b1;
             end
             else begin
@@ -166,6 +176,20 @@ module control(
                 bus_op = 2'b00;
                 ct_op = 2'b00;
                 pc_we = 1'b1;  // PC write en
+                next = 1'b1;
+            end
+            else if ((opcode == 8'hC5) || (opcode == 8'hD5) || (opcode == 8'hE5)) begin
+                // PUSH BC/DE/HL
+                bus_op = 2'b10;
+                rf_rd_sel = {opcode[5:4], 1'b1};
+                ct_op = 2'b00;
+                next = 1'b1;
+            end
+            else if (opcode == 8'hF5) begin
+                // PUSH AF
+                bus_op = 2'b10;
+                db_src = 2'b01;
+                ct_op = 2'b00;
                 next = 1'b1;
             end
             else begin
@@ -276,7 +300,7 @@ module control(
         decoding_lut[64] =  28'b1001100101000000000100000110;
         decoding_lut[65] =  28'b1001100101000100100100000110;
         decoding_lut[66] =  28'b1001100101001001000100000110;
-        decoding_lut[67] =  28'b1101100101100000001111100011;
+        decoding_lut[67] =  28'b1101100101100000001101100011;
         decoding_lut[68] =  28'b1001000101000001000100000100;
         decoding_lut[69] =  28'b1001000101000101000100000100;
         decoding_lut[70] =  28'b1001000101001001000100000100;
@@ -292,7 +316,7 @@ module control(
         decoding_lut[80] =  28'b1001100111000000000100000110;
         decoding_lut[81] =  28'b1001100111000100100100000110;
         decoding_lut[82] =  28'b1001100111001001000100000110;
-        decoding_lut[83] =  28'b1101100111100000001111100011;
+        decoding_lut[83] =  28'b1101100111100000001101100011;
         decoding_lut[84] =  28'b1001000101000001010100000100;
         decoding_lut[85] =  28'b1001000101000101010100000100;
         decoding_lut[86] =  28'b1001000101001001010100000100;
@@ -301,10 +325,10 @@ module control(
         decoding_lut[89] =  28'b1000000000000001010100000110;
         decoding_lut[90] =  28'b1000000000000001010100000110;
         decoding_lut[91] =  28'b1000000000000001010100000110;
-        decoding_lut[92] =  28'b0001000100000000000011111001;
-        decoding_lut[93] =  28'b0001000100000000000011111001;
-        decoding_lut[94] =  28'b0001000100000000000011111001;
-        decoding_lut[95] =  28'b0001000100000000000011111001;
+        decoding_lut[92] =  28'b1001000101100000000001111001;
+        decoding_lut[93] =  28'b1001000101100100000001111001;
+        decoding_lut[94] =  28'b1001000101101000000001111001;
+        decoding_lut[95] =  28'b1001010101100000000000111001;
         decoding_lut[96] =  28'b1101000101000000001111000101;
         decoding_lut[97] =  28'b1101000101000100001111000101;
         decoding_lut[98] =  28'b1101000101001000001111000101;
