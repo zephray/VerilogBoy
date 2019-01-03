@@ -125,13 +125,15 @@ public:
     }
 
     void print_regs(void) {
-        printf("PC = %04x, F = %c%c%c%c, A = %02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
+        printf("PC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
             m_core -> gameboy__DOT__cpu__DOT__pc,
             ((m_core -> gameboy__DOT__cpu__DOT__flags__DOT__data) & 0x8) ? 'Z' : '-',
             ((m_core -> gameboy__DOT__cpu__DOT__flags__DOT__data) & 0x4) ? 'N' : '-',
             ((m_core -> gameboy__DOT__cpu__DOT__flags__DOT__data) & 0x2) ? 'H' : '-',
             ((m_core -> gameboy__DOT__cpu__DOT__flags__DOT__data) & 0x1) ? 'C' : '-',
             m_core -> gameboy__DOT__cpu__DOT__acc__DOT__data,
+            m_core -> gameboy__DOT__cpu__DOT__regfile__DOT__regs[6],
+            m_core -> gameboy__DOT__cpu__DOT__regfile__DOT__regs[7],
             m_core -> gameboy__DOT__cpu__DOT__regfile__DOT__regs[0],
             m_core -> gameboy__DOT__cpu__DOT__regfile__DOT__regs[1],
             m_core -> gameboy__DOT__cpu__DOT__regfile__DOT__regs[2],
