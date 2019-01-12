@@ -27,6 +27,9 @@ impact*
 *.o
 *.elf
 
+# LibreOffice files
+*.ods#
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
