@@ -105,6 +105,8 @@ module cpu(
     wire [2:0] rf_wr_sel_ex;
     wire [2:0] rf_rd_sel_ex;
     wire       flags_we_ex;
+    wire       pc_b_sel_ex;
+    wire       pc_jr;
 
     control control(
         .clk(clk),
@@ -119,6 +121,8 @@ module cpu(
         .alu_dst(alu_dst_ex),
         .pc_src(pc_src),
         .pc_we(pc_we),
+        .pc_b_sel(pc_b_sel_ex),
+        .pc_jr(pc_jr),
         .rf_wr_sel(rf_wr_sel_ex),
         .rf_rd_sel(rf_rd_sel_ex),
         .rf_rdw_sel(rf_rdw_sel),
@@ -143,16 +147,18 @@ module cpu(
     reg [7:0] db_wr_buffer;
     reg [7:0] db_rd_buffer;
     
+    // Logic: if buffer is selected, use the data in the buffer,
+    // otherwise the buffer is overrided.
     always @(posedge clk) begin
         if (db_we)
-            db_wr_buffer <= db_wr;
+            db_wr_buffer <= alu_result;
     end
     assign db_rd = db_rd_buffer;
     assign db_wr = (
         (db_src == 2'b00) ? (acc_rd) : (
         (db_src == 2'b01) ? (alu_result) : (
         (db_src == 2'b10) ? (rf_rd) : (
-        (db_src == 2'b11) ? (db_rd) : (0)))));
+        (db_src == 2'b11) ? (db_wr_buffer) : (0)))));
     assign db_we = (alu_dst == 2'b11);
 
     // Address Bus Buffer
@@ -202,7 +208,7 @@ module cpu(
     assign pc_wr_b = alu_result;
     assign pc_wr = (
         (pc_src == 2'b00) ? (rf_rdw) : (
-        (pc_src == 2'b01) ? ({10'b00, opcode[7:6], opcode[3], 3'b000}) : (
+        (pc_src == 2'b01) ? ({10'b00, opcode[5:3], 3'b000}) : (
         (pc_src == 2'b10) ? (temp_rd) : (
         (pc_src == 2'b11) ? (16'b0) : (0)))));
     assign pc_we_l = ((alu_dst == 2'b01) && (pc_b_sel == 1'b0)) ? (1) : (0);
@@ -308,7 +314,7 @@ module cpu(
             if (bus_op == 2'b10) begin
                 // Write cycle
                 wr <= 1;
-                dout <= db_wr_buffer;
+                dout <= db_wr;
             end
             else if (bus_op == 2'b01) begin
                 // Instruction Fetch Cycle
@@ -373,7 +379,7 @@ module cpu(
                 // Calculate PC low + 1
                 pc_b_sel_ct = 1'b0;
                 alu_src_a_ct = 2'b01;  // From PC byte
-                alu_src_b_ct = 3'b011; // Constant 1
+                alu_src_b_ct = (pc_jr) ? (3'b111) : (3'b011); // Imm Low or Constant 1
                 alu_op_src_ct = 2'b10; // Add
                 alu_dst_ct = 2'b01;    // To PC byte
             end
@@ -446,7 +452,7 @@ module cpu(
     assign rf_wr_sel = (ct_state == 2'b00) ? (rf_wr_sel_ex) : (rf_wr_sel_ct);
     assign rf_rd_sel = (ct_state == 2'b00) ? (rf_rd_sel_ex) : (rf_rd_sel_ct);
     assign flags_we = (ct_state == 2'b00) ? (flags_we_ex) : (1'b0);
-    assign pc_b_sel = pc_b_sel_ct;
+    assign pc_b_sel = (ct_state == 2'b00) ? (pc_b_sel_ex) : (pc_b_sel_ct);
 
     // EX - FSM / Mutli-M-cycle Instruction Handling
     reg  [2:0] ex_state;

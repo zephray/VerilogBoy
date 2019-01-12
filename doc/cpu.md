@@ -303,7 +303,7 @@ EX-FSM is a FSM running only in S0 state in CT-FSM. The reason of having this FS
 If the instruction finishes this cycle, next cycle would be S0.
 
 Main tasks of this FSM:
-
+pc_wr
 * Determine if this M-cycle would be memory write, memory read, or instruction fetch.
 * Determine the input numbers of the ALU.
 * Determine if the output of ALU should be write back to register.
@@ -363,8 +363,8 @@ Cycle 4: ALU store data buffer to A. Fetch PC + 1; Calculate PC + 1;
 
 RST:
 Cycle 0: Fetch PC, Calculate PC + 1
-Cycle 1: ALU: Nothing. No bus op. PC + 1 circuit use to calculate SP - 1
-Cycle 2: ALU: Nothing; DATA from PCl to SP; PC + 1 circuit use to calculate SP - 1
+Cycle 1: ALU: PCl to DB. No bus op. PC + 1 circuit use to calculate SP - 1
+Cycle 2: ALU: PCh to DB; DATA from PCl to SP; PC + 1 circuit use to calculate SP - 1
 Cycle 3: ALU: 16bit PC from Opcode; DATA from PCh to SP; Stop PC calculation.
 Cycle 4: Fetch new PC; Calculate PC + 1
 

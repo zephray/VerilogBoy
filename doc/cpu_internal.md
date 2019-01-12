@@ -54,13 +54,19 @@ Selection of destination of ALU. (Let's see if it would be the same as ALU op1)
 16-bit PC write source
 
 00 - Register file
-01 - {2'b00, Instruction[7:6], Instruction[3], 3'b000}
+01 - {10'b00, Instruction[7:6], Instruction[3], 3'b000}
 10 - temp register
 11 - 
 
 ## pc_we
 
 16-bit PC write enable (from register file)
+
+## pc_b_sel
+
+Cycle 0, 2, 4 select PCl
+Cycle 1, 3, 5 select PCh
+This could not be overrided
 
 ## rf_wr_sel
 
@@ -116,3 +122,4 @@ Will the flag being written to F register?
 ## next
 
 Does this instruction end at this cycle
+

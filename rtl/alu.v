@@ -119,7 +119,6 @@ module alu(
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
             OP_DAA: begin
-            // This is a stupid instruction.
                 if (~alu_flags_in[F_N]) begin
                     if (alu_flags_in[F_H] | 
                         ((alu_a & 8'h0f) > 8'h9)) begin
@@ -159,13 +158,13 @@ module alu(
                 alu_flags_out[F_Z] = (intermediate_result2[7:0] == 8'd0) ? 
                                         1'b1 : 1'b0;
             end
-            /*OP_NOT: begin
+            OP_CPL: begin
                 alu_flags_out[F_Z] = alu_flags_in[F_Z];
                 alu_flags_out[F_N] = 1'b1;
                 alu_flags_out[F_H] = 1'b1;
                 alu_flags_out[F_C] = alu_flags_in[F_C];
                 alu_result = ~alu_a;
-            end*/
+            end
             OP_CCF: begin
                 alu_flags_out[F_Z] = alu_flags_in[F_Z];
                 alu_flags_out[F_C] = ~alu_flags_in[F_C];
