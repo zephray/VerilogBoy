@@ -17,6 +17,9 @@
 module control(
     input        clk,
     input  [7:0] opcode_early,
+    /* verilator lint_off UNUSED */
+    input  [7:0] imm,
+    /* verilator lint_on UNUSED */
     input  [2:0] m_cycle,
     input        f_z,
     input        f_c,
@@ -42,15 +45,6 @@ module control(
     output       stop,
     output       halt
     );
-
-    wire [1:0] cond_bit = {opcode[7], opcode[0]}; // 00 - NZ 01 - NC 10 - Z 11 - C
-    /* verilator lint_off UNUSED */
-    wire cond = (
-        (cond_bit == 2'b00) ? (!f_z) : (
-        (cond_bit == 2'b01) ? (!f_c) : (
-        (cond_bit == 2'b10) ? (f_z) : (
-        (cond_bit == 2'b11) ? (f_c) : (0)))));
-    /* verilator lint_on UNUSED */
 
     reg [27:0] decoding_lut [0:255]; // pc_src is not in the lut
     wire [27:0] decoding_output;
@@ -214,6 +208,31 @@ module control(
                     alu_src_b = 3'b001;
                     rf_rd_sel = {opcode[5:4], 1'b0};
                     rf_wr_sel = {opcode[5:4], 1'b0};
+                end
+                else if (opcode == 8'hCB) begin
+                    if (imm[2:0] == 3'b110) begin
+                        alu_src_a = 2'b11;
+                        alu_dst = 2'b11;
+                        next = 1'b1;
+                    end
+                    else if (imm[2:0] == 3'b111) begin
+                        alu_src_a = 2'b00;
+                        alu_dst = 2'b00;
+                    end
+                    else begin
+                        alu_src_a = 2'b10;
+                        alu_dst = 2'b10;
+                        rf_rd_sel = imm[2:0];
+                        rf_wr_sel = imm[2:0];
+                    end
+                    if (imm[7:6] == 2'b00) begin
+                        alu_op_prefix = 2'b01;
+                        alu_op_src = 2'b00;
+                    end
+                    else begin
+                        alu_op_prefix = 2'b11;
+                        alu_op_src = 2'b01;
+                    end
                 end
             end
         end

@@ -19,8 +19,8 @@ Select ALU Operand 2 source:
 011 - Constant 1
 100 - H register
 101 - L register
-110 - Sign-extended Imm High
-111 - Sign-extended Imm Low
+110 - Absolute Imm Low
+111 - Imm Low
 
 ## alu_op_prefix
 
@@ -36,7 +36,7 @@ Prepend to alu_op_mux
 Selection source of alu_op
 
 00 - Instruction[5:3]
-01 - {1'b0, Instruction[7:6]}
+01 - {1'b1, Instruction[7:6]}
 10 - Fixed ADD ; F to result
 11 - Fixed SUB ; A to F
 

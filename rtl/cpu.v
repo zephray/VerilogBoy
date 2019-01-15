@@ -90,9 +90,8 @@ module cpu(
     wire [7:0]  db_rd; // Data out from buffer
     wire        db_we;
 
-    wire [15:0] imm_ext;
-    wire [7:0]  imm_ext_high;
-    wire [7:0]  imm_ext_low;
+    wire [7:0]  imm_abs;
+    wire [7:0]  imm_low;
 
     // Control Logic
     // Control Logic is only used in EX stage
@@ -111,6 +110,7 @@ module cpu(
     control control(
         .clk(clk),
         .opcode_early(opcode),
+        .imm(imm_low),
         .m_cycle(m_cycle),
         .f_z(flags_rd[3]),
         .f_c(flags_rd[0]),
@@ -242,7 +242,7 @@ module cpu(
     alu alu(
         .alu_a(alu_a),
         .alu_b(alu_b),
-        .alu_bit_index(opcode[5:3]),
+        .alu_bit_index(imm_reg[5:3]),
         .alu_result(alu_result),
         .alu_flags_in(alu_flags_in),
         .alu_flags_out(alu_flags_out),
@@ -265,21 +265,17 @@ module cpu(
         (alu_src_b == 3'b011) ? (8'd1) : (
         (alu_src_b == 3'b100) ? (rf_h) : (
         (alu_src_b == 3'b101) ? (rf_l) : (
-        (alu_src_b == 3'b110) ? (imm_ext_high) : (
-        (alu_src_b == 3'b111) ? (imm_ext_low) : (0)))))))));
+        (alu_src_b == 3'b110) ? (imm_abs) : (
+        (alu_src_b == 3'b111) ? (imm_low) : (0)))))))));
 
     assign alu_op_mux = (
-        (alu_op_src == 2'b00) ? (opcode[5:3]) : (
-        (alu_op_src == 2'b01) ? ({1'b0, opcode[7:6]}) : (
+        (alu_op_src == 2'b00) ? (imm_reg[5:3]) : (
+        (alu_op_src == 2'b01) ? ({1'b1, imm_reg[7:6]}) : (
         (alu_op_src == 2'b10) ? (3'b000) : (
         (alu_op_src == 2'b11) ? (3'b010) : (0)))));
 
     assign alu_flags_in = flags_rd;
-    assign alu_op = {alu_op_prefix, alu_op_mux};    
-
-    // Imm Sign Extension
-    assign imm_ext_high = imm_ext[15:8];
-    assign imm_ext_low = imm_ext[7:0];
+    assign alu_op = {alu_op_prefix, alu_op_mux};
 
     // CT FSM
     reg  [1:0] ct_state;
@@ -295,7 +291,8 @@ module cpu(
 
     reg [15:0] imm_reg;
     assign temp_rd = imm_reg;
-    assign imm_ext = {{8{imm_reg[7]}}, imm_reg[7:0]};
+    assign imm_low = imm_reg[7:0];
+    assign imm_abs = (imm_reg[7]) ? (~imm_reg[7:0] + 1'b1) : (imm_reg[7:0]);
 
     // CT - FSM / Bus Operation 
     always @(posedge clk) begin
@@ -379,8 +376,8 @@ module cpu(
                 // Calculate PC low + 1
                 pc_b_sel_ct = 1'b0;
                 alu_src_a_ct = 2'b01;  // From PC byte
-                alu_src_b_ct = (pc_jr) ? (3'b111) : (3'b011); // Imm Low or Constant 1
-                alu_op_src_ct = 2'b10; // Add
+                alu_src_b_ct = (pc_jr) ? (3'b110) : (3'b011); // Imm Abs or Constant 1
+                alu_op_src_ct = (pc_jr) ? (imm_low[7] ? 2'b11 : 2'b10) : 2'b10; // Add
                 alu_dst_ct = 2'b01;    // To PC byte
             end
             2'b10: begin
