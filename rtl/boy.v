@@ -5,18 +5,19 @@
 // Engineer: Wenting Zhang
 // 
 // Create Date:    17:30:26 02/08/2018 
-// Module Name:    verilogboy 
+// Module Name:    boy 
 // Project Name:   VerilogBoy
 // Description: 
-//   Verilogboy main file. This is the file connect the CPU and all the
-//   peripherals in the LR35902 together.
+//   VerilogBoy portable top level file. This is the file connect the CPU and 
+//   all the peripherals in the LR35902 together.
 // Dependencies: 
 //   cpu
 // Additional Comments: 
 //   Hardware specific code should be implemented outside of this file
+//   So normally in an implementation, this will not be the top level.
 ////////////////////////////////////////////////////////////////////////////////
 
-module verilogboy(
+module boy(
     input rst, // Async Reset Input
     input clk, // 4.19MHz Clock Input
 	output phi, // 1.05MHz Reference Clock Output

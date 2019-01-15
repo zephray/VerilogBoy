@@ -8,14 +8,14 @@
 ##   Use Xilinx ISE or Quartus for FPGA build.
 ################################################################################
 
-all: gameboy
+all: boy
 
 VOBJ := obj_dir
 CXX   := g++
 FBDIR := .
 
 .PHONY: all
-gameboy: $(VOBJ)/Vgameboy__ALL.a
+boy: $(VOBJ)/Vboy__ALL.a
 
 SUBMAKE := $(MAKE) --no-print-directory --directory=$(VOBJ) -f
 ifeq ($(VERILATOR_ROOT),)
@@ -25,11 +25,11 @@ VERILATOR := $(VERILATOR_ROOT)/bin/verilator
 endif
 VFLAGS := -Wall -MMD --trace -cc 
 
-SRC := gameboy.v cpu.v control.v singlereg.v regfile.v alu.v
+SRC := boy.v cpu.v control.v singlereg.v regfile.v alu.v
 
-$(VOBJ)/Vgameboy__ALL.a: $(VOBJ)/Vgameboy.cpp $(VOBJ)/Vgameboy.h
-$(VOBJ)/Vgameboy__ALL.a: $(VOBJ)/Vgameboy.mk
-$(VOBJ)/Vgameboy.h $(VOBJ)/Vgameboy.cpp $(VOBJ)/Vgameboy.mk: $(SRC)
+$(VOBJ)/Vboy__ALL.a: $(VOBJ)/Vboy.cpp $(VOBJ)/Vboy.h
+$(VOBJ)/Vboy__ALL.a: $(VOBJ)/Vboy.mk
+$(VOBJ)/Vboy.h $(VOBJ)/Vboy.cpp $(VOBJ)/Vboy.mk: $(SRC)
 
 $(VOBJ)/V%.cpp $(VOBJ)/V%.h $(VOBJ)/V%.mk: $(FBDIR)/%.v
 	$(VERILATOR) $(VFLAGS) $*.v
