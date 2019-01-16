@@ -19,9 +19,9 @@ module alu(
     input [7:0] alu_b,
     input [7:0] alu_a,
     input [2:0] alu_bit_index,
-    output [7:0] alu_result,
+    output reg [7:0] alu_result,
     input [3:0] alu_flags_in,
-    output [3:0] alu_flags_out,
+    output reg [3:0] alu_flags_out,
     input [4:0] alu_op
     );
 

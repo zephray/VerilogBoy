@@ -72,6 +72,7 @@ module pll
  (// Clock in ports
   input         CLK_IN1,
   // Clock out ports
+  output        CLK_IN1_BUFFERED,
   output        CLK_OUT1,
   output        CLK_OUT2,
   output        CLK_OUT3,
@@ -86,7 +87,7 @@ module pll
   IBUFG clkin1_buf
    (.O (clkin1),
     .I (CLK_IN1));
-
+  assign CLK_IN1_BUFFERED = clkin1;
 
   // Clocking primitive
   //------------------------------------

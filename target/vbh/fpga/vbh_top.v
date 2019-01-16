@@ -17,12 +17,6 @@
 module vbh_top(
     // Global Clock Input
     input CLK_IN,
-    // MCU Interface
-    /*input MCU_CS,
-    input MCU_SCK,
-    output MCU_MISO,
-    input MCU_MOSI,
-    output MCU_IRQ,*/
     // PSRAM Interface
     inout [15:0] RAM_DQ,
     output [21:0] RAM_A,
@@ -43,8 +37,13 @@ module vbh_top(
     output DAC_LRCK,
     output DAC_SCK,
     inout DAC_SDA,*/
+    // PMU Interface
+    /*input PMU_IRQ,
+    output PMU_SCK,
+    inout PMU_SDA,*/
     // LCD Interface
     output BL_EN,
+    output BL_PWM,
     input LCD_TE,
     output LCD_RESET,
     output LCD_D_LP_P,
@@ -60,17 +59,11 @@ module vbh_top(
     output [1:0] KEY_OUT*/
     );
     
-    wire clk_in = CLK_IN;
-    wire [7:0] wb_a;
-    wire [7:0] wb_d_to_master;
-    wire [7:0] wb_d_to_slave;
-    wire       wb_we;
-    wire       wb_cyc;
-    wire       wb_stb;
-    wire       wb_ack;
-    wire       wb_stall;
-    wire clk_in;     // Input clock
-    wire clk_gb;     // Clock for Gameboy
+    // ----------------------------------------------------------------------
+    // Clocking
+	wire clk_in = CLK_IN;
+    wire clk_in_bufg;
+    wire clk_core;   // Clock for VerilogBoy Core
     wire clk_dsi;    // Clock for DSI (Logic)
     wire clk_phy;    // Clock for DSI (PHY, 8xLogic)
     wire clk_phy_s;  // Clock for DSI (Data lane, Same or shift from PHY)
@@ -78,15 +71,13 @@ module vbh_top(
     wire rst;
     wire pll_locked;
     
-    // ----------------------------------------------------------------------
-    // Clocking
-	 
     pll pll
     (   
         // Clock in ports
         .CLK_IN1(clk_in),
         // Clock out ports
-        .CLK_OUT1(clk_gb),
+        .CLK_IN1_BUFFERED(clk_in_bufg),
+        .CLK_OUT1(clk_core),
         .CLK_OUT2(clk_dsi),
         .CLK_OUT3(clk_phy),
         .CLK_OUT4(clk_phy_s),
@@ -96,7 +87,7 @@ module vbh_top(
     );
     
     debounce_rst debounce_rst(
-        .clk(clk_in),
+        .clk(clk_in_bufg),
         .noisyRst(1'b0),
         .PLLLocked(pll_locked),
         .cleanPLLRst(rst_pll),
@@ -122,9 +113,9 @@ module vbh_top(
     wire [15:0] vb_left;
     wire [15:0] vb_right;
 
-    verilogboy verilogboy(
+    boy boy(
         .rst(rst),
-        .clk(clk_gb),
+        .clk(clk_core),
         .phi(),
         .a(vb_a),
         .dout(vb_dout),
@@ -139,7 +130,8 @@ module vbh_top(
         .pixel(vb_pixel),
         .valid(vb_valid),
         .left(vb_left),
-        .right(vb_right)
+        .right(vb_right),
+        .done()
     );
 	 
 	 
@@ -167,7 +159,8 @@ module vbh_top(
     // 428000 - 43FFFF Extended Work RAM (96KB)
     // 440000 - 7FFFFF Unused
     
-    wire bootrom_enable = 1'b1; // Fixed enable for now
+    wire        vb_brom_en = 1'b1; // Fixed to enable for now
+    wire [4:0]  vb_wram_bank = 5'd0; // Fixed to bank 0 for now
     wire [7:0]  wb_a;
     wire [7:0]  wb_din; // Master to Slave
     wire [7:0]  wb_dout;// Slave to Master
@@ -188,7 +181,36 @@ module vbh_top(
     wire [7:0]  brom_d;
     wire        brom_rd;
     
-    
+    mc mc(
+        .vb_clk(clk_core),
+        .vb_rst(rst),
+        .vb_din(vb_din),
+        .vb_dout(vb_dout),
+        .vb_a(vb_a),
+        .vb_wr(vb_wr),
+        .vb_rd(vb_rd),
+        .vb_brom_en(vb_brom_en),
+        .vb_wram_bank(vb_wram_bank),
+        .wb_a(wb_a),
+        .wb_din(wb_din),
+        .wb_dout(wb_dout),
+        .wb_cyc(wb_cyc),
+        .wb_stb(wb_stb),
+        .wb_we(wb_we),
+        .wb_ack(wb_ack),
+        .wb_stall(wb_stall),
+        .rom_a(rom_a),
+        .rom_d(rom_d),
+        .rom_rd(rom_rd),
+        .ram_a(ram_a),
+        .ram_din(ram_din),
+        .ram_dout(ram_dout),
+        .ram_wr(ram_wr),
+        .ram_rd(ram_rd),
+        .brom_a(brom_a),
+        .brom_d(brom_d),
+        .brom_rd(brom_rd)
+    );
     
     // Map addresses into PSRAM
     wire psram_rd = ram_rd || rom_rd;
@@ -209,7 +231,7 @@ module vbh_top(
     assign RAM_UB_N = !psram_ub;
     assign RAM_ZZ_N = 1'b1;
     assign RAM_DQ[15:0] = (psram_wr) ? (psram_din) : (8'hzz);
-    assign psram_dout[15:0] = RAM_DQ[15:0];
+    assign psram_dout[7:0] = RAM_DQ[7:0];
 
     // ----------------------------------------------------------------------
     // MIPI DSI controller
@@ -231,7 +253,7 @@ module vbh_top(
     assign pix_vsync = 1'b1;
     
     dsi_core dsi_core(
-        .clk_sys_i(clk_gb),
+        .clk_sys_i(clk_core),
         .clk_dsi_i(clk_dsi),
         .clk_phy_i(clk_phy),
         .clk_phy_shifted_i(clk_phy_s),
@@ -254,8 +276,8 @@ module vbh_top(
         .dsi_clk_lp_oe_o(dsi_clk_lp_oe),
         .dsi_reset_n_o(LCD_RESET),
         .wb_adr_i(wb_a[3:0]),
-        .wb_dat_i(wb_d_to_slave[7:0]),
-        .wb_dat_o(wb_d_to_master[7:0]),
+        .wb_dat_i(wb_din),
+        .wb_dat_o(wb_dout),
         .wb_cyc_i(wb_cyc),
         .wb_stb_i(wb_stb),
         .wb_we_i(wb_we),
@@ -269,9 +291,13 @@ module vbh_top(
     assign LCD_C_LP_N = ((dsi_clk_lp_n == 1'b1) && (dsi_clk_lp_oe == 1'b1)) ? 1'b1 : 1'bZ;
     
     assign BL_EN = 1'b0;
+    assign BL_PWM = 1'b1;
 
     // ----------------------------------------------------------------------
-    // I2C Master Controller
+    // I2C Master Controller #1
+    
+    // ----------------------------------------------------------------------
+    // I2C Master Controller #2
     
     // ----------------------------------------------------------------------
     // I2S Master Controller
@@ -279,4 +305,7 @@ module vbh_top(
     // ----------------------------------------------------------------------
     // PWM Controller
 
+    // ----------------------------------------------------------------------
+    // SDIO Controller
+    
 endmodule
