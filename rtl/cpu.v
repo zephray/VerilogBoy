@@ -143,6 +143,8 @@ module cpu(
         // and delay 1 clk
     end
 
+    wire [7:3] current_opcode;
+
     // Data Bus Buffer
     reg [7:0] db_wr_buffer;
     reg [7:0] db_rd_buffer;
@@ -239,6 +241,7 @@ module cpu(
 
     // ALU
     wire [2:0] alu_op_mux;
+
     alu alu(
         .alu_a(alu_a),
         .alu_b(alu_b),
@@ -269,13 +272,15 @@ module cpu(
         (alu_src_b == 3'b111) ? (imm_low) : (0)))))))));
 
     assign alu_op_mux = (
-        (alu_op_src == 2'b00) ? (imm_reg[5:3]) : (
-        (alu_op_src == 2'b01) ? ({1'b1, imm_reg[7:6]}) : (
+        (alu_op_src == 2'b00) ? (current_opcode[5:3]) : (
+        (alu_op_src == 2'b01) ? ({1'b1, current_opcode[7:6]}) : (
         (alu_op_src == 2'b10) ? (3'b000) : (
         (alu_op_src == 2'b11) ? (3'b010) : (0)))));
 
     assign alu_flags_in = flags_rd;
     assign alu_op = {alu_op_prefix, alu_op_mux};
+
+    assign current_opcode[7:3] = (m_cycle == 3'b0) ? (opcode[7:3]) : (imm_reg[7:3]);
 
     // CT FSM
     reg  [1:0] ct_state;
