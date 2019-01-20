@@ -200,8 +200,8 @@ module cpu(
         .we(acc_we),
         .rd(acc_rd)
     );
-    assign acc_wr = alu_result; 
-    assign acc_we = (alu_dst == 2'b00);
+    assign acc_wr = ((db_src == 2'b00) && (bus_op == 2'b11)) ? (imm_reg[7:0]) : (alu_result); 
+    assign acc_we = ((alu_dst == 2'b00) || ((db_src == 2'b00) && (bus_op == 2'b11)));
     
     // Register PC
     reg [15:0] pc;

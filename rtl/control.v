@@ -23,27 +23,27 @@ module control(
     input  [2:0] m_cycle,
     input        f_z,
     input        f_c,
-    output [1:0] alu_src_a,
-    output [2:0] alu_src_b,
-    output [1:0] alu_op_prefix,
-    output [1:0] alu_op_src,
-    output [1:0] alu_dst,
-    output [1:0] pc_src,
-    output       pc_we,
-    output       pc_b_sel,
-    output       pc_jr,
-    output [2:0] rf_wr_sel,
-    output [2:0] rf_rd_sel,
-    output [1:0] rf_rdw_sel,
-    output [1:0] bus_op,
-    output [1:0] db_src,
-    output [1:0] ab_src,
-    output [1:0] ct_op,
-    output       flags_we,
-    output       high_mask,
-    output       next,
-    output       stop,
-    output       halt
+    output reg [1:0] alu_src_a,
+    output reg [2:0] alu_src_b,
+    output reg [1:0] alu_op_prefix,
+    output reg [1:0] alu_op_src,
+    output reg [1:0] alu_dst,
+    output reg [1:0] pc_src,
+    output reg       pc_we,
+    output reg       pc_b_sel,
+    output reg       pc_jr,
+    output reg [2:0] rf_wr_sel,
+    output reg [2:0] rf_rd_sel,
+    output reg [1:0] rf_rdw_sel,
+    output reg [1:0] bus_op,
+    output reg [1:0] db_src,
+    output reg [1:0] ab_src,
+    output reg [1:0] ct_op,
+    output reg       flags_we,
+    output reg       high_mask,
+    output reg       next,
+    output reg       stop,
+    output reg       halt
     );
 
     reg [27:0] decoding_lut [0:255]; // pc_src is not in the lut
@@ -190,14 +190,31 @@ module control(
                 pc_jr = 1'b1;
                 next = 1'b1;
             end
+            else if (opcode == 8'hC9) begin
+                // RET
+                alu_src_a = 2'b11;
+                alu_dst = 2'b01;
+                pc_b_sel = 1'b0;
+                next = 1'b1;
+            end
+            else if (((opcode == 8'hC0) && (!f_z)) ||     // RET NZ
+                     ((opcode == 8'hD0) && (!f_c)) ||     // RET NC
+                     ((opcode == 8'hC8) && (f_z)) ||      // RET Z
+                     ((opcode == 8'hD8) && (f_c))) begin  // RET C
+                bus_op = 2'b11;
+                ab_src = 2'b11;
+                ct_op = 2'b11;
+                next = 1'b1;
+            end
             else begin
                 // Case for instructions end at this cycle
                 bus_op = 2'b01; // Restore to normal instruction fetch
                 ab_src = 2'b00; // Restore to fetch from PC
                 ct_op = 2'b01;  // Restore to PC + 1
                 next = 1'b0;
-                if ((opcode == 8'h22) || (opcode == 8'h32)) begin
+                if ((opcode == 8'h22) || (opcode == 8'h32) || (opcode == 8'h2A) || (opcode == 8'h3A)) begin
                     // LD [HL+/-], A
+                    // LD A, [HL+/-]
                     alu_src_b = 3'b001; // Input from carry
                     rf_rd_sel = 3'b100; // Select H
                     rf_wr_sel = 3'b100; // Select H
@@ -288,6 +305,24 @@ module control(
                 ct_op = 2'b10;
                 next = 1'b1;
             end
+            else if (opcode == 8'hC9) begin
+                // RET
+                alu_src_a = 2'b11;
+                alu_dst = 2'b01;
+                pc_b_sel = 1'b1;
+                bus_op = 2'b00;
+                ct_op = 2'b00;
+                next = 1'b1;
+            end
+            else if ((opcode == 8'hC0) ||     // RET NZ
+                     (opcode == 8'hD0) ||     // RET NC
+                     (opcode == 8'hC8) ||     // RET Z
+                     (opcode == 8'hD8)) begin // RET C
+                alu_src_a = 2'b11;
+                alu_dst = 2'b01;
+                pc_b_sel = 1'b0;
+                next = 1'b1;
+            end
             else begin
                 // Case for instructions end at this cycle
                 bus_op = 2'b01; // Restore to normal instruction fetch
@@ -300,7 +335,7 @@ module control(
                 end
                 else if ((opcode == 8'hC1) || (opcode == 8'hD1) || (opcode == 8'hE1)) begin
                     // POP BC/DE/HL
-                    rf_wr_sel = {opcode[5:4], 1'b1};
+                    rf_wr_sel = {opcode[5:4], 1'b0};
                 end
                 else if (opcode == 8'hF1) begin
                     // POP AF
@@ -317,6 +352,17 @@ module control(
                 bus_op = 2'b10;
                 ab_src = 2'b11;
                 ct_op = 2'b10;
+                next = 1'b1;
+            end
+            else if ((opcode == 8'hC0) ||     // RET NZ
+                     (opcode == 8'hD0) ||     // RET NC
+                     (opcode == 8'hC8) ||     // RET Z
+                     (opcode == 8'hD8)) begin // RET C
+                alu_src_a = 2'b11;
+                alu_dst = 2'b01;
+                pc_b_sel = 1'b1;
+                bus_op = 2'b00;
+                ct_op = 2'b00;
                 next = 1'b1;
             end
             else begin
@@ -391,9 +437,9 @@ module control(
         decoding_lut[25] =  28'b1000000000000000010100000110;
         decoding_lut[26] =  28'b1000000000000000010100000110;
         decoding_lut[27] =  28'b1000000000000000010100000110;
-        decoding_lut[28] =  28'b1101000101000000001111111101;
-        decoding_lut[29] =  28'b1101000101000100001111111101;
-        decoding_lut[30] =  28'b1101000101001000001111111101;
+        decoding_lut[28] =  28'b1101000101000010001111111101;
+        decoding_lut[29] =  28'b1101000101000110001111111101;
+        decoding_lut[30] =  28'b1101000101001010001111111101;
         decoding_lut[31] =  28'b1101000100000000001111111101;
         decoding_lut[32] =  28'b0001000101100000001000100001;
         decoding_lut[33] =  28'b0001000101100000001000100001;
@@ -430,7 +476,7 @@ module control(
         decoding_lut[64] =  28'b1001100101000000000100000110;
         decoding_lut[65] =  28'b1001100101000100100100000110;
         decoding_lut[66] =  28'b1001100101001001000100000110;
-        decoding_lut[67] =  28'b1101100101100000001101100011;
+        decoding_lut[67] =  28'b1101100101100000001111100011;
         decoding_lut[68] =  28'b1001000101000001000100000100;
         decoding_lut[69] =  28'b1001000101000101000100000100;
         decoding_lut[70] =  28'b1001000101001001000100000100;
@@ -455,9 +501,9 @@ module control(
         decoding_lut[89] =  28'b1000000000000001010100000110;
         decoding_lut[90] =  28'b1000000000000001010100000110;
         decoding_lut[91] =  28'b1000000000000001010100000110;
-        decoding_lut[92] =  28'b1001000101100000000001111001;
-        decoding_lut[93] =  28'b1001000101100100000001111001;
-        decoding_lut[94] =  28'b1001000101101000000001111001;
+        decoding_lut[92] =  28'b1001000101100000000011111001;
+        decoding_lut[93] =  28'b1001000101100000100011111001;
+        decoding_lut[94] =  28'b1001000101100001000011111001;
         decoding_lut[95] =  28'b1001010101100000000000111001;
         decoding_lut[96] =  28'b1101000101000000001111000101;
         decoding_lut[97] =  28'b1101000101000100001111000101;
@@ -525,8 +571,8 @@ module control(
         decoding_lut[159] = 28'b1001000101001101000011000001;
         decoding_lut[160] = 28'b1101000100000000001111100001;
         decoding_lut[161] = 28'b1101000100000000001111100001;
-        decoding_lut[162] = 28'b1001100101000000001111100001;
-        decoding_lut[163] = 28'b1001100111000000001111100001;
+        decoding_lut[162] = 28'b1001100101001011011100100001;
+        decoding_lut[163] = 28'b1001100111001011011100100001;
         decoding_lut[164] = 28'b1001000101000010100100000100;
         decoding_lut[165] = 28'b1001000101000110100100000100;
         decoding_lut[166] = 28'b1001000101001010100100000100;
