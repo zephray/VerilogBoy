@@ -24,7 +24,7 @@ module cpu(
     input [7:0] din,
     output reg rd,
     output reg wr,
-    output wire done
+    output reg done
     );
 
     reg  [7:0]  opcode;

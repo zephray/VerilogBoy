@@ -20,7 +20,7 @@
 module boy(
     input rst, // Async Reset Input
     input clk, // 4.19MHz Clock Input
-	output phi, // 1.05MHz Reference Clock Output
+    output phi, // 1.05MHz Reference Clock Output
     // Cartridge interface
     output [15:0] a, // Address Bus
     output [7:0] dout,  // Data Bus
