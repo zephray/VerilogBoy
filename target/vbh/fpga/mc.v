@@ -51,12 +51,15 @@ module mc(
     
     // VB Core Memory Map: (16-bit address, 64KiB)
     // 0000 - 3EFF Cartridge Bank 0 (PSRAM) / BootROM (BRAM)
-    // 3F00 - 3FFF Cartridge Bank 0 (PSRAM) / Peripherals (Wishbone)
     // 4000 - 7FFF Cartridge Bank X (PSRAM)
     // 8000 - 9FFF Blank (Mapped inside the VB Core)
     // A000 - BFFF CRAM (PSRAM)
     // C000 - DFFF WRAM (PSRAM)
-    // E000 - FFFF Blank (No mapping exist)
+    // E000 - EFFF Echo WRAM (PSRAM)
+    // F000 - FDFF Echo WRAM (PSRAM)
+    // FE00 - FF00 Blank
+	 // FF00 - FF7F Blank / Peripherals (Wishbone)
+    // FF80 - FFFF Blank
     
     // Virtual Cartridge Interface, connect to MBC module
     wire [22:14] rom_a_high;
@@ -90,13 +93,13 @@ module mc(
         ram_a = 18'bX;
         ram_din = 8'bX;
         vb_din = 8'bX;
-        if ((vb_a >= 16'h0000) && (vb_a <= 16'h3EFF) && (vb_brom_en)) begin
+        if ((vb_a >= 16'h0000) && (vb_a <= 16'h3FFF) && (vb_brom_en)) begin
             // Map to BootROM
             brom_a[13:0] = vb_a[13:0];
             brom_rd = vb_rd;
             vb_din = brom_d;
         end
-        else if ((vb_a >= 16'h3F00) && (vb_a <= 16'h3FFF) && (vb_brom_en)) begin
+        else if ((vb_a >= 16'hFF00) && (vb_a <= 16'hFF7F) && (vb_brom_en)) begin
             // Map to Wishbone (Ignoring ACK and STALL)
             wb_a = vb_a[7:0];
             wb_din[7:0] = vb_dout[7:0];

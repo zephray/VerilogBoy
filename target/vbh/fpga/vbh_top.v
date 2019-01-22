@@ -108,7 +108,7 @@ module vbh_top(
     wire        vb_hs;
     wire        vb_vs;
     wire        vb_cpl;
-    wire [3:0]  vb_pixel;
+    wire [1:0]  vb_pixel;
     wire        vb_valid;
     wire [15:0] vb_left;
     wire [15:0] vb_right;
@@ -143,15 +143,16 @@ module vbh_top(
     
     // VB Core Memory Map: (16-bit address, 64KiB)
     // 0000 - 3EFF Cartridge Bank 0 (PSRAM) / BootROM (BRAM)
-    // 3F00 - 3FFF Cartridge Bank 0 (PSRAM) / Peripherals (Wishbone)
     // 4000 - 7FFF Cartridge Bank X (PSRAM)
     // 8000 - 9FFF Blank (Mapped inside the VB Core)
     // A000 - BFFF CRAM (PSRAM)
     // C000 - DFFF WRAM (PSRAM)
     // E000 - EFFF Echo WRAM (PSRAM)
     // F000 - FDFF Echo WRAM (PSRAM)
-    // FE00 - FFFF Blank (Mapped inside the VB core)
-    
+    // FE00 - FF00 Blank
+	 // FF00 - FF7F Blank / Peripherals (Wishbone)
+    // FF80 - FFFF Blank
+	 
     // Physical RAM Memory Map: (23-bit address, 8MiB)
     // 000000 - 3FFFFF Cartridge ROM (4MB)
     // 400000 - 41FFFF Cartridge RAM (128KB)
@@ -169,7 +170,7 @@ module vbh_top(
     wire        wb_we;
     wire        wb_ack;
     wire        wb_stall;
-    wire [21:0] rom_a; // Up to 4MB
+    wire [22:0] rom_a; // Up to 8MB (hardware limit to 4MB)
     wire [7:0]  rom_d;
     wire        rom_rd;
     wire [17:0] ram_a; // Up to 256KB
@@ -232,6 +233,13 @@ module vbh_top(
     assign RAM_ZZ_N = 1'b1;
     assign RAM_DQ[15:0] = (psram_wr) ? (psram_din) : (8'hzz);
     assign psram_dout[7:0] = RAM_DQ[7:0];
+	 
+    // Boot ROM (8KB for now)
+    brom brom(
+        .clk(clk_core),
+        .a(brom_a[12:0]),
+        .d(brom_d)
+    );
 
     // ----------------------------------------------------------------------
     // MIPI DSI controller
