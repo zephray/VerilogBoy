@@ -72,8 +72,8 @@ module mbc5(
             vb_wr_last <= vb_wr;
             if ((vb_wr_last == 0)&&(vb_wr == 1)) begin
                 case (vb_addr)
-                    16'h0000: ram_en <= (vb_d[3:0] == 4'hA) ? 1 : 0;
-                    16'h1000: ram_en <= (vb_d[3:0] == 4'hA) ? 1 : 0;
+                    16'h0000: ram_en <= (vb_d[3:0] == 4'hA) ? 1'b1 : 1'b0;
+                    16'h1000: ram_en <= (vb_d[3:0] == 4'hA) ? 1'b1 : 1'b0;
                     16'h2000: rom_bank[7:0] <= vb_d[7:0];
                     16'h3000: rom_bank[8] <= vb_d[0];
                     16'h4000: ram_bank[3:0] <= vb_d[3:0];

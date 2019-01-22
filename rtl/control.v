@@ -47,7 +47,7 @@ module control(
     );
 
     reg [27:0] decoding_lut [0:255]; // pc_src is not in the lut
-    wire [27:0] decoding_output;
+    reg [27:0] decoding_output;
     reg [7:0] opcode;
     // opcode is available one clock earlier
     always @(posedge clk) begin

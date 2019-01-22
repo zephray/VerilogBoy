@@ -24,7 +24,7 @@ module cpu(
     input [7:0] din,
     output reg rd,
     output reg wr,
-    output wire done
+    output reg done
     );
 
     reg  [7:0]  opcode;
@@ -160,7 +160,7 @@ module cpu(
         (db_src == 2'b00) ? (acc_rd) : (
         (db_src == 2'b01) ? (alu_result) : (
         (db_src == 2'b10) ? (rf_rd) : (
-        (db_src == 2'b11) ? (db_wr_buffer) : (0)))));
+        (db_src == 2'b11) ? (db_wr_buffer) : (8'b0)))));
     assign db_we = (alu_dst == 2'b11);
 
     // Address Bus Buffer
@@ -169,7 +169,7 @@ module cpu(
         (ab_src == 2'b00) ? (pc_rd) : (
         (ab_src == 2'b01) ? ((high_mask) ? ({8'hFF, temp_rd[7:0]}) : (temp_rd)) : (
         (ab_src == 2'b10) ? ((high_mask) ? ({8'hFF, rf_rdw[7:0]}) : (rf_rdw)) : (
-        (ab_src == 2'b11) ? (rf_sp) : (0)))));
+        (ab_src == 2'b11) ? (rf_sp) : (16'b0)))));
 
     // Regisiter file
     regfile regfile(
@@ -212,9 +212,9 @@ module cpu(
         (pc_src == 2'b00) ? (rf_rdw) : (
         (pc_src == 2'b01) ? ({10'b00, opcode[5:3], 3'b000}) : (
         (pc_src == 2'b10) ? (temp_rd) : (
-        (pc_src == 2'b11) ? (16'b0) : (0)))));
-    assign pc_we_l = ((alu_dst == 2'b01) && (pc_b_sel == 1'b0)) ? (1) : (0);
-    assign pc_we_h = ((alu_dst == 2'b01) && (pc_b_sel == 1'b1)) ? (1) : (0);
+        (pc_src == 2'b11) ? (16'b0) : (16'b0)))));
+    assign pc_we_l = ((alu_dst == 2'b01) && (pc_b_sel == 1'b0)) ? (1'b1) : (1'b0);
+    assign pc_we_h = ((alu_dst == 2'b01) && (pc_b_sel == 1'b1)) ? (1'b1) : (1'b0);
     always @(posedge clk) begin
         if (rst)
             pc <= 16'b0;
@@ -259,7 +259,7 @@ module cpu(
         (alu_src_a == 2'b00) ? (acc_rd) : (
         (alu_src_a == 2'b01) ? (pc_rd_b) : (
         (alu_src_a == 2'b10) ? (rf_rd) : (
-        (alu_src_a == 2'b11) ? (db_rd) : (0)))));
+        (alu_src_a == 2'b11) ? (db_rd) : (8'b0)))));
 
     assign alu_b = (
         (alu_src_b == 3'b000) ? (acc_rd) : (
@@ -269,13 +269,13 @@ module cpu(
         (alu_src_b == 3'b100) ? (rf_h) : (
         (alu_src_b == 3'b101) ? (rf_l) : (
         (alu_src_b == 3'b110) ? (imm_abs) : (
-        (alu_src_b == 3'b111) ? (imm_low) : (0)))))))));
+        (alu_src_b == 3'b111) ? (imm_low) : (8'b0)))))))));
 
     assign alu_op_mux = (
         (alu_op_src == 2'b00) ? (current_opcode[5:3]) : (
         (alu_op_src == 2'b01) ? ({1'b1, current_opcode[7:6]}) : (
         (alu_op_src == 2'b10) ? (3'b000) : (
-        (alu_op_src == 2'b11) ? (3'b010) : (0)))));
+        (alu_op_src == 2'b11) ? (3'b010) : (3'b0)))));
 
     assign alu_flags_in = flags_rd;
     assign alu_op = {alu_op_prefix, alu_op_mux};
@@ -305,7 +305,7 @@ module cpu(
         2'b00: begin
             // Setup Address
             a <= ab_wr;
-            rd <= ((bus_op == 2'b01)||(bus_op == 2'b11)) ? (1) : (0);
+            rd <= ((bus_op == 2'b01)||(bus_op == 2'b11)) ? (1'b1) : (1'b0);
             wr <= 0;
             phi <= 1;
         end
