@@ -91,7 +91,7 @@ module alu(
                 alu_result = {result_high[3:0], result_low[3:0]};
                 alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
             end
-            OP_SUB, OP_SBC: begin
+            OP_SUB, OP_SBC, OP_CP: begin
                 alu_flags_out[F_N] = 1'b1;
                 carry = (alu_op == OP_SBC) ? alu_flags_in[F_C] : 1'b0;
                 result_low = {1'b0, alu_a[3:0]} + 
@@ -102,8 +102,8 @@ module alu(
                     ~({1'b0, alu_b[7:4]}) +
                     {4'b0, ~result_low[4]};
                 alu_flags_out[F_C] = result_high[4];
-                alu_result = {result_high[3:0], result_low[3:0]};
-                alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'b1 : 1'b0;
+                alu_result = (alu_op == OP_CP) ? (alu_b[7:0]) : {result_high[3:0], result_low[3:0]};
+                alu_flags_out[F_Z] = ({result_high[3:0], result_low[3:0]} == 8'd0) ? 1'b1 : 1'b0;
             end
             OP_AND: begin
                 alu_flags_out[F_H] = 1'b1;

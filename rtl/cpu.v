@@ -167,7 +167,7 @@ module cpu(
     wire [15:0] ab_wr;
     assign ab_wr = (
         (ab_src == 2'b00) ? (pc_rd) : (
-        (ab_src == 2'b01) ? ((high_mask) ? ({8'hFF, temp_rd[15:8]}) : (temp_rd)) : (
+        (ab_src == 2'b01) ? ((high_mask) ? ({8'hFF, temp_rd[7:0]}) : (temp_rd)) : (
         (ab_src == 2'b10) ? ((high_mask) ? ({8'hFF, rf_rdw[7:0]}) : (rf_rdw)) : (
         (ab_src == 2'b11) ? (rf_sp) : (0)))));
 

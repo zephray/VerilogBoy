@@ -67,6 +67,7 @@ module control(
         pc_jr = 1'b0;
         stop = 1'b0;
         halt = 1'b0;
+        high_mask = 1'b0;
         case (m_cycle)
         3'd0: begin
             // First cycle is usually handled by the decoding lut
@@ -423,7 +424,7 @@ module control(
         decoding_lut[11] =  28'b1000000000000000000100000110;
         decoding_lut[12] =  28'b0001000100000000000011000001;
         decoding_lut[13] =  28'b0001000100000000000011000001;
-        decoding_lut[14] =  28'b0001000101100000001100000101;
+        decoding_lut[14] =  28'b0001000101100000001111000101;
         decoding_lut[15] =  28'b1101000100000000001111000101;
         decoding_lut[16] =  28'b1101000101000010001111000101;
         decoding_lut[17] =  28'b1101000101000110001111000101;
