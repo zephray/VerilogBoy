@@ -51,7 +51,8 @@ public:
         Verilated::traceEverOn(true);
 
         m_done = false;
-        m_bootrom = new MEMSIM(128, 0);
+        m_bootrom = new MEMSIM(8192, 0);
+        m_trace = NULL;
     }
 
     ~TESTBENCH() {

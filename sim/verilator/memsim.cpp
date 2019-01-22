@@ -80,16 +80,19 @@ void MEMSIM::apply(const DBUSW wr_data, const ABUSW address,
         if (last_wr && !wr_enable) {
             m_mem[address] = last_data;
             delay_count = m_delay;
-#ifdef DEBUG
+#ifdef __DEBUG
         printf("MEMBUS W[%04x] = %02x\n",
             address,
             last_data);
 #endif
+            if ((address >= 0xff00)&&(address <= 0xff7f)) {
+                printf("MMIO W[%04x] = %02x\n", address, last_data);
+            }
         } 
         else if (!last_rd && rd_enable) {
             rd_data = m_mem[address];
             delay_count = m_delay;
-#ifdef DEBUG
+#ifdef __DEBUG
         printf("MEMBUS R[%04x] = %02x\n",
             address,
             rd_data);

@@ -24,8 +24,6 @@
 #ifndef MEMSIM_H
 #define MEMSIM_H
 
-#define DEBUG
-
 class MEMSIM {
 public: 
     typedef unsigned char DBUSW;
