@@ -22,12 +22,12 @@ module boy(
     input clk, // 4.19MHz Clock Input
     output phi, // 1.05MHz Reference Clock Output
     // Cartridge interface
-    output [15:0] a, // Address Bus
-    output [7:0] dout,  // Data Bus
+    output reg [15:0] a, // Address Bus
+    output reg [7:0] dout,  // Data Bus
     input  [7:0] din,
-    output wr, // Write Enable
-    output rd, // Read Enable
-    output cs, // External RAM Chip Select
+    output reg wr, // Write Enable
+    output reg rd, // Read Enable
+    output reg cs, // External RAM Chip Select
     // Keyboard input
     /* verilator lint_off UNUSED */
     input [7:0] key,
@@ -48,7 +48,7 @@ module boy(
     // CPU
     wire        cpu_rd;   // CPU Read Enable
     wire        cpu_wr;   // CPU Write Enable
-    wire [7:0]  cpu_din;  // CPU Data Bus, to CPU
+    reg  [7:0]  cpu_din;  // CPU Data Bus, to CPU
     wire [7:0]  cpu_dout; // CPU Data Bus, from CPU
     wire [15:0] cpu_a;    // CPU Address Bus
     
@@ -63,15 +63,45 @@ module boy(
         .wr(cpu_wr),
         .done(done));
         
+    // High RAM
+    reg [7:0] high_ram [0:127];
+    reg high_ram_rd;
+    reg high_ram_wr;
+    reg [6:0] high_ram_a;
+    reg [7:0] high_ram_din;
+    reg [7:0] high_ram_dout;
+    always @(posedge clk) begin
+        if (high_ram_wr)
+            high_ram[high_ram_a] <= high_ram_din;
+        else
+            high_ram_dout <= (high_ram_rd) ? high_ram[high_ram_a] : 8'bz;
+    end
         
     // Bus Multiplexing
-    // Currently CPU is the only bus master
-    assign wr = cpu_wr;
-    assign rd = cpu_rd;
-    assign cpu_din[7:0] = din[7:0];
-    assign dout[7:0] = cpu_dout[7:0];
-    assign a[15:0] = cpu_a[15:0];
-    assign cs = cpu_wr | cpu_rd;
+    always @(*) begin
+        wr = 1'b0;
+        rd = 1'b0;
+        a = cpu_a; // The address is always exposed
+        dout = 8'h00; // But the data will be masked when accessing high page
+        cpu_din = 8'hxx; // Should not happen
+        high_ram_rd = 1'b0;
+        high_ram_wr = 1'b0;
+        high_ram_a = cpu_a[6:0];
+        high_ram_din = 8'hxx;
+        if ((cpu_a >= 16'hff80) && (cpu_a <= 16'hffff)) begin
+            high_ram_rd = cpu_rd;
+            high_ram_wr = cpu_wr;
+            high_ram_din = cpu_dout;
+            cpu_din = high_ram_dout;
+        end
+        else begin
+            rd = cpu_rd;
+            wr = cpu_wr;
+            dout = cpu_dout;
+            cpu_din = din;
+        end
+        cs = wr | rd;
+    end
 
     // Disable unused signals
     assign hs = 0;

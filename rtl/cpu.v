@@ -287,7 +287,7 @@ module cpu(
     wire [1:0] ct_next_state;
 
     assign ct_next_state = ct_state + 2'b01;
-    always @(posedge clk) begin
+    always @(posedge clk, posedge rst) begin
         if (rst)
             ct_state <= 2'b00;
         else
@@ -300,50 +300,62 @@ module cpu(
     assign imm_abs = (imm_reg[7]) ? (~imm_reg[7:0] + 1'b1) : (imm_reg[7:0]);
 
     // CT - FSM / Bus Operation 
-    always @(posedge clk) begin
-        case (ct_state)
-        2'b00: begin
-            // Setup Address
-            a <= ab_wr;
-            rd <= ((bus_op == 2'b01)||(bus_op == 2'b11)) ? (1'b1) : (1'b0);
-            wr <= 0;
+    always @(posedge clk, posedge rst) begin
+        if (rst) begin
+            a <= 16'b0;
+            rd <= 1'b0;
+            wr <= 1'b0;
             phi <= 1;
-        end
-        2'b01: begin
-            // Read in progress
-        end
-        2'b10: begin
-            if (bus_op == 2'b10) begin
-                // Write cycle
-                wr <= 1;
-                dout <= db_wr;
-            end
-            else if (bus_op == 2'b01) begin
-                // Instruction Fetch Cycle
-                wr <= 0;
-                opcode <= din;
-            end
-            else if (bus_op == 2'b11) begin
-                // Data Read cycle
-                wr <= 0;
-                db_rd_buffer <= din;
-                // mcycle is slower
-                if (m_cycle == 3'd0) imm_reg[7:0] <= din;
-                else if (m_cycle == 3'd1) imm_reg[15:8] <= din; 
-            end
-            else begin
-                wr <= 0;
-            end
-            rd <= 0;
-            phi <= 0;
-        end
-        2'b11: begin
-            // Bus Idle
-            rd <= 0;
-            wr <= 0;
+            opcode <= 8'b0;
+            imm_reg <= 16'b0;
+            db_rd_buffer <= 8'b0;
             dout <= 8'b0;
         end
-        endcase
+        else begin
+            case (ct_state)
+            2'b00: begin
+                // Setup Address
+                a <= ab_wr;
+                rd <= ((bus_op == 2'b01)||(bus_op == 2'b11)) ? (1'b1) : (1'b0);
+                wr <= 0;
+                phi <= 1;
+            end
+            2'b01: begin
+                // Read in progress
+            end
+            2'b10: begin
+                if (bus_op == 2'b10) begin
+                    // Write cycle
+                    wr <= 1;
+                    dout <= db_wr;
+                end
+                else if (bus_op == 2'b01) begin
+                    // Instruction Fetch Cycle
+                    wr <= 0;
+                    opcode <= din;
+                end
+                else if (bus_op == 2'b11) begin
+                    // Data Read cycle
+                    wr <= 0;
+                    db_rd_buffer <= din;
+                    // mcycle is slower
+                    if (m_cycle == 3'd0) imm_reg[7:0] <= din;
+                    else if (m_cycle == 3'd1) imm_reg[15:8] <= din; 
+                end
+                else begin
+                    wr <= 0;
+                end
+                rd <= 0;
+                phi <= 0;
+            end
+            2'b11: begin
+                // Bus Idle
+                rd <= 0;
+                wr <= 0;
+                dout <= 8'b0;
+            end
+            endcase
+        end
     end
 
     // CT - FSM / Instruction Execution
@@ -462,7 +474,7 @@ module cpu(
 
     assign ex_next_state = (next) ? (ex_state + 3'd1) : (3'd0);
 
-    always @(posedge clk) begin
+    always @(posedge clk, posedge rst) begin
         if (rst)
             ex_state <= 3'd0;
         else
