@@ -2,9 +2,9 @@ obj := dsi.o main.o
 rom := bootrom.gb
 mif := bootrom.mif
 
-bin2mif := ../tools/bin2mif
+bin2mif := ../tools/bin2mif/bin2mif
 
-.PHONY: all clean
+.PHONY: all clean mif
 
 all: $(rom)
 
@@ -19,7 +19,7 @@ clean:
 	rgbasm -o $@ $*.asm
 
 %.gb: $(obj)
-	rgblink -o $@ $(objs)
+	rgblink -o $@ $(obj)
 
 %.mif: $(rom)
 	$(bin2mif) $*.gb $@ 16384

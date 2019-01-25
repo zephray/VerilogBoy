@@ -17,6 +17,8 @@ REG_DSIC_VATH  EQU $1C
 VAL_DSIC_CTL_NORM EQU $40
 VAL_DSIC_CTL_LPR  EQU $42
 VAL_DSIC_CTL_RST  EQU $40
+VAL_DSIC_CTL_HSC  EQU $41
+VAL_DSIC_CTL_TIM  EQU $51
 
 ; name: dsi_parity
 ; description:
@@ -232,7 +234,7 @@ lcd_init_sequence:
     ; Blacking Porch Control
     db $05, $b5, $40, $40, $00, $04
     ; Display Function Control
-    db $04, $b6, $0a, $07, $27
+    db $04, $b6, $8a, $07, $27
     ; There is no B9 in datasheet
     db $02, $b9, $02
     ; VCOM Control: 1.450V
@@ -253,15 +255,19 @@ lcd_init_sequence:
     db $01, $29
     ; Display Inversion ON
     db $01, $21
+    ; Set column address
+    db $05, $2a, $00, $00, $01, $3f
+    ; Set row address
+    db $05, $2b, $00, $00, $01, $3f
 lcd_init_sequence_end:
 
 ; name: delay
 ; caller saved:
 ;   A, B
 delay:
-    ld a, $ff
+    ld a, $01
 delay__loop_outer:
-    ld b, $20
+    ld b, $01
 delay__loop_inner:
     dec b
     jp nz, delay__loop_inner
@@ -306,9 +312,33 @@ dsi_init__send_loop:
     cp a, l
     jp nz, dsi_init__send_loop
     ; LCD should be ON at this stage
+    ; Setting up Timing Gen
+    ld a, $00
+    ld [$ff00+REG_DSIC_HFP], a
+    ld a, $04
+    ld [$ff00+REG_DSIC_HBP], a
+    ld a, $40
+    ld [$ff00+REG_DSIC_HACTL], a
+    ld a, $44
+    ld [$ff00+REG_DSIC_HTL], a
+    ld a, $11
+    ld [$ff00+REG_DSIC_HATH], a
+    ld a, $40
+    ld [$ff00+REG_DSIC_VFP], a
+    ld a, $40
+    ld [$ff00+REG_DSIC_VBP], a
+    ld a, $40
+    ld [$ff00+REG_DSIC_VACTL], a
+    ld a, $C0
+    ld [$ff00+REG_DSIC_VTL], a
+    ld a, $11
+    ld [$ff00+REG_DSIC_VATH], a
+    ; Enable DSI HS mode
+    ld a, VAL_DSIC_CTL_HSC
+    ld [$ff00+REG_DSIC_CTL], a
+    ld a, VAL_DSIC_CTL_TIM
+    ld [$ff00+REG_DSIC_CTL], a
     ret
-
-
 
 export byte_parity
 export reverse_bits

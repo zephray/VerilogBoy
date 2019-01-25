@@ -14,6 +14,9 @@ SECTION "joypad", ROM0[$0060]
 SECTION "rom", ROM0[$0000]
     ld sp, $fffe
     call dsi_init
+    nop
+end:
+    jr end
     halt
 
 ; just for BGB debug
