@@ -27,6 +27,7 @@ module control(
     output reg [2:0] alu_src_b,
     output reg [1:0] alu_op_prefix,
     output reg [1:0] alu_op_src,
+    output reg       alu_op_signed,
     output reg [1:0] alu_dst,
     output reg [1:0] pc_src,
     output reg       pc_we,
@@ -35,6 +36,8 @@ module control(
     output reg [2:0] rf_wr_sel,
     output reg [2:0] rf_rd_sel,
     output reg [1:0] rf_rdw_sel,
+    output reg       temp_redir,
+    output reg       opcode_redir,
     output reg [1:0] bus_op,
     output reg [1:0] db_src,
     output reg [1:0] ab_src,
@@ -68,6 +71,9 @@ module control(
         stop = 1'b0;
         halt = 1'b0;
         high_mask = 1'b0;
+        alu_op_signed = 1'b0;
+        temp_redir = 1'b0;
+        opcode_redir = 1'b0;
         case (m_cycle)
         3'd0: begin
             // First cycle is usually handled by the decoding lut
@@ -77,10 +83,10 @@ module control(
             else if (opcode == 8'h76) begin
                 halt = 1'b1;
             end
-            else if (opcode == 8'h02) begin
+            else if ((opcode == 8'h02) || (opcode == 8'h0A)) begin
                 rf_rdw_sel = 2'b00; // Select BC
             end
-            else if (opcode == 8'h12) begin
+            else if ((opcode == 8'h12) || (opcode == 8'h1A)) begin
                 rf_rdw_sel = 2'b01; // Select DE
             end
             else if (opcode == 8'hE2) begin
@@ -98,9 +104,19 @@ module control(
                      (opcode == 8'hC6) ||
                      (opcode == 8'hE6) ||
                      (opcode == 8'hD6) ||
-                     (opcode == 8'hF6)) begin
+                     (opcode == 8'hF6) ||
+                     (opcode == 8'h8E) ||
+                     (opcode == 8'h9E) ||
+                     (opcode == 8'hAE) ||
+                     (opcode == 8'hBE) ||
+                     (opcode == 8'hCE) ||
+                     (opcode == 8'hEE) ||
+                     (opcode == 8'hDE) ||
+                     (opcode == 8'hFE)) begin
                 // ADD/SUB/AND/OR [HL]
+                // ADC/SBC/XOR/CP [HL]
                 // ADD/SUB/AND/OR n
+                // ADC/SBC/XOR/CP n
                 alu_dst = 2'b11; // Don't WB in the first cycle
             end
             else if ((opcode == 8'hD3) || 
@@ -118,7 +134,6 @@ module control(
                 stop = 1'b1;
                 halt = 1'b1;
             end
-
         end
         3'd1: begin
             if ((opcode[7:6] == 2'b00)&&(opcode[3:0] == 4'b0001)) begin
@@ -207,6 +222,29 @@ module control(
                 ct_op = 2'b11;
                 next = 1'b1;
             end
+            else if (opcode == 8'hE8) begin
+                // ADD SP, e8
+                alu_src_b = 3'b110;
+                alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                bus_op = 2'b00;
+                ct_op = 2'b00;
+                next = 1'b1;
+            end
+            else if (opcode == 8'hF8) begin
+                // LD HL, SP+e8
+                alu_src_b = 3'b110;
+                alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                rf_wr_sel = 3'b101;
+                bus_op = 2'b00;
+                ct_op = 2'b00;
+                next = 1'b1;
+            end
+            else if ((opcode == 8'h08) || (opcode == 8'hEA) || (opcode == 8'hFA)) begin
+                // LD (nn), SP
+                // LD (nn), A
+                // LD A, (nn)
+                next = 1'b1;
+            end
             else begin
                 // Case for instructions end at this cycle
                 bus_op = 2'b01; // Restore to normal instruction fetch
@@ -227,7 +265,20 @@ module control(
                     rf_rd_sel = {opcode[5:4], 1'b0};
                     rf_wr_sel = {opcode[5:4], 1'b0};
                 end
+                else if ((opcode == 8'h09) || (opcode == 8'h19) || (opcode == 8'h29) || (opcode == 8'h39)) begin
+                    // ADD HL, r16
+                    alu_src_b = 3'b100; // Select H
+                    rf_wr_sel = 3'b100; // Select H
+                    rf_rd_sel = {opcode[5:4], 1'b0};
+                    alu_op_signed = 1'b1;
+                end
+                else if (opcode == 8'hF9) begin
+                    // LD SP, HL
+                    rf_wr_sel = 3'b111;
+                    rf_rd_sel = 3'b101;
+                end
                 else if (opcode == 8'hCB) begin
+                    opcode_redir = 1'b1;
                     if (imm[2:0] == 3'b110) begin
                         alu_src_a = 2'b11;
                         alu_dst = 2'b11;
@@ -319,9 +370,47 @@ module control(
                      (opcode == 8'hD0) ||     // RET NC
                      (opcode == 8'hC8) ||     // RET Z
                      (opcode == 8'hD8)) begin // RET C
+                bus_op = 2'b11;
+                ab_src = 2'b11;
+                ct_op = 2'b11;
                 alu_src_a = 2'b11;
                 alu_dst = 2'b01;
                 pc_b_sel = 1'b0;
+                next = 1'b1;
+            end
+            else if (opcode == 8'hE8) begin
+                // ADD SP, e8
+                alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                alu_src_b = 3'b001;
+                rf_rd_sel = 3'b110;
+                rf_wr_sel = 3'b110;
+                bus_op = 2'b00;
+                ct_op = 2'b00;
+                next = 1'b1;
+            end
+            else if (opcode == 8'h08) begin
+                // LD (nn), SP
+                ab_src = 2'b01;
+                db_src = 2'b10;
+                rf_rd_sel = 3'b111;
+                bus_op = 2'b10;
+                ct_op = 2'b11;
+                temp_redir = 1'b1;
+                next = 1'b1;
+            end
+            else if (opcode == 8'hEA) begin
+                // LD (nn), A
+                ab_src = 2'b01;
+                db_src = 2'b00;
+                bus_op = 2'b10;
+                ct_op = 2'b00;
+                next = 1'b1;
+            end
+            else if (opcode == 8'hFA) begin
+                // LD A, (nn)
+                bus_op = 2'b11;
+                ab_src = 2'b01;
+                ct_op = 2'b00;
                 next = 1'b1;
             end
             else begin
@@ -345,6 +434,13 @@ module control(
                     alu_src_b = 3'b000;    // Acc to Input B
                     flags_we = 1'b1;
                 end
+                else if (opcode == 8'hF8) begin
+                    // LD HL, SP+e8
+                    alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                    alu_src_b = 3'b001;
+                    rf_rd_sel = 3'b110;
+                    rf_wr_sel = 3'b100;
+                end
             end
         end
         3'd3: begin
@@ -366,12 +462,25 @@ module control(
                 ct_op = 2'b00;
                 next = 1'b1;
             end
+            else if (opcode == 8'h08) begin
+                // LD (nn), SP
+                ab_src = 2'b01;
+                db_src = 2'b10;
+                rf_rd_sel = 3'b110;
+                bus_op = 2'b10;
+                ct_op = 2'b00;
+                next = 1'b1;
+            end
             else begin
                 // Case for instructions end at this cycle
                 bus_op = 2'b01; // Restore to normal instruction fetch
                 ab_src = 2'b00; // Restore to fetch from PC
                 ct_op = 2'b01;  // Restore to PC + 1
                 next = 1'b0;
+                if (opcode == 8'hFA) begin
+                    // LD A, (nn)
+                    alu_src_a = 2'b11;
+                end
             end
         end
         3'd4: begin
@@ -552,12 +661,12 @@ module control(
         decoding_lut[139] = 28'b1000000000000000000100000110;
         decoding_lut[140] = 28'b0001000100000000000011000001;
         decoding_lut[141] = 28'b0001000100000000000011000001;
-        decoding_lut[142] = 28'b0001000100000000001111000111;
-        decoding_lut[143] = 28'b0001000100000000001111000111;
-        decoding_lut[144] = 28'b1010100101000010010011000011;
-        decoding_lut[145] = 28'b1010100101000110110011000011;
+        decoding_lut[142] = 28'b1001000101001111111111000111;
+        decoding_lut[143] = 28'b1001000101001111111111000111;
+        decoding_lut[144] = 28'b1010100101001010010011000011;
+        decoding_lut[145] = 28'b1010100101001010110011000011;
         decoding_lut[146] = 28'b1010100101001011010011000011;
-        decoding_lut[147] = 28'b1010100101001111110011000011;
+        decoding_lut[147] = 28'b1010100101001011110011000011;
         decoding_lut[148] = 28'b1001000101000010010100000100;
         decoding_lut[149] = 28'b1001000101000110010100000100;
         decoding_lut[150] = 28'b1001000101001010010100000100;

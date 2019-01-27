@@ -354,6 +354,14 @@ Cycle 2: ALU do nothing. Fetch PC + 1 (Imm), Stop PC calculation.
 Cycle 3: ALU do nothing. Data write from A to TEMP. Stop PC calculation.
 Cycle 4: ALU do nothing. Fetch PC + 1; Calculate PC + 1;
 
+LD (nn), SP:
+Cycle 0: Fetch PC, Calculate PC + 1
+Cycle 1: ALU do nothing. Fetch PC + 1 (Imm), Calculate PC + 1
+Cycle 2: ALU do nothing. Fetch PC + 1 (Imm), Stop PC calculation.
+Cycle 3: ALU do nothing. Addr from Imm, Data write from SP to bus. Calculate Imm + 1
+Cycle 4: ALU do nothing. Addr from Imm, Data write from SP to bus. 
+Cycle 5: ALU do nothing. Fetch PC + 1; Calculate PC + 1;
+
 LD A, (nn):
 Cycle 0: Fetch PC, Calculate PC + 1
 Cycle 1: ALU do nothing. Fetch PC + 1 (Imm), Calculate PC + 1

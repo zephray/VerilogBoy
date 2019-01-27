@@ -51,6 +51,7 @@ module cpu(
 
     wire [2:0]  rf_rdn;
     wire [7:0]  rf_rd;
+    reg  [7:0]  rf_rd_ex; // Buffer Rd selected during EX stage
     wire [1:0]  rf_rdwn;
     wire [15:0] rf_rdw;
     wire [7:0]  rf_h;
@@ -66,7 +67,8 @@ module cpu(
     wire [3:0]  alu_flags_in;
     wire [3:0]  alu_flags_out;
     wire [4:0]  alu_op;
-    reg         alu_carry_out;
+    wire        alu_op_signed;
+    reg         alu_carry_out_ex;
 
     wire [7:0]  acc_wr;
     wire        acc_we;
@@ -100,12 +102,16 @@ module cpu(
     wire [2:0] alu_src_b_ex;
     wire [1:0] alu_op_prefix_ex;
     wire [1:0] alu_op_src_ex;
+    wire       alu_op_signed_ex;
     wire [1:0] alu_dst_ex;
     wire [2:0] rf_wr_sel_ex;
     wire [2:0] rf_rd_sel_ex;
     wire       flags_we_ex;
     wire       pc_b_sel_ex;
     wire       pc_jr;
+    wire       pc_we_ex;
+    wire       temp_redir; // redirect regfile operation to temp register
+    wire       opcode_redir;
 
     control control(
         .clk(clk),
@@ -118,14 +124,17 @@ module cpu(
         .alu_src_b(alu_src_b_ex),
         .alu_op_prefix(alu_op_prefix_ex),
         .alu_op_src(alu_op_src_ex),
+        .alu_op_signed(alu_op_signed_ex),
         .alu_dst(alu_dst_ex),
         .pc_src(pc_src),
-        .pc_we(pc_we),
+        .pc_we(pc_we_ex),
         .pc_b_sel(pc_b_sel_ex),
         .pc_jr(pc_jr),
         .rf_wr_sel(rf_wr_sel_ex),
         .rf_rd_sel(rf_rd_sel_ex),
         .rf_rdw_sel(rf_rdw_sel),
+        .temp_redir(temp_redir),
+        .opcode_redir(opcode_redir),
         .bus_op(bus_op),
         .db_src(db_src),
         .ab_src(ab_src),
@@ -159,7 +168,7 @@ module cpu(
     assign db_wr = (
         (db_src == 2'b00) ? (acc_rd) : (
         (db_src == 2'b01) ? (alu_result) : (
-        (db_src == 2'b10) ? (rf_rd) : (
+        (db_src == 2'b10) ? (rf_rd_ex) : (
         (db_src == 2'b11) ? (db_wr_buffer) : (8'b0)))));
     assign db_we = (alu_dst == 2'b11);
 
@@ -172,11 +181,12 @@ module cpu(
         (ab_src == 2'b11) ? (rf_sp) : (16'b0)))));
 
     // Regisiter file
+    wire [7:0] rf_rd_raw;
     regfile regfile(
         .clk(clk),
         .rst(rst),
         .rdn(rf_rdn),
-        .rd(rf_rd),
+        .rd(rf_rd_raw),
         .rdwn(rf_rdwn),
         .rdw(rf_rdw),
         .h(rf_h),
@@ -187,10 +197,18 @@ module cpu(
         .we(rf_we)
     );
     assign rf_wr = alu_result;
-    assign rf_we = (alu_dst == 2'b10);
+    assign rf_we = (alu_dst == 2'b10) && (!temp_redir);
     assign rf_wrn = rf_wr_sel;
     assign rf_rdn = rf_rd_sel;
     assign rf_rdwn = rf_rdw_sel;
+    assign rf_rd = (!temp_redir) ? (rf_rd_raw) : ((rf_rd_sel[0]) ? (temp_rd[7:0]) : (temp_rd[15:8]));
+    always@(posedge clk, posedge rst) begin
+        if (rst)
+            rf_rd_ex <= 8'b0;
+        else
+            if (ct_state == 2'b00)
+                rf_rd_ex <= rf_rd_raw;
+    end
 
     // Register A
     singlereg #(8) acc(
@@ -205,7 +223,7 @@ module cpu(
     
     // Register PC
     reg [15:0] pc;
-    assign pc_rd = pc; 
+    assign pc_rd = pc;
     assign pc_rd_b = (pc_b_sel == 1'b0) ? (pc[7:0]) : (pc[15:8]);
     assign pc_wr_b = alu_result;
     assign pc_wr = (
@@ -215,16 +233,16 @@ module cpu(
         (pc_src == 2'b11) ? (16'b0) : (16'b0)))));
     assign pc_we_l = ((alu_dst == 2'b01) && (pc_b_sel == 1'b0)) ? (1'b1) : (1'b0);
     assign pc_we_h = ((alu_dst == 2'b01) && (pc_b_sel == 1'b1)) ? (1'b1) : (1'b0);
-    always @(posedge clk) begin
+    always @(posedge clk, posedge rst) begin
         if (rst)
             pc <= 16'b0;
         else begin
-            if (pc_we)
-                pc <= pc_wr;
-            else if (pc_we_l)
+            if (pc_we_l)
                 pc[7:0] <= pc_wr_b;
             else if (pc_we_h)
                 pc[15:8] <= pc_wr_b;
+            else if (pc_we)
+                pc <= pc_wr;
         end
     end
 
@@ -251,9 +269,6 @@ module cpu(
         .alu_flags_out(alu_flags_out),
         .alu_op(alu_op)
     );
-    always @(posedge clk) begin
-        alu_carry_out <= alu_flags_out[0];
-    end
 
     assign alu_a = (
         (alu_src_a == 2'b00) ? (acc_rd) : (
@@ -263,7 +278,7 @@ module cpu(
 
     assign alu_b = (
         (alu_src_b == 3'b000) ? (acc_rd) : (
-        (alu_src_b == 3'b001) ? ({7'b0, alu_carry_out}) : (
+        (alu_src_b == 3'b001) ? ({7'b0, alu_carry_out_ex}) : (
         (alu_src_b == 3'b010) ? (8'd0) : (
         (alu_src_b == 3'b011) ? (8'd1) : (
         (alu_src_b == 3'b100) ? (rf_h) : (
@@ -274,13 +289,13 @@ module cpu(
     assign alu_op_mux = (
         (alu_op_src == 2'b00) ? (current_opcode[5:3]) : (
         (alu_op_src == 2'b01) ? ({1'b1, current_opcode[7:6]}) : (
-        (alu_op_src == 2'b10) ? (3'b000) : (
-        (alu_op_src == 2'b11) ? (3'b010) : (3'b0)))));
+        (alu_op_src == 2'b10) ? ((alu_op_signed) ? (3'b001) : (3'b000)) : (
+        (alu_op_src == 2'b11) ? ((alu_op_signed) ? (3'b011) : (3'b010)) : (3'b0)))));
 
     assign alu_flags_in = flags_rd;
     assign alu_op = {alu_op_prefix, alu_op_mux};
 
-    assign current_opcode[7:3] = (m_cycle == 3'b0) ? (opcode[7:3]) : (imm_reg[7:3]);
+    assign current_opcode[7:3] = (opcode_redir) ? (imm_reg[7:3]) : (opcode[7:3]);
 
     // CT FSM
     reg  [1:0] ct_state;
@@ -312,6 +327,10 @@ module cpu(
             dout <= 8'b0;
         end
         else begin
+            if ((alu_dst == 2'b10) && temp_redir && !(ct_state == 2'b10 && bus_op == 2'b11))
+                if (rf_wr_sel[0]) imm_reg[7:0] <= rf_wr;
+                else imm_reg[15:8] <= rf_wr;
+
             case (ct_state)
             2'b00: begin
                 // Setup Address
@@ -445,7 +464,7 @@ module cpu(
                 rf_rd_sel_ct = 3'b110; // Read from SP high
                 rf_wr_sel_ct = 3'b110; // Write to SP high
                 alu_src_a_ct = 2'b10;  // From register file
-                alu_src_b_ct = 3'b001; // Carryt 1
+                alu_src_b_ct = 3'b001; // Carry
                 alu_op_src_ct = 2'b10; // Add
                 alu_dst_ct = 2'b10;    // To register file
             end
@@ -462,11 +481,13 @@ module cpu(
     assign alu_src_b = (ct_state == 2'b00) ? (alu_src_b_ex) : (alu_src_b_ct);
     assign alu_op_prefix = (ct_state == 2'b00) ? (alu_op_prefix_ex) : (alu_op_prefix_ct);
     assign alu_op_src = (ct_state == 2'b00) ? (alu_op_src_ex) : (alu_op_src_ct);
+    assign alu_op_signed = (ct_state == 2'b00) ? (alu_op_signed_ex) : (1'b0);
     assign alu_dst = (ct_state == 2'b00) ? (alu_dst_ex) : (alu_dst_ct);
     assign rf_wr_sel = (ct_state == 2'b00) ? (rf_wr_sel_ex) : (rf_wr_sel_ct);
     assign rf_rd_sel = (ct_state == 2'b00) ? (rf_rd_sel_ex) : (rf_rd_sel_ct);
     assign flags_we = (ct_state == 2'b00) ? (flags_we_ex) : (1'b0);
     assign pc_b_sel = (ct_state == 2'b00) ? (pc_b_sel_ex) : (pc_b_sel_ct);
+    assign pc_we = (ct_state == 2'b00) ? (pc_we_ex) : (1'b0);
 
     // EX - FSM / Mutli-M-cycle Instruction Handling
     reg  [2:0] ex_state;
@@ -475,11 +496,17 @@ module cpu(
     assign ex_next_state = (next) ? (ex_state + 3'd1) : (3'd0);
 
     always @(posedge clk, posedge rst) begin
-        if (rst)
+        if (rst) begin
             ex_state <= 3'd0;
+            alu_carry_out_ex <= 1'b0;
+        end
         else
             if (ct_state == 2'b11) begin
                 ex_state <= ex_next_state;
+            end
+            else if (ct_state == 2'b00) begin
+                // Backup flag output
+                alu_carry_out_ex <= alu_flags_out[0];
             end
     end
 

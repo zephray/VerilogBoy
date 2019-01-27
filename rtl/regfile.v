@@ -40,7 +40,7 @@ module regfile(
     assign sp = {regs[3'd6], regs[3'd7]};
 
     integer i;
-    always @(posedge clk) begin
+    always @(posedge clk, posedge rst) begin
         if (rst) begin
             for (i = 0; i < 8; i = i + 1)
                 regs[i] <= 8'b0;

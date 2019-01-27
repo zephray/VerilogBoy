@@ -74,7 +74,7 @@ module boy(
         if (high_ram_wr)
             high_ram[high_ram_a] <= high_ram_din;
         else
-            high_ram_dout <= (high_ram_rd) ? high_ram[high_ram_a] : 8'bz;
+            high_ram_dout <= (high_ram_rd) ? high_ram[high_ram_a] : 8'bx;
     end
         
     // Bus Multiplexing
@@ -88,7 +88,7 @@ module boy(
         high_ram_wr = 1'b0;
         high_ram_a = cpu_a[6:0];
         high_ram_din = 8'hxx;
-        if ((cpu_a >= 16'hff80) && (cpu_a <= 16'hffff)) begin
+        if (cpu_a >= 16'hff80) begin
             high_ram_rd = cpu_rd;
             high_ram_wr = cpu_wr;
             high_ram_din = cpu_dout;

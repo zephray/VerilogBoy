@@ -166,12 +166,14 @@ module alu(
                 alu_result = ~alu_a;
             end
             OP_CCF: begin
-                alu_flags_out[F_Z] = alu_flags_in[F_Z];
+                alu_flags_out[F_N] = 1'b0;
+                alu_flags_out[F_Z] = 1'b0;
                 alu_flags_out[F_C] = ~alu_flags_in[F_C];
                 alu_result = alu_b;
             end
             OP_SCF: begin
-                alu_flags_out[F_Z] = alu_flags_in[F_Z];
+                alu_flags_out[F_N] = 1'b0;
+                alu_flags_out[F_Z] = 1'b0;
                 alu_flags_out[F_C] = 1'b1;
                 alu_result = alu_b;
             end

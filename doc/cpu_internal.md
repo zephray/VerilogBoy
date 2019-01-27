@@ -40,10 +40,13 @@ Selection source of alu_op
 10 - Fixed ADD ; F to result
 11 - Fixed SUB ; A to F
 
+# alu_op_signed
+
+Force signed operation
+
 ## alu_dst
 
-Selection of destination of ALU. (Let's see if it would be the same as ALU op1)
-
+Selection of destination of ALU.
 00 - A register
 01 - PC byte
 10 - Register file 
@@ -114,6 +117,21 @@ Operation of CT-FSM at this M-cycle.
 01 - PC + 1
 10 - SP - 1
 11 - SP + 1
+
+## temp_redir
+
+Redirect regfile operation to temp register
+
+0 - Normal
+1 - Redir
+
+## opcode_redir
+
+Redirect opcode read to temp register (for 0xCB)
+
+0 - Normal
+1 - Redir
+
 
 ## flags_we
 
