@@ -64,18 +64,18 @@ module dsi_byte_shifter
    shift_i
    );
 
-   parameter g_data_bytes = 3;
-   parameter g_max_shift = 3;
+   parameter g_data_bytes = 4;
+   parameter g_max_shift = 9;
 
    localparam c_output_width = 8 * (g_data_bytes + g_max_shift);
 
-   input [3:0] shift_i;
+   input [4:0] shift_i;
    input [g_data_bytes * 8 - 1: 0] d_i;
    output [c_output_width - 1: 0]  shifted_o;
    
    wire [c_output_width - 1 : 0]   gen_array[0:g_max_shift];
 
-   genvar                          i;
+   genvar i;
 
    generate
       for (i=0;i<g_max_shift;i=i+1)
@@ -86,151 +86,149 @@ module dsi_byte_shifter
 endmodule // dsi_byte_shifter
 
 module dsi_packer
-  (
-   clk_i,
-   rst_n_i,
+    (
+    clk_i,
+    rst_n_i,
 
+    d_i,
+    d_size_i,
+    d_req_o,
+    d_valid_i,
+    d_empty_o,
+
+    q_size_i,
+    q_o,
+    q_req_i,
+    q_flush_i,
+    q_valid_o  
+    );
+
+    parameter g_input_bytes = 4;
+    parameter g_output_bytes = 1;
+
+    localparam c_shiftreg_bytes = 2 * (g_input_bytes > g_output_bytes ? g_input_bytes : g_output_bytes) + 2;
+
+    input clk_i, rst_n_i;
+    input [g_input_bytes * 8 - 1 : 0] d_i;
+    input [3 : 0]                     d_size_i;
+    output                            d_req_o;
+    input                             d_valid_i, q_flush_i;
+
+    output reg [g_output_bytes * 8 -1 :0] q_o;
+    output reg [g_output_bytes-1:0]   q_valid_o;
+    output                            d_empty_o;
+
+    input                             q_req_i;
+
+    input [2:0]                       q_size_i; // 1 to 4
+
+    wire [g_input_bytes * 8 - 1 : 0]  d_in;
+    reg [g_output_bytes * 8 - 1 : 0]  q_out;
+
+    reg [4:0]                         count, avail, avail_next;
+    reg [c_shiftreg_bytes * 8 -1 :0]  shreg, shreg_shifted;
+    wire [c_shiftreg_bytes * 8 -1 :0] in_shifted;
+    wire                              shift_out;
+    wire [4:0]                        in_shift;
+
+    wire                              d_req_int;
+
+    assign shift_out = (count >= q_size_i && q_req_i);
+    assign in_shift = (shift_out ? count - q_size_i : count);
    
+    dsi_byte_swapper #(g_input_bytes) U_RevIn ( d_i, d_size_i, d_in );
+
+    wire [8*g_output_bytes-1:0]       q_out_reversed[0:7];
+
+    always@* 
+        q_o <= q_out;
   
-   d_i,
-   d_size_i,
-   d_req_o,
-   d_valid_i,
-   d_empty_o,
-
-   q_size_i,
-   q_o,
-   q_req_i,
-   q_flush_i,
-   q_valid_o  
-   );
-
-   
-   parameter g_input_bytes = 3;
-   parameter g_output_bytes = 3;
-
-   
-   localparam c_shiftreg_bytes = 2 * (g_input_bytes > g_output_bytes ? g_input_bytes : g_output_bytes) + 2;
+    dsi_byte_shifter
+    #(
+        .g_data_bytes(g_input_bytes),
+        .g_max_shift(c_shiftreg_bytes - 1)
+    ) 
+    U_Shifter 
+    (
+        .d_i(d_in),
+        .shift_i(in_shift),
+        .shifted_o(in_shifted)
+    );
    
    
-   input clk_i, rst_n_i;
-   input [g_input_bytes * 8 - 1 : 0] d_i;
-   input [3 : 0]                     d_size_i;
-   output                            d_req_o;
-   input                             d_valid_i, q_flush_i;
-
-   output reg [g_output_bytes * 8 -1 :0] q_o;
-   output reg [g_output_bytes-1:0]   q_valid_o;
-   output                            d_empty_o;
-   
-   input                             q_req_i;
-
-   input [2:0]                       q_size_i; // 1 to 4
-   
-   wire [g_input_bytes * 8 - 1 : 0]  d_in;
-   reg [g_output_bytes * 8 - 1 : 0]  q_out;
-   
-   reg [4:0]                         count, avail, avail_next;
-   reg [c_shiftreg_bytes * 8 -1 :0]  shreg, shreg_shifted;
-   wire [c_shiftreg_bytes * 8 -1 :0] in_shifted;
-   wire                              shift_out;
-   wire [4:0]                        in_shift;
-
-   wire                              d_req_int;
-   
-   
-   assign shift_out = (count >= q_size_i && q_req_i);
-   assign in_shift = (shift_out ? count - q_size_i : count);
-   
-
-   dsi_byte_swapper #(g_input_bytes) U_RevIn ( d_i, d_size_i, d_in );
-
-
-   wire [8*g_output_bytes-1:0]         q_out_reversed[0:7];
-   
-   
-   
-   always@* 
-     q_o <= q_out;
-  
-   dsi_byte_shifter
-     #(
-       .g_data_bytes(g_input_bytes),
-       .g_max_shift(c_shiftreg_bytes - 1)
-       ) 
-   U_Shifter 
-     (
-      .d_i(d_in),
-      .shift_i(in_shift),
-      .shifted_o(in_shifted)
-      );
-   
-   
-   always@(posedge clk_i)
-     if(!rst_n_i) begin
-        q_valid_o <= 0;
-        q_out <= 0;
-     end else if(shift_out || q_flush_i)
-       begin : drive_output
-          integer i;
+    always@(posedge clk_i)
+    begin
+        if(!rst_n_i) begin
+            q_valid_o <= 0;
+            q_out <= 0;
+        end else if(shift_out || q_flush_i)
+        begin : drive_output
+            integer i;
           
-          q_out <= shreg[g_output_bytes * 8 - 1 : 0];
+            q_out <= shreg[g_output_bytes * 8 - 1 : 0];
 
-          for(i=0;i<g_output_bytes;i=i+1)
-            q_valid_o[i] <= count > i;
-       end else
-         q_valid_o <= 0;
+            for(i=0;i<g_output_bytes;i=i+1)
+                q_valid_o[i] <= count > i;
+        end else
+            q_valid_o <= 0;
+    end
    
 
-   always@*
-     begin
+    always@(*)
+    begin
         case (q_size_i)
-          3: shreg_shifted <= shreg >> 24;
-          default: shreg_shifted <= shreg >> 32;
+            1: shreg_shifted = shreg >> 8;
+            2: shreg_shifted = shreg >> 16;
+            3: shreg_shifted = shreg >> 24;
+            default: shreg_shifted = shreg >> 32;
         endcase // case (q_size_i)
-     end
+    end
    
-   always@(posedge clk_i)
-     if (!rst_n_i)
-       begin
-          count <= 0;
-          avail <= c_shiftreg_bytes;
-          shreg <= 0;
+    always@(posedge clk_i)
+    begin
+        if (!rst_n_i)
+        begin
+            count <= 0;
+            avail <= c_shiftreg_bytes;
+            shreg <= 0;
           
-       end else begin
-          if(d_valid_i && shift_out) begin
-             shreg <= shreg_shifted | in_shifted;
-             count <= count - q_size_i + d_size_i;
-          end else if(d_valid_i) begin
-             shreg <= shreg | in_shifted;
-             count <= count + d_size_i;
-          end else if(shift_out) begin
-             shreg <= shreg_shifted;
-             count <= count - q_size_i;
-          end else if (q_flush_i) begin
-             count <= 0;
-             shreg <= 0;
-          end
-          avail <= avail_next;
-       end // else: !if(!rst_n_i)
+        end else begin
+            if(d_valid_i && shift_out) begin
+                shreg <= shreg_shifted | in_shifted;
+                count <= count - q_size_i + d_size_i;
+            end else if(d_valid_i) begin
+                shreg <= shreg | in_shifted;
+                count <= count + d_size_i;
+            end else if(shift_out) begin
+                shreg <= shreg_shifted;
+                count <= count - q_size_i;
+            end else if (q_flush_i) begin
+                count <= 0;
+                shreg <= 0;
+            end
+            avail <= avail_next;
+        end // else: !if(!rst_n_i)
+    end
 
    
-   always@*
-     if(d_valid_i && shift_out) 
-       avail_next <= avail + q_size_i - d_size_i;
-     else if(d_valid_i) 
-       avail_next <= avail - d_size_i;
-     else if(shift_out) 
-       avail_next <= avail + q_size_i;
-     else if(q_flush_i)
-       avail_next <= c_shiftreg_bytes;
-     else
-       avail_next <= avail;
+    always@(*)
+    begin
+        if(d_valid_i && shift_out) 
+            avail_next = avail + q_size_i - d_size_i;
+        else if(d_valid_i) 
+            avail_next = avail - d_size_i;
+        else if(shift_out) 
+            avail_next = avail + q_size_i;
+        else if(q_flush_i)
+            avail_next = c_shiftreg_bytes;
+        else
+            avail_next = avail;
+    end
    
    
-   assign d_req_int = (avail_next >= g_input_bytes) || (shift_out && avail_next >= (g_input_bytes - q_size_i));
-   assign d_req_o = d_req_int;
-   assign d_empty_o = !count;
+    assign d_req_int = (avail_next >= g_input_bytes) || (shift_out && avail_next >= (g_input_bytes - q_size_i));
+    assign d_req_o = d_req_int;
+    assign d_empty_o = !count;
    
    
 endmodule // dsi_packer

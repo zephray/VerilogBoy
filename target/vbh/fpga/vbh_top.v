@@ -86,13 +86,16 @@ module vbh_top(
         .LOCKED(pll_locked)
     );
     
-    debounce_rst debounce_rst(
+    assign rst_pll = 1'b0;
+    assign rst = !pll_locked;
+    
+    /*debounce_rst debounce_rst(
         .clk(clk_in_bufg),
         .noisyRst(1'b0),
         .PLLLocked(pll_locked),
         .cleanPLLRst(rst_pll),
         .cleanAsyncRst(rst)
-    );
+    );*/
 	 
     // ----------------------------------------------------------------------
     // VerilogBoy core
@@ -131,9 +134,8 @@ module vbh_top(
         .valid(vb_valid),
         .left(vb_left),
         .right(vb_right),
-        .done()
+        .done(done)
     );
-	 
 	 
     // ----------------------------------------------------------------------
     // Memory Controller
@@ -217,12 +219,12 @@ module vbh_top(
     wire psram_rd = ram_rd || rom_rd;
     wire psram_wr = ram_wr;
     wire [21:0] psram_a = (ram_rd || ram_wr) ? ({5'b10000, ram_a[17:1]}) : {1'b1, rom_a[21:1]};
-    wire psram_ub = psram_a[0];
+    wire psram_ub = (ram_rd || ram_wr) ? (ram_a[0]) : (rom_a[0]);
     wire psram_lb = !psram_ub;
-    wire [7:0] psram_din = ram_din;
-    wire [7:0] psram_dout;
-    assign rom_d = psram_dout;
-    assign ram_dout = psram_dout;
+    wire [15:0] psram_din = (psram_ub) ? ({ram_din[7:0], 8'b0}) : ({8'b0, ram_din[7:0]});
+    wire [15:0] psram_dout;
+    assign rom_d = (psram_ub) ? (psram_dout[15:8]) : (psram_dout[7:0]);
+    assign ram_dout = (psram_ub) ? (psram_dout[15:8]) : (psram_dout[7:0]);
     
     assign RAM_WE_N = !psram_wr;
     assign RAM_OE_N = !psram_rd;
@@ -231,8 +233,8 @@ module vbh_top(
     assign RAM_LB_N = !psram_lb;
     assign RAM_UB_N = !psram_ub;
     assign RAM_ZZ_N = 1'b1;
-    assign RAM_DQ[15:0] = (psram_wr) ? (psram_din) : (8'hzz);
-    assign psram_dout[7:0] = RAM_DQ[7:0];
+    assign RAM_DQ[15:0] = (psram_wr) ? (psram_din) : (16'hzz);
+    assign psram_dout[15:0] = RAM_DQ[15:0];
 	 
     // Boot ROM (8KB for now)
     brom brom(
@@ -248,7 +250,7 @@ module vbh_top(
     wire        pix_vsync;
     wire        pix_almost_full;
     wire [23:0] pix;
-    wire        pix_wr;
+    reg         pix_wr;
     wire        dsi_dat_lp_p;
     wire        dsi_dat_lp_n;
     wire        dsi_dat_lp_oe;
@@ -256,8 +258,46 @@ module vbh_top(
     wire        dsi_clk_lp_n;
     wire        dsi_clk_lp_oe;
     
-    assign pix = 24'hFF0000;
-    assign pix_wr = 1'b1;
+    reg [16:0] pix_counter;
+    reg last_vsync;
+    reg [6:0] frame_counter;
+    reg [1:0] color_sel;
+    
+    always@(posedge clk_dsi) begin
+        if (rst) begin
+            pix_counter <= 0;
+            pix_wr <= 1'b0;
+            frame_counter <= 0;
+            color_sel <= 0;
+        end
+        else begin
+            if (pix_counter < 17'd102400) begin
+                pix_counter <= pix_counter + 1;
+                pix_wr <= 1'b1;
+            end
+            else begin
+                pix_wr <= 1'b0;
+                last_vsync <= pix_next_frame;
+                if (!last_vsync && pix_next_frame) begin
+                    pix_counter <= 0;
+                    if (frame_counter == 59) begin
+                        if (color_sel == 2)
+                            color_sel <= 0;
+                        else
+                            color_sel <= color_sel + 1;
+                        frame_counter <= 0;
+                    end
+                    else begin
+                        frame_counter <= frame_counter + 1;
+                    end
+                end
+            end
+        end
+    end
+    
+    assign pix = (color_sel == 0) ? (24'hFF0000) : ((color_sel == 1) ? (24'h00FF00) : (24'h0000FF));
+    
+//    assign pix_wr = 1'b1;
     assign pix_vsync = 1'b1;
     
     dsi_core dsi_core(
@@ -298,8 +338,10 @@ module vbh_top(
     assign LCD_C_LP_P = ((dsi_clk_lp_p == 1'b1) && (dsi_clk_lp_oe == 1'b1)) ? 1'b1 : 1'bZ;
     assign LCD_C_LP_N = ((dsi_clk_lp_n == 1'b1) && (dsi_clk_lp_oe == 1'b1)) ? 1'b1 : 1'bZ;
     
-    assign BL_EN = 1'b0;
-    assign BL_PWM = 1'b1;
+    assign BL_EN = 1'b1;
+    assign BL_PWM = 1'b0;
+    
+    
 
     // ----------------------------------------------------------------------
     // I2C Master Controller #1

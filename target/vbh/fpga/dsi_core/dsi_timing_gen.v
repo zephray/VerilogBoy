@@ -101,19 +101,22 @@ module dsi_timing_gen (
 `define ST_STOP 8
 `define ST_LONG_PACKET 9
 `define ST_LP 10
+`define ST_PACKET_HEADER 11
 
-    reg [3:0]                    state, next_state;
+    reg [3:0]   state, next_state;
 
-    reg [11:0]                   h_count, v_count;
+    reg [11:0]  h_count, v_count;
 
-    reg [7:0]                    h_front_porch, h_back_porch;
-    reg [11:0]                   h_active, h_total;
-    reg [7:0]                    v_front_porch, v_back_porch;
-    reg [11:0]                   v_active, v_total;
+    reg [7:0]   h_front_porch, h_back_porch;
+    reg [11:0]  h_active, h_total;
+    reg [7:0]   v_front_porch, v_back_porch;
+    reg [11:0]  v_active, v_total;
 
-    reg                          disp_en_mask;
+    reg         disp_en_mask;
 
-    reg [11:0]                   pixel_counter, pixel_counter_d0;
+    reg [11:0]  pixel_counter, pixel_counter_d0;
+    reg [2:0]   byte_counter;
+    reg         is_long;
    
    
     // host registers
@@ -149,10 +152,9 @@ module dsi_timing_gen (
                 p_last_o <= is_last;
 
                 pixel_counter <= count;
-                if(long)
-                    state <= `ST_LONG_PACKET;
-                else
-                    state <= _next_state;
+                byte_counter <= 4 - 1; // Short packet is always 4 bytes
+                is_long <= long;
+                state <= `ST_PACKET_HEADER;
             
                 next_state <= _next_state;
             end // if (p_dreq_i)
@@ -243,7 +245,7 @@ module dsi_timing_gen (
             `ST_LONG_PACKET:
             begin
                 if(p_dreq_i)  begin
-                    pixel_counter <= pixel_counter - ( 3 * g_pixels_per_clock );
+                    pixel_counter <= pixel_counter - 3;
                     pixel_counter_d0 <= pixel_counter;
                 end
 
@@ -251,6 +253,14 @@ module dsi_timing_gen (
                 begin
                     push_pixels <=0;
                     state <= next_state;
+                end
+            end
+            
+            `ST_PACKET_HEADER:
+            begin
+                byte_counter <= byte_counter - 1;
+                if (byte_counter == 1) begin
+                    state <= (is_long) ? (`ST_LONG_PACKET) : next_state;
                 end
             end
         endcase // case (state)
