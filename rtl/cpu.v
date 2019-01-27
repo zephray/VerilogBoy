@@ -68,7 +68,9 @@ module cpu(
     wire [3:0]  alu_flags_out;
     wire [4:0]  alu_op;
     wire        alu_op_signed;
+    wire        alu_carry_out;
     reg         alu_carry_out_ex;
+    reg         alu_carry_out_ct;
 
     wire [7:0]  acc_wr;
     wire        acc_we;
@@ -94,6 +96,8 @@ module cpu(
 
     wire [7:0]  imm_abs;
     wire [7:0]  imm_low;
+
+    reg  [1:0]  ct_state;
 
     // Control Logic
     // Control Logic is only used in EX stage
@@ -278,7 +282,7 @@ module cpu(
 
     assign alu_b = (
         (alu_src_b == 3'b000) ? (acc_rd) : (
-        (alu_src_b == 3'b001) ? ({7'b0, alu_carry_out_ex}) : (
+        (alu_src_b == 3'b001) ? ({7'b0, alu_carry_out}) : (
         (alu_src_b == 3'b010) ? (8'd0) : (
         (alu_src_b == 3'b011) ? (8'd1) : (
         (alu_src_b == 3'b100) ? (rf_h) : (
@@ -297,8 +301,20 @@ module cpu(
 
     assign current_opcode[7:3] = (opcode_redir) ? (imm_reg[7:3]) : (opcode[7:3]);
 
+    always @(posedge clk, posedge rst) begin
+        if (rst) begin
+            alu_carry_out_ex <= 1'b0;
+            alu_carry_out_ct <= 1'b0;
+        end
+        else
+            alu_carry_out_ct <= alu_flags_out[0];
+            if (ct_state == 2'b00) begin
+                // Backup flag output
+                alu_carry_out_ex <= alu_flags_out[0];
+            end
+    end
+
     // CT FSM
-    reg  [1:0] ct_state;
     wire [1:0] ct_next_state;
 
     assign ct_next_state = ct_state + 2'b01;
@@ -488,6 +504,7 @@ module cpu(
     assign flags_we = (ct_state == 2'b00) ? (flags_we_ex) : (1'b0);
     assign pc_b_sel = (ct_state == 2'b00) ? (pc_b_sel_ex) : (pc_b_sel_ct);
     assign pc_we = (ct_state == 2'b00) ? (pc_we_ex) : (1'b0);
+    assign alu_carry_out = (ct_state == 2'b00) ? (alu_carry_out_ex) : (alu_carry_out_ct);
 
     // EX - FSM / Mutli-M-cycle Instruction Handling
     reg  [2:0] ex_state;
@@ -498,15 +515,10 @@ module cpu(
     always @(posedge clk, posedge rst) begin
         if (rst) begin
             ex_state <= 3'd0;
-            alu_carry_out_ex <= 1'b0;
         end
         else
             if (ct_state == 2'b11) begin
                 ex_state <= ex_next_state;
-            end
-            else if (ct_state == 2'b00) begin
-                // Backup flag output
-                alu_carry_out_ex <= alu_flags_out[0];
             end
     end
 
