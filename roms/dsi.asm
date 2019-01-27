@@ -265,9 +265,9 @@ lcd_init_sequence_end:
 ; caller saved:
 ;   A, B
 delay:
-    ld a, $01
+    ld a, $ff
 delay__loop_outer:
-    ld b, $01
+    ld b, $ff
 delay__loop_inner:
     dec b
     jp nz, delay__loop_inner
@@ -301,6 +301,7 @@ dsi_init:
     ld a, VAL_DSIC_CTL_RST
     ld [$ff00+REG_DSIC_CTL], a
     call delay
+
     ld hl, lcd_init_sequence
 dsi_init__send_loop:
     call dsi_lp_write_cmd
@@ -311,17 +312,18 @@ dsi_init__send_loop:
     ld a, c
     cp a, l
     jp nz, dsi_init__send_loop
+    
     ; LCD should be ON at this stage
     ; Setting up Timing Gen
-    ld a, $00
-    ld [$ff00+REG_DSIC_HFP], a
-    ld a, $04
-    ld [$ff00+REG_DSIC_HBP], a
-    ld a, $40
-    ld [$ff00+REG_DSIC_HACTL], a
-    ld a, $44
-    ld [$ff00+REG_DSIC_HTL], a
-    ld a, $11
+    ld a, $0C
+    ld [$ff00+REG_DSIC_HFP], a ; HFP = 4 * 3
+    ld a, $0C
+    ld [$ff00+REG_DSIC_HBP], a ; HBP = 4 * 3
+    ld a, $C0
+    ld [$ff00+REG_DSIC_HACTL], a ; HACT = 320 * 3
+    ld a, $D8
+    ld [$ff00+REG_DSIC_HTL], a ; HT = 328 * 3
+    ld a, $33
     ld [$ff00+REG_DSIC_HATH], a
     ld a, $40
     ld [$ff00+REG_DSIC_VFP], a
