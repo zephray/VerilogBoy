@@ -17,7 +17,7 @@ The hardware I am building for this is called the "VerilogBoy Handheld". All des
 
 ### VerilogBoy Handheld (vbh)
 
-![Hardware-Architecture](https://github.com/zephray/VerilogBoy/raw/refactor/doc/hardware_arch.svg)
+![Hardware-Architecture](https://github.com/zephray/VerilogBoy/raw/refactor/doc/hardware_arch.png)
 
  - FPGA: Xilinx Spartan-6 XC6SLX16
  - RAM: Using on-board PSRAM for VRAM/WRAM
