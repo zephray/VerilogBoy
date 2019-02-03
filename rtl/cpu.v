@@ -301,19 +301,6 @@ module cpu(
 
     assign current_opcode[7:3] = (opcode_redir) ? (imm_reg[7:3]) : (opcode[7:3]);
 
-    always @(posedge clk, posedge rst) begin
-        if (rst) begin
-            alu_carry_out_ex <= 1'b0;
-            alu_carry_out_ct <= 1'b0;
-        end
-        else
-            alu_carry_out_ct <= alu_flags_out[0];
-            if (ct_state == 2'b00) begin
-                // Backup flag output
-                alu_carry_out_ex <= alu_flags_out[0];
-            end
-    end
-
     // CT FSM
     wire [1:0] ct_next_state;
 
@@ -515,11 +502,19 @@ module cpu(
     always @(posedge clk, posedge rst) begin
         if (rst) begin
             ex_state <= 3'd0;
+            alu_carry_out_ex <= 1'b0;
+            alu_carry_out_ct <= 1'b0;
         end
-        else
+        else begin
+            alu_carry_out_ct <= alu_flags_out[0];
             if (ct_state == 2'b11) begin
                 ex_state <= ex_next_state;
             end
+            else if (ct_state == 2'b00) begin
+                // Backup flag output
+                alu_carry_out_ex <= alu_flags_out[0];
+            end
+        end
     end
 
     assign m_cycle = ex_state;
