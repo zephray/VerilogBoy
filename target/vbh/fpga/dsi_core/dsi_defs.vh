@@ -18,13 +18,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-`define PTYPE_VSYNC_START 6'h1
+`define PTYPE_VSYNC_START 6'h01
 `define PTYPE_VSYNC_END   6'h11
 `define PTYPE_HSYNC_START 6'h21
 `define PTYPE_HSYNC_END   6'h31
 
+//`define PTYPE_BLANKING    6'h09
 `define PTYPE_BLANKING    6'h19
 `define PTYPE_RGB24       6'h3e
+
+`define PTYPE_EOT         6'h08
 
 `define DSI_SYNC_SEQ      8'b10111000
 
@@ -32,17 +35,18 @@
 `define REG_TICK_DIV      1
 `define REG_LP_TX         2
 
-`define REG_H_FRONT_PORCH 3
-`define REG_H_BACK_PORCH  4
-`define REG_H_ACTIVE_L    5
-`define REG_H_TOTAL_L     6
-`define REG_H_AT_H        7
+`define REG_H1            3
+`define REG_H2            4
+`define REG_H3_L          5
+`define REG_H3_H          6
+`define REG_H4            7
 
-`define REG_V_FRONT_PORCH 8
-`define REG_V_BACK_PORCH  9
-`define REG_V_ACTIVE_L    10
-`define REG_V_TOTAL_L     11
-`define REG_V_AT_H        12
+`define REG_V1            8
+`define REG_V2            9
+`define REG_V3_L          10
+`define REG_V3_H          11
+`define REG_V4_L          12
+`define REG_V4_H          13
 
 `define DBG_CTL_SEND 1
 `define DBG_CTL_NEXT 2

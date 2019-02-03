@@ -107,10 +107,10 @@ module dsi_timing_gen (
 
     reg [11:0]  h_count, v_count;
 
-    reg [7:0]   h_front_porch, h_back_porch;
-    reg [11:0]  h_active, h_total;
-    reg [7:0]   v_front_porch, v_back_porch;
-    reg [11:0]  v_active, v_total;
+    reg [7:0]   h_1, h_2, h_4;
+    reg [11:0]  h_3;
+    reg [7:0]   v_1, v_2;
+    reg [11:0]  v_3, v_4;
 
     reg         disp_en_mask;
 
@@ -123,22 +123,17 @@ module dsi_timing_gen (
     always@(posedge clk_i)
         if(host_wr_i) begin
             case (host_a_i)       
-            `REG_H_FRONT_PORCH : h_front_porch <= host_d_i;
-            `REG_H_BACK_PORCH  : h_back_porch <= host_d_i;
-            `REG_H_ACTIVE_L    : h_active[7:0] <= host_d_i;
-            `REG_H_TOTAL_L     : h_total[7:0] <= host_d_i;
-            `REG_H_AT_H        : begin
-                h_active[11:8] <= host_d_i[7:4];
-                h_total[11:8] <= host_d_i[3:0];
-            end
-            `REG_V_FRONT_PORCH : v_front_porch <= host_d_i;
-            `REG_V_BACK_PORCH  : v_back_porch <= host_d_i;
-            `REG_V_ACTIVE_L    : v_active[7:0] <= host_d_i;
-            `REG_V_TOTAL_L     : v_total[7:0] <= host_d_i;
-            `REG_V_AT_H        : begin
-                v_active[11:8] <= host_d_i[7:4];
-                v_total[11:8] <= host_d_i[3:0];
-            end
+            `REG_H1     : h_1 <= host_d_i;
+            `REG_H2     : h_2 <= host_d_i;
+            `REG_H3_L   : h_3[7:0] <= host_d_i;
+            `REG_H3_H   : h_3[11:8] <= host_d_i[3:0];
+            `REG_H4     : h_4 <= host_d_i;
+            `REG_V1     : v_1 <= host_d_i;
+            `REG_V2     : v_2 <= host_d_i;
+            `REG_V3_L   : v_3[7:0] <= host_d_i;
+            `REG_V3_H   : v_3[11:8] <= host_d_i[3:0];
+            `REG_V4_L   : v_4[7:0] <= host_d_i;
+            `REG_V4_H   : v_4[11:8] <= host_d_i[3:0];
             endcase // case (host_a_i)
         end
 
@@ -168,7 +163,7 @@ module dsi_timing_gen (
         if(!rst_n_i || !enable_i) begin
             v_count  <= 0;
             state <= `ST_LP;
-            pixel_counter <= h_total;
+            pixel_counter <= h_3;
             p_req_o <= 0;
             p_last_o <= 0;
 
@@ -185,9 +180,9 @@ module dsi_timing_gen (
                 push_pixels<=0;
                 push_pixels_d0<=0;
                
-                if(v_count == v_back_porch) begin
+                if(v_count == v_2) begin
                     disp_en_mask <= 1;
-                end else if(v_count == v_front_porch) begin
+                end else if(v_count == v_3) begin
                     disp_en_mask <= 0;
                 end 
 
@@ -197,28 +192,59 @@ module dsi_timing_gen (
                     pixel_counter <= 0;
                 end
                 else
-                    send(1, `PTYPE_BLANKING, h_front_porch, `ST_HSYNC_START, 0);
+                    send(1, `PTYPE_BLANKING, h_4, `ST_HSYNC_START, 0);
             end // case: `ST_FPORCH
           
+            // Complete Sync
+            /*`ST_HSYNC_START: begin
+                p_req_o <= 1;
+
+                if(v_count == 0)
+                    send(0, `PTYPE_VSYNC_START, 0, `ST_HSYNC_ACTIVE, 0);
+                else if (v_count == v_1)
+                    send(0, `PTYPE_VSYNC_END, 0, `ST_HSYNC_ACTIVE, 0);
+                else if (v_count == v_4)
+                    send(0, `PTYPE_EOT, h_3, `ST_LP, 1); // h_3 used as the frame gap
+                else
+                    send(0, `PTYPE_HSYNC_START, 0, `ST_HSYNC_ACTIVE, 0);
+            end*/
+            
+            // Pulse Sync
             `ST_HSYNC_START: begin
                 p_req_o <= 1;
 
                 if(v_count == 0)
-                    send(0, `PTYPE_VSYNC_START, h_total, `ST_BPORCH, 0);
-                else if (v_count == v_total)
-                    send(0, `PTYPE_HSYNC_START, h_total, `ST_LP, 1);
+                    send(0, `PTYPE_VSYNC_START, 0, `ST_BPORCH, 0);
+                else if (v_count == v_4)
+                    send(0, `PTYPE_EOT, h_3, `ST_LP, 1); // h_3 used as the frame gap
                 else
-                    send(0, `PTYPE_HSYNC_START, h_total, `ST_BPORCH, 0);
+                    send(0, `PTYPE_HSYNC_START, 0, `ST_BPORCH, 0);
             end
+            
+            // No Sync
+            /*`ST_HSYNC_START: begin
+                p_req_o <= 1;
+
+                if (v_count == v_4)
+                    send(0, `PTYPE_EOT, h_3, `ST_LP, 1); // h_3 used as the frame gap
+                else
+                    send(1, `PTYPE_BLANKING, h_2, `ST_LINE, 0);
+            end*/
+            
+            `ST_HSYNC_ACTIVE:
+                send(1, `PTYPE_BLANKING, h_1, `ST_HSYNC_END, 0);
+                
+            `ST_HSYNC_END:
+                send(0, `PTYPE_HSYNC_END, 0, `ST_BPORCH, 0);
 
             `ST_BPORCH:
-                send(1, `PTYPE_BLANKING, h_back_porch, `ST_LINE, 0);
+                send(1, `PTYPE_BLANKING, h_2, `ST_LINE, 0);
 
             `ST_LINE:
             begin
-                send(1, disp_en_mask ? `PTYPE_RGB24: `PTYPE_BLANKING, h_active, `ST_FPORCH, 0);
+                send(1, disp_en_mask ? `PTYPE_RGB24: `PTYPE_BLANKING, h_3, `ST_FPORCH, 0);
                 if(p_dreq_i) begin
-                    if(v_count == v_total)
+                    if(v_count == v_4)
                         v_count <= 0;
                     else
                         v_count <= v_count + 1;

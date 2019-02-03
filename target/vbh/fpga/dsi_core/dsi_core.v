@@ -106,14 +106,14 @@ module dsi_core(
     // picoseconds per ODELAY2 tap.  Used to set clock-to-data shift.
     parameter g_ps_per_delay_tap = 50;
 
-    localparam g_data_delay = (g_clock_period_ps / 2) / g_ps_per_delay_tap;
+    localparam g_data_delay = (g_clock_period_ps / 2) / g_ps_per_delay_tap - 22;
     localparam g_pixel_width = 24 * g_pixels_per_clock;
 
     input  [3:0] wb_adr_i;
     input  [7:0] wb_dat_i;
     output [7:0] wb_dat_o;
-    input         wb_cyc_i, wb_stb_i, wb_we_i;
-    output        wb_ack_o, wb_stall_o;
+    input        wb_cyc_i, wb_stb_i, wb_we_i;
+    output       wb_ack_o, wb_stall_o;
 
     input                          clk_sys_i, clk_phy_i, clk_dsi_i, rst_n_i;
     input                          clk_phy_shifted_i;
@@ -126,9 +126,9 @@ module dsi_core(
     input                          pix_wr_i;
 
     output                         dsi_clk_p_o, dsi_clk_n_o;
-    output [g_lanes-1:0]           dsi_hs_p_o, dsi_hs_n_o;
-    output [g_lanes-1:0]           dsi_lp_p_o, dsi_lp_n_o;
-    output [g_lanes-1:0]           dsi_lp_oe_o;
+    output                         dsi_hs_p_o, dsi_hs_n_o;
+    output                         dsi_lp_p_o, dsi_lp_n_o;
+    output                         dsi_lp_oe_o;
 
     output                         dsi_clk_lp_p_o, dsi_clk_lp_n_o;
     output                         dsi_clk_lp_oe_o;
@@ -276,7 +276,8 @@ module dsi_core(
         .oe_i(dsi_lp_oe_o),
         .d_i(serdes_data),
         .q_p_o(dsi_hs_p_o),
-        .q_n_o(dsi_hs_n_o)
+        .q_n_o(dsi_hs_n_o),
+        .tq_o(tq_o)
     );
 
     dphy_serdes
@@ -385,7 +386,7 @@ module dsi_core(
         .g_with_wr_almost_full(1)  
     ) U_PixFifo (
         .rst_n_i(rst_n_i),
-        .clk_wr_i(clk_sys_i),
+        .clk_wr_i(clk_dsi_i),
         .d_i(pix_i),
         .wr_almost_full_o(pix_almost_full_o),
         .we_i(pix_wr_i),

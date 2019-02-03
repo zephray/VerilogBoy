@@ -86,12 +86,16 @@ module dphy_serdes #(
     input [7:0] d_i,
    
     output 	q_p_o,
-    output 	q_n_o
+    output 	q_n_o,
+    
+    output  tq_o
     );
 
    wire 	tq_int;
    wire 	dout_int, dout_predelay;
    wire 	ms_d, ms_t, sm_d, sm_t;
+   
+   assign   tq_o = tq_int;
 
    OSERDES2
      #(.DATA_RATE_OQ   ("SDR"),
@@ -104,7 +108,7 @@ module dphy_serdes #(
 	     .CLK0       (clk_serdes_i),
              .CLK1       (1'b0),
              .CLKDIV     (clk_word_i),
-	     .D1         (d_i[4]),
+             .D1         (d_i[4]),
              .D2         (d_i[5]),
              .D3         (d_i[6]),
              .D4         (d_i[7]),
@@ -185,7 +189,7 @@ module dphy_serdes #(
       .RST                    (~rst_n_a_i));
 
    OBUFTDS
-     #(.IOSTANDARD ("DIFF_SSTL18_II"))
+     #(.IOSTANDARD ("DIFF_SSTL18_I"))
    U_Tristate
      (.O          (q_p_o),
       .OB         (q_n_o),
