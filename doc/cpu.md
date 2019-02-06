@@ -381,8 +381,8 @@ Cycle 0: Fetch PC, Calculate PC + 1
 Cycle 1: ALU do nothing. Fetch PC + 1 (Imm), Stop PC calculation.
 Cycle 2: ALU do nothing. Fetch PC + 1 (Imm), Stop PC calculation.
 Cycle 3: ALU: Nothing. No bus op. PC + 1 circuit use to calculate SP - 1
-Cycle 4: ALU: Nothing; DATA from PCl to SP; PC + 1 circuit use to calculate SP - 1
-Cycle 5: ALU: 16bit PC from Temp; DATA from PCh to SP; Stop PC calculation.
+Cycle 4: ALU: Nothing; DATA from PCh to SP; PC + 1 circuit use to calculate SP - 1
+Cycle 5: ALU: 16bit PC from Temp; DATA from PCl to SP; Stop PC calculation.
 Cycle 6: Fetch new PC; Calculate PC + 1
 
 RET:
@@ -397,9 +397,16 @@ Cycle 0: Fetch PC, Calculate PC + 1
 Cycle 1: Check condition and decide if need to continue
 Cycle 2: If taken, same as ret start from Cycle 1; If not, fetch new PC; Calculate PC + 1
 
+## Interrupt
 
+The interrupt check happens at the same time as the instruction fetch (S3). If there is an interrupt, the normal execution would be stopped, and the instruction fetch for the ISR would happen at the fifth M cycle:
 
-
+Cycle 0: During normal PC fetch and PC+1 calculation, interrupt happend, dispatch scheduled.
+Cycle 1: Calculate SP - 1. Bus no op.
+Cycle 2: Calculate SP - 1. Bus write PCh.
+Cycle 3: No calculate. Bus write PCl. Check interrupt source, decide which to dispatch
+Cycle 4: Fetch first byte of ISR
+Cycle 5: Start ISR execution
 
 ## Reference
 

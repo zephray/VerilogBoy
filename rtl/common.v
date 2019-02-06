@@ -22,3 +22,9 @@
 `define ALU_XOR 3'b101
 `define ALU_OR  3'b110
 `define ALU_CP  3'b111
+
+`define INT_LCDC   0
+`define INT_STAT   1
+`define INT_TIMER  2
+`define INT_SERIAL 3
+`define INT_JOYPAD 4

@@ -141,3 +141,14 @@ Will the flag being written to F register?
 
 Does this instruction end at this cycle
 
+## int_master_en
+
+The global interrupt enable flag is handled inside the control unit. This signal is the current enable flag status from control unit.
+
+## int_dispatch
+
+The flag to control unit indicating if the interrupt dispatch is ongoing.
+
+## int_ack
+
+The flag from control unit indicating that the dispatching is finished and the dispatch flag should be cleared.

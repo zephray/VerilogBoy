@@ -44,6 +44,9 @@ module control(
     output reg [1:0] ct_op,
     output reg       flags_we,
     output reg       high_mask,
+    output reg       int_master_en,
+    input            int_dispatch,
+    output reg       int_ack,
     output reg       next,
     output reg       stop,
     output reg       halt
@@ -59,6 +62,25 @@ module control(
         opcode <= opcode_early;
     end
 
+    reg ime_clear;
+    reg ime_set;
+    reg ime;
+    wire int_master_en = ime;
+
+    always @(posedge clk) begin
+        if (ime_clear)
+            ime <= 1'b0;
+        else if (ime_set)
+            ime <= 1'b1;
+    end
+
+    reg int_dispatch_deffered;
+    always @(posedge clk) begin
+        int_dispatch_deffered <= int_dispatch;
+    end
+
+    // All these nonsense will be replaced by a vector decoding ROM... 
+    // in the future
     always @(*) begin
         // Set default output
         {alu_src_a, alu_src_b, alu_op_prefix, alu_op_src, 
@@ -74,11 +96,38 @@ module control(
         alu_op_signed = 1'b0;
         temp_redir = 1'b0;
         opcode_redir = 1'b0;
+        ime_set = 1'b0;
+        ime_clear = 1'b0;
+        int_ack = 1'b0;
         case (m_cycle)
         3'd0: begin
             // First cycle is usually handled by the decoding lut
-            if (opcode == 8'h10) begin
+            // except interrupt dispatching and other special cases
+            // (how to integrate these into vector decoder?)
+            if (int_dispatch_deffered) begin
+                // Make sure all commands are from here, not ROM!
+                // Nullify ALU operation
+                alu_src_a = 2'b00;
+                alu_src_b = 3'b010;
+                alu_op_prefix = 2'b00;
+                alu_op_src = 2'b10;
+                alu_dst = 2'b00;
+                // Disable PC we
+                pc_we = 1'b0;
+                // Doesn't matter what RF rd/wr is
+                flags_we = 1'b0;
+                next = 1'b1;
+                bus_op = 2'b00;
+                ct_op = 2'b10;
+            end
+            else if (opcode == 8'h10) begin
                 stop = 1'b1;
+            end
+            else if (opcode == 8'hF3) begin
+                ime_clear = 1'b1;
+            end
+            else if (opcode == 8'hFB) begin
+                ime_set = 1'b1;
             end
             else if (opcode == 8'h76) begin
                 halt = 1'b1;
@@ -96,6 +145,10 @@ module control(
             else if (opcode == 8'hF2) begin
                 rf_rdw_sel = 2'b00; // Select BC
                 high_mask = 1'b1; // Select C only
+            end
+            else if (opcode == 8'hD9) begin
+                // RETI
+                ime_clear = 1'b1;
             end
             else if ((opcode == 8'h86) ||
                      (opcode == 8'h96) ||
@@ -136,7 +189,26 @@ module control(
             end
         end
         3'd1: begin
-            if ((opcode[7:6] == 2'b00)&&(opcode[3:0] == 4'b0001)) begin
+            if (int_dispatch_deffered) begin
+                // Save PCh
+                // Make sure all commands are from here, not ROM!
+                alu_src_a = 2'b01;
+                alu_src_b = 3'b010;
+                alu_op_prefix = 2'b00;
+                alu_op_src = 2'b10;
+                alu_dst = 2'b11;
+                // Disable PC we
+                pc_we = 1'b0;
+                // Doesn't matter what RF rd/wr is
+                flags_we = 1'b0;
+                next = 1'b1;
+                // Bus Operation
+                bus_op = 2'b10;
+                ab_src = 2'b11;
+                db_src = 2'b11;
+                ct_op = 2'b10;
+            end
+            else if ((opcode[7:6] == 2'b00)&&(opcode[3:0] == 4'b0001)) begin
                 // 16bit Load Imm
                 next = 1'b1;
             end
@@ -206,8 +278,9 @@ module control(
                 pc_jr = 1'b1;
                 next = 1'b1;
             end
-            else if (opcode == 8'hC9) begin
+            else if ((opcode == 8'hC9) || (opcode == 8'hD9)) begin
                 // RET
+                // RETI
                 alu_src_a = 2'b11;
                 alu_dst = 2'b01;
                 pc_b_sel = 1'b0;
@@ -307,7 +380,27 @@ module control(
             end
         end
         3'd2: begin
-            if (((opcode == 8'hC2) && (!f_z)) ||     // JP NZ
+            if (int_dispatch_deffered) begin
+                // Save PCl
+                // Make sure all commands are from here, not ROM!
+                alu_src_a = 2'b01;
+                alu_src_b = 3'b010;
+                alu_op_prefix = 2'b00;
+                alu_op_src = 2'b10;
+                alu_dst = 2'b11;
+                // Allow PC we
+                pc_we = 1'b1;
+                // Doesn't matter what RF rd/wr is
+                flags_we = 1'b0;
+                next = 1'b1;
+                // Bus Operation
+                bus_op = 2'b10;
+                ab_src = 2'b11;
+                db_src = 2'b11;
+                // No calculation this cycle
+                ct_op = 2'b00;
+            end
+            else if (((opcode == 8'hC2) && (!f_z)) ||     // JP NZ
                 ((opcode == 8'hD2) && (!f_c)) ||     // JP NC
                 ((opcode == 8'hC3)) ||               // JP
                 ((opcode == 8'hCA) && (f_z)) ||      // JP Z
@@ -357,8 +450,9 @@ module control(
                 ct_op = 2'b10;
                 next = 1'b1;
             end
-            else if (opcode == 8'hC9) begin
+            else if ((opcode == 8'hC9) || (opcode == 8'hD9))  begin
                 // RET
+                // RETI
                 alu_src_a = 2'b11;
                 alu_dst = 2'b01;
                 pc_b_sel = 1'b1;
@@ -477,7 +571,18 @@ module control(
                 ab_src = 2'b00; // Restore to fetch from PC
                 ct_op = 2'b01;  // Restore to PC + 1
                 next = 1'b0;
-                if (opcode == 8'hFA) begin
+                if (int_dispatch_deffered) begin
+                    ime_clear = 1'b1;
+                    alu_src_a = 2'b00;
+                    alu_src_b = 3'b010;
+                    alu_op_prefix = 2'b00;
+                    alu_op_src = 2'b10;
+                    alu_dst = 2'b00;
+                    pc_we = 1'b0;
+                    flags_we = 1'b0;
+                    int_ack = 1'b1;
+                end
+                else if (opcode == 8'hFA) begin
                     // LD A, (nn)
                     alu_src_a = 2'b11;
                 end

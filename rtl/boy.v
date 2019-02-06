@@ -46,11 +46,14 @@ module boy(
     );
     
     // CPU
-    wire        cpu_rd;   // CPU Read Enable
-    wire        cpu_wr;   // CPU Write Enable
-    reg  [7:0]  cpu_din;  // CPU Data Bus, to CPU
-    wire [7:0]  cpu_dout; // CPU Data Bus, from CPU
-    wire [15:0] cpu_a;    // CPU Address Bus
+    wire        cpu_rd;            // CPU Read Enable
+    wire        cpu_wr;            // CPU Write Enable
+    reg  [7:0]  cpu_din;           // CPU Data Bus, to CPU
+    wire [7:0]  cpu_dout;          // CPU Data Bus, from CPU
+    wire [15:0] cpu_a;             // CPU Address Bus
+    wire [4:0]  cpu_int_en;        // CPU Interrupt Enable input
+    wire [4:0]  cpu_int_flags_in;  // CPU Interrupt Flags input
+    wire [4:0]  cpu_int_flags_out; // CPU Interrupt Flags output
     
     cpu cpu(
         .clk(clk),
@@ -61,6 +64,9 @@ module boy(
         .din(cpu_din),
         .rd(cpu_rd),
         .wr(cpu_wr),
+        .int_en(cpu_int_en),
+        .int_flags_in(cpu_int_flags_in),
+        .int_flags_out(cpu_int_flags_out),
         .done(done));
         
     // High RAM
@@ -76,7 +82,45 @@ module boy(
         else
             high_ram_dout <= (high_ram_rd) ? high_ram[high_ram_a] : 8'bx;
     end
-        
+
+    // Interrupt
+    // int_req is the request signal from peripherals.
+    // When an interrupt is generated, the peripheral should send a pulse on
+    // the int_req for exactly one clock (using 4MHz clock).
+    wire [4:0] int_req;
+
+    /* -- DEBUG -- */
+    assign int_req = 5'd0;
+
+    //reg reg_ie_rd;
+    reg reg_ie_wr;
+    reg [4:0] reg_ie;
+    reg [4:0] reg_ie_din;
+    reg [4:0] reg_ie_dout;
+    always @(posedge clk) begin
+        if (reg_ie_wr)
+            reg_ie <= reg_ie_din;
+    end
+
+    assign reg_ie_dout = reg_ie;
+    assign cpu_int_en = reg_ie_dout;
+
+    // Interrupt may be manually triggered
+    // int_req should only stay high for only 1 cycle for each interrupt
+    //reg reg_if_rd;
+    reg reg_if_wr;
+    reg [4:0] reg_if;
+    reg [4:0] reg_if_din;
+    wire [4:0] reg_if_dout;
+    always @(posedge clk) begin
+        if (reg_if_wr)
+            reg_if <= reg_if_din | int_req;
+        else
+            reg_if <= cpu_int_flags_out | int_req;
+    end
+    assign reg_if_dout = reg_if | int_req;
+    assign cpu_int_flags_in = reg_if_dout;
+
     // Bus Multiplexing
     always @(*) begin
         wr = 1'b0;
@@ -88,6 +132,18 @@ module boy(
         high_ram_wr = 1'b0;
         high_ram_a = cpu_a[6:0];
         high_ram_din = 8'hxx;
+        if (cpu_a == 16'hffff) begin  // 0xFFFF - IE
+            //reg_ie_rd = cpu_rd;
+            reg_ie_wr = cpu_wr;
+            reg_ie_din = cpu_dout[4:0];
+            cpu_din = {3'b0, reg_ie_dout};
+        end
+        else if (cpu_a == 16'hff0f) begin // 0xFF0F - IF
+            //reg_if_rd = cpu_rd;
+            reg_if_wr = cpu_wr;
+            reg_if_din = cpu_dout[4:0];
+            cpu_din = {3'b0, reg_if_dout};
+        end
         if (cpu_a >= 16'hff80) begin
             high_ram_rd = cpu_rd;
             high_ram_wr = cpu_wr;

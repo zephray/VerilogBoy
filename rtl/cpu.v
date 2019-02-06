@@ -24,6 +24,9 @@ module cpu(
     input [7:0] din,
     output reg rd,
     output reg wr,
+    input [4:0] int_en,
+    input [4:0] int_flags_in,
+    output reg [4:0] int_flags_out,
     output reg done
     );
 
@@ -48,6 +51,9 @@ module cpu(
     wire        next;
     wire        stop;
     wire        halt;
+    reg         int_dispatch;
+    wire        int_master_en;
+    wire        int_ack;
 
     wire [2:0]  rf_rdn;
     wire [7:0]  rf_rd;
@@ -145,6 +151,9 @@ module cpu(
         .ct_op(ct_op),
         .flags_we(flags_we_ex),
         .high_mask(high_mask),
+        .int_master_en(int_master_en),
+        .int_dispatch(int_dispatch),
+        .int_ack(int_ack),
         .next(next),
         .stop(stop),
         .halt(halt)
@@ -183,6 +192,20 @@ module cpu(
         (ab_src == 2'b01) ? ((high_mask) ? ({8'hFF, temp_rd[7:0]}) : (temp_rd)) : (
         (ab_src == 2'b10) ? ((high_mask) ? ({8'hFF, rf_rdw[7:0]}) : (rf_rdw)) : (
         (ab_src == 2'b11) ? (rf_sp) : (16'b0)))));
+
+    // Interrupt
+    wire [4:0] int_flags_masked = int_flags_in & int_en & {5{int_master_en}};
+    wire [4:0] int_flags_out_cleared = 
+        (int_flags_masked[0]) ? (int_flags_in & 5'h11110) : (
+        (int_flags_masked[1]) ? (int_flags_in & 5'b11101) : (
+        (int_flags_masked[2]) ? (int_flags_in & 5'b11011) : (
+        (int_flags_masked[3]) ? (int_flags_in & 5'b10111) : (
+        (int_flags_masked[4]) ? (int_flags_in & 5'b01111) : (
+            int_flags_in
+        )))));
+
+    assign int_flags_out = 
+        ((int_dispatch)&&(pc_we)) ? (int_flags_out_cleared) : (int_flags_in);
 
     // Regisiter file
     wire [7:0] rf_rd_raw;
@@ -235,6 +258,17 @@ module cpu(
         (pc_src == 2'b01) ? ({10'b00, opcode[5:3], 3'b000}) : (
         (pc_src == 2'b10) ? (temp_rd) : (
         (pc_src == 2'b11) ? (16'b0) : (16'b0)))));
+    wire [15:0] pc_int = 
+        (int_flags_masked[0]) ? (16'h0040) : (
+        (int_flags_masked[1]) ? (16'h0048) : (
+        (int_flags_masked[2]) ? (16'h0050) : (
+        (int_flags_masked[3]) ? (16'h0058) : (
+        (int_flags_masked[4]) ? (16'h0060) : (
+            // no interrupts anymore ??? We havn't cleared it yet!
+            // This should not happen [TM]
+            // Cancel interrupt dispatch
+            pc_rd
+        )))));
     assign pc_we_l = ((alu_dst == 2'b01) && (pc_b_sel == 1'b0)) ? (1'b1) : (1'b0);
     assign pc_we_h = ((alu_dst == 2'b01) && (pc_b_sel == 1'b1)) ? (1'b1) : (1'b0);
     always @(posedge clk, posedge rst) begin
@@ -246,7 +280,11 @@ module cpu(
             else if (pc_we_h)
                 pc[15:8] <= pc_wr_b;
             else if (pc_we)
-                pc <= pc_wr;
+                if (int_dispatch)
+                    // this might need to be deffered
+                    pc <= pc_int;
+                else
+                    pc <= pc_wr;
         end
     end
 
@@ -328,6 +366,7 @@ module cpu(
             imm_reg <= 16'b0;
             db_rd_buffer <= 8'b0;
             dout <= 8'b0;
+            int_dispatch <= 1'b0;
         end
         else begin
             if ((alu_dst == 2'b10) && temp_redir && !(ct_state == 2'b10 && bus_op == 2'b11))
@@ -355,6 +394,15 @@ module cpu(
                     // Instruction Fetch Cycle
                     wr <= 0;
                     opcode <= din;
+                    // Interrupt dispatch happens here
+                    // Guarenteed if it is at instruction fetch cycle,
+                    // It is at instruction boundaries,
+                    // and m_cycle will start from 0.
+                    if ((!int_dispatch) && (int_flags_masked != 0) && (int_master_en))
+                        int_dispatch <= 1'b1;
+                    else if ((int_dispatch) && (int_ack)) begin
+                        int_dispatch <= 1'b0;
+                    end
                 end
                 else if (bus_op == 2'b11) begin
                     // Data Read cycle
