@@ -2,8 +2,10 @@
 obj_dir/
 isim/
 _xmsgs/
+_ngo/
 iseconfig/
 tmp/
+xst/
 top_*
 impact*
 
@@ -21,6 +23,46 @@ impact*
 *.html
 *.xwbt
 *.gise
+*.log
+*.cmd
+*.twx
+*.exe
+*.wdb
+*.bgn
+*.bit
+*.bld
+*.cmd_log
+*.drc
+*.lso
+*.ngc
+*.ngd
+*.par
+*.pcf
+*.prj
+*.ptwx
+*.stx
+*.syr
+*.twr
+*.unroutes
+*.ut
+*.xpi
+*.xst
+*.pad
+*.ngr
+*.blc
+*.mrp
+*.ngm
+*.xrpt
+*.csv
+*.xbcd
+*.xmsgs
+
+# PCB temp files
+*.asc
+*.onl
+
+# binary files
+*.gb
 
 # C object files
 *.d
