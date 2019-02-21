@@ -32,7 +32,7 @@
   `ifndef XILINX_ISE_14_7
     `define debug(debug_command)
   `else
-    `define debug(debug_command) $display("foo");
+    `define debug(debug_command) ;
   `endif
 `endif
 
@@ -48,7 +48,7 @@
   `ifndef XILINX_ISE_14_7
     `define assert(assert_expr) empty_statement
   `else
-    `define assert(assert_expr) $display("foo")
+    `define assert(assert_expr) ;
   `endif
 `endif
 

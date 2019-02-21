@@ -1,5 +1,5 @@
 module picosoc_mem #(
-    parameter integer WORDS = 256
+    parameter integer WORDS = 512
 ) (
     input clk,
     input [3:0] wen,
