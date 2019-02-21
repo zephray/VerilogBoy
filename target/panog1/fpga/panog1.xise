@@ -150,11 +150,17 @@
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="28"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="36"/>
     </file>
-    <file xil_pn:name="top_testbench.v" xil_pn:type="FILE_VERILOG">
+    <file xil_pn:name="mobile_ddr.v" xil_pn:type="FILE_VERILOG">
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="34"/>
-      <association xil_pn:name="PostMapSimulation" xil_pn:seqID="45"/>
-      <association xil_pn:name="PostRouteSimulation" xil_pn:seqID="45"/>
-      <association xil_pn:name="PostTranslateSimulation" xil_pn:seqID="45"/>
+      <association xil_pn:name="PostMapSimulation" xil_pn:seqID="49"/>
+      <association xil_pn:name="PostRouteSimulation" xil_pn:seqID="49"/>
+      <association xil_pn:name="PostTranslateSimulation" xil_pn:seqID="49"/>
+    </file>
+    <file xil_pn:name="testbench.v" xil_pn:type="FILE_VERILOG">
+      <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="52"/>
+      <association xil_pn:name="PostMapSimulation" xil_pn:seqID="52"/>
+      <association xil_pn:name="PostRouteSimulation" xil_pn:seqID="52"/>
+      <association xil_pn:name="PostTranslateSimulation" xil_pn:seqID="52"/>
     </file>
   </files>
 
@@ -473,6 +479,7 @@
     <!-- project is analyzed based on files automatically identified as       -->
     <!-- include files.                                                       -->
     <file xil_pn:name="mig/mig_parameters_0.v" xil_pn:type="FILE_VERILOG"/>
+    <file xil_pn:name="mobile_ddr_parameters.vh" xil_pn:type="FILE_VERILOG"/>
   </autoManagedFiles>
 
 </project>
