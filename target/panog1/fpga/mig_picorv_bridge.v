@@ -52,16 +52,15 @@ module mig_picorv_bridge(
     localparam BSTATE_WRITE_WAIT = 4'd5;
     localparam BSTATE_WRITE_DONE = 4'd6;
     localparam BSTATE_READ_CMD = 4'd7;
-    localparam BSTATE_READ_WAIT = 4'd8;
-    localparam BSTATE_READ_DONE = 4'd9;
+    localparam BSTATE_READ_WAIT_1 = 4'd8;
+    localparam BSTATE_READ_WAIT_2 = 4'd9;
+    localparam BSTATE_READ_DONE = 4'd10;
     
     // MIG wants negedge
     always @(negedge clk0) begin
         if (sys_rst180) begin
             bridge_state <= BSTATE_STARTUP;
-            user_input_data <= 32'b0;
             user_input_address <= 23'b0;
-            user_data_mask <= 4'b0;
             burst_done <= 1'b0;
             ddr_ready <= 1'b0;
             user_command_register <= 3'b000;
@@ -101,6 +100,9 @@ module mig_picorv_bridge(
                             user_input_address <= ddr_addr[23:1];
                         end
                     end
+                    else begin
+                        ddr_ready <= 1'b0;
+                    end
                 end
                 BSTATE_WAIT_REFRESH: begin
                     if (ar_done)
@@ -136,29 +138,34 @@ module mig_picorv_bridge(
                 BSTATE_READ_CMD: begin
                     if (user_cmd_ack) begin
                         wait_counter <= 2'd3;
-                        bridge_state <= BSTATE_READ_WAIT;
+                        bridge_state <= BSTATE_READ_WAIT_1;
                     end
                 end
-                BSTATE_READ_WAIT: begin
+                BSTATE_READ_WAIT_1: begin
                     if (wait_counter == 2'd1) begin
                         burst_done <= 1'b1;
                         wait_counter <= 2'd2;
-                        bridge_state <= BSTATE_READ_DONE;
+                        bridge_state <= BSTATE_READ_WAIT_2;
+                    end
+                    else
+                        wait_counter <= wait_counter - 2'd1;
+                end
+                BSTATE_READ_WAIT_2: begin
+                    user_command_register <= 3'b000;
+                    if (wait_counter == 2'd1) begin
+                        burst_done <= 1'b0;
+                        if (user_data_valid) begin
+                            bridge_state <= BSTATE_READ_DONE;
+                        end
                     end
                     else
                         wait_counter <= wait_counter - 2'd1;
                 end
                 BSTATE_READ_DONE: begin
                     user_command_register <= 3'b000;
-                    if (wait_counter == 2'd1) begin
-                        burst_done <= 1'b0;
-                        if (!user_cmd_ack) begin
-                            ddr_ready <= 1'b1;
-                            bridge_state <= BSTATE_IDLE;
-                        end
-                    end
-                    else
-                        wait_counter <= wait_counter - 2'd1;
+                    ddr_ready <= 1'b1;
+                    if (!ddr_valid)
+                        bridge_state <= BSTATE_IDLE;
                 end
             endcase
         end
@@ -167,8 +174,9 @@ module mig_picorv_bridge(
     reg [3:0] datapath_state;
     localparam DSTATE_IDLE = 4'd0;
     localparam DSTATE_WRITE = 4'd1;
-    localparam DSTATE_READ = 4'd2;
-    localparam DSTATE_WAIT = 4'd3;
+    localparam DSTATE_READ_WAIT = 4'd2;
+    localparam DSTATE_READ = 4'd3;
+    localparam DSTATE_WAIT = 4'd4;
     
     always @(posedge clk90) begin
         if (!init_done) begin
@@ -181,18 +189,23 @@ module mig_picorv_bridge(
                         if (user_command_register == 3'b100) begin
                             datapath_state <= DSTATE_WRITE;
                             user_input_data <= ddr_wdata;
-                            user_data_mask <= ddr_wstrb;
+                            user_data_mask <= ~ddr_wstrb;
                         end
-                        else if ((user_command_register == 3'b110)&&(user_data_valid)) begin
-                            datapath_state <= DSTATE_READ;
-                            ddr_rdata <= user_output_data;
+                        else if (user_command_register == 3'b110) begin
+                            datapath_state <= DSTATE_READ_WAIT;
                         end
                     end
                 end
                 DSTATE_WRITE: begin
                     datapath_state <= DSTATE_WAIT;
                     // Write second word
-                    user_data_mask <= 4'b0;
+                    user_data_mask <= 4'b1111;
+                end
+                DSTATE_READ_WAIT: begin
+                    if (user_data_valid) begin
+                        datapath_state <= DSTATE_READ;
+                        ddr_rdata <= user_output_data;
+                    end
                 end
                 DSTATE_READ: begin
                     datapath_state <= DSTATE_WAIT;

@@ -93,8 +93,10 @@ module pano_top(
     wire clk_100;
     wire clk_100_90_raw;
     wire clk_100_90;
-    wire clk_50_raw;
-    wire clk_50;
+    wire clk_100_180_raw;
+    wire clk_100_180;
+    //wire clk_50_raw;
+    //wire clk_50;
     wire clk_vga_in;
     wire clk_vga_raw;
     wire clk_vga;
@@ -102,7 +104,7 @@ module pano_top(
     //wire clk_vga_2x;
     wire clk_vga_90_raw;
     wire clk_vga_90;
-    wire clk_rv = clk_50;
+    wire clk_rv = clk_100;
     wire dcm_locked_12;
     wire dcm_locked;
     wire rst_12 = !dcm_locked_12;
@@ -133,13 +135,14 @@ module pano_top(
         .CLKIN(clk_100_in),                   // Clock input (from IBUFG, BUFG or DCM)
         .CLK0(clk_100_raw),
         .CLK90(clk_100_90_raw),
+        .CLK180(clk_100_180_raw),
         .CLKFX(clk_12_raw),                   // DCM CLK synthesis out (M/D)
-        .CLKDV(clk_50_raw),
+        //.CLKDV(clk_50_raw),
         .CLKFB(clk_100),                      // DCM clock feedback
         .PSCLK(1'b0),                         // Dynamic phase adjust clock input
         .PSEN(1'b0),                          // Dynamic phase adjust enable input
         .PSINCDEC(1'b0),                      // Dynamic phase adjust increment/decrement
-        .RST(!PB),                            // DCM asynchronous reset input
+        .RST(PB),                             // DCM asynchronous reset input
         .LOCKED(dcm_locked_12)
     );
     
@@ -148,10 +151,10 @@ module pano_top(
         .I(clk_12_raw)
     );
     
-    BUFG bufg_clk_50 (
+    /*BUFG bufg_clk_50 (
         .O(clk_50),
         .I(clk_50_raw)
-    );
+    );*/
     
     BUFG bufg_clk_100 (
         .O(clk_100),
@@ -161,6 +164,11 @@ module pano_top(
     BUFG bufg_clk_100_90 (
         .O(clk_100_90),
         .I(clk_100_90_raw)
+    );
+    
+    BUFG bufg_clk_100_180 (
+        .O(clk_100_180),
+        .I(clk_100_180_raw)
     );
     
     // IDT Clock Synthesizer for VGA Clock
@@ -381,12 +389,13 @@ module pano_top(
     wire       sys_rst;
     wire       sys_rst90;
     wire       sys_rst180;
-    wire [4:0] delay_sel_val;
+    wire [4:0] delay_sel_val_det;
+    reg  [4:0] delay_sel_val;
     
     mig_infrastructure_top mig_infrastructure_top(
-        .reset_in_n(PB),
+        .reset_in_n(!PB),
         .dcm_lock(dcm_locked_12),
-        .delay_sel_val1_val(delay_sel_val),
+        .delay_sel_val1_val(delay_sel_val_det),
         .sys_rst_val(sys_rst),
         .sys_rst90_val(sys_rst90),
         .sys_rst180_val(sys_rst180),
@@ -397,8 +406,9 @@ module pano_top(
     
     wire rst_dqs_div_in;
     
-    assign LPDDR_DM[3:2] = 2'b0;
-    assign LPDDR_DQS[3:2] = 2'b0;
+    assign LPDDR_DM[3:2] = 2'b11;
+    //assign LPDDR_DQS[3:2] = LPDDR_DQS[1:0];
+    assign LPDDR_DQS[3:2] = 2'b00;
     assign LPDDR_DQ[31:16] = 16'bz;
     
     wire [23:0] ddr_addr;
@@ -445,8 +455,8 @@ module pano_top(
         .ddr_ba                (LPDDR_BA),
         .ddr_a                 (LPDDR_A),
         .ddr_dm                (LPDDR_DM[1:0]),
-        .ddr_ck                (LPDDR_CK_P),
-        .ddr_ck_n              (LPDDR_CK_N),
+        .ddr_ck                (),
+        .ddr_ck_n              (),
 
         .clk_int               (clk_100),
         .clk90_int             (clk_100_90),
@@ -478,6 +488,9 @@ module pano_top(
         .init_done(init_done),
         .ar_done(ar_done)
     );
+    
+    assign LPDDR_CK_P = clk_100;
+    assign LPDDR_CK_N = clk_100_180;
         
     // ----------------------------------------------------------------------
     // PicoRV32
@@ -488,7 +501,7 @@ module pano_top(
     // 03000000 - 03000003 LED           (4B)
     // 08000000 - 08000FFF Video RAM     (4KB)
     // 0C000000 - 0BFFFFFF LPDDR SDRAM   (32MB)
-    parameter integer MEM_WORDS = 512;
+    parameter integer MEM_WORDS = 1024;
     parameter [31:0] STACKADDR = (4*MEM_WORDS);      // end of memory
     parameter [31:0] PROGADDR_RESET = 32'h00000000; // start of the RAM
     
@@ -499,16 +512,33 @@ module pano_top(
     wire [31:0] mem_wdata;
     wire [3:0] mem_wstrb;
     wire [31:0] mem_rdata;
+    wire [31:0] mem_la_addr;
     
-    wire addr_in_ram = (mem_addr < 4*MEM_WORDS);
-    wire addr_in_vram = (mem_addr >= 32'h08000000) && (mem_addr < 32'h08001000);
-    wire addr_in_led = (mem_addr >= 32'h03000000) && (mem_addr < 32'h03000004);
-    wire addr_in_ddr = (mem_addr >= 32'h0C000000) && (mem_addr < 32'h0D000000);
+    wire la_addr_in_ram = (mem_la_addr < 4*MEM_WORDS);
+    wire la_addr_in_vram = (mem_la_addr >= 32'h08000000) && (mem_la_addr < 32'h08004000);
+    wire la_addr_in_led = (mem_la_addr >= 32'h03000000) && (mem_la_addr < 32'h03000004);
+    wire la_addr_in_ddr = (mem_la_addr >= 32'h0C000000) && (mem_la_addr < 32'h0D000000);
+    
+    reg addr_in_ram;
+    reg addr_in_vram;
+    reg addr_in_led;
+    reg addr_in_ddr;
+    
+    always@(posedge clk_rv) begin
+        addr_in_ram <= la_addr_in_ram;
+        addr_in_vram <= la_addr_in_vram;
+        addr_in_led <= la_addr_in_led;
+        addr_in_ddr <= la_addr_in_ddr;
+    end
+    
+    always @(posedge clk_rv) begin
+        mem_ready <= (la_addr_in_ddr) ? (ddr_ready) : (mem_valid);
+    end
     
     wire ram_valid = (mem_valid) && (!mem_ready) && (addr_in_ram);
     wire vram_valid = (mem_valid) && (!mem_ready) && (addr_in_vram);
     wire led_valid = (mem_valid) && (!mem_ready) && (addr_in_led);
-    assign ddr_valid = (mem_valid) && (!mem_ready) && (addr_in_ddr);
+    assign ddr_valid = (mem_valid) && (addr_in_ddr);
     
     assign ddr_addr = mem_addr[23:0];
     assign ddr_wstrb = mem_wstrb;
@@ -544,7 +574,8 @@ module pano_top(
         .mem_addr(mem_addr),
         .mem_wdata(mem_wdata),
         .mem_wstrb(mem_wstrb),
-        .mem_rdata(mem_rdata)
+        .mem_rdata(mem_rdata),
+        .mem_la_addr(mem_la_addr)
     );
     
     wire [31:0] ram_rdata;
@@ -558,11 +589,14 @@ module pano_top(
         .rdata(ram_rdata)
     );
     
-    always @(posedge clk_rv) begin
-        mem_ready <= (addr_in_ddr) ? (ddr_ready) : (mem_valid);
+    assign mem_rdata = (addr_in_ram) ? (ram_rdata) : ((addr_in_ddr) ? (ddr_rdata) : ((addr_in_led) ? ({27'b0, delay_sel_val_det}) : (32'hFFFFFFFF)));
+
+    always@(posedge clk_rv) begin
+        if (!rst_rv)
+            delay_sel_val[4:0] <= delay_sel_val_det[4:0];
+        else if (led_valid && (mem_wstrb != 0))
+            delay_sel_val[4:0] <= mem_wdata[4:0];
     end
-    
-    assign mem_rdata = (addr_in_ram) ? (ram_rdata) : ((addr_in_ddr) ? (ddr_rdata) : (32'hFFFFFFFF));
 
     // ----------------------------------------------------------------------
     // VGA Controller
@@ -611,13 +645,14 @@ module pano_top(
     wire vram_wea = (vram_valid && (mem_wstrb != 0)) ? 1'b1 : 1'b0;
     
     wire [7:0] vram_dout;
+    wire [11:0] rd_addr = dbg_y * 80 + dbg_x;
     dualport_ram vram(
         .clka(clk_rv),
         .wea(vram_wea),
         .addra(mem_addr[13:2]),
         .dina(mem_wdata[7:0]),
         .clkb(!clk_vga),
-        .addrb(dbg_y * 80 + dbg_x),
+        .addrb(rd_addr[11:0]),
         .doutb(vram_dout)
     );
     assign dbg_char = vram_dout[6:0];
@@ -636,17 +671,14 @@ module pano_top(
     
     // ----------------------------------------------------------------------
     // LED
-    reg led;
+    //reg led;
     
-    always@(posedge clk_rv) begin
-        if (led_valid && (mem_wstrb != 0))
-            led <= mem_wdata[0];
-    end
     
-    assign LED_RED = dcm_locked_12;
-    assign LED_BLUE = dcm_locked;
-    assign LED_GREEN = !led;
     
+    assign LED_RED = init_done;
+    assign LED_BLUE = dcm_locked_12;
+    //assign LED_GREEN = !led;
+    assign LED_GREEN = 1'b0;
     
 
 endmodule

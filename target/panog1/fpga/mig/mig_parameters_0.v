@@ -80,7 +80,8 @@
 `define   BANK_ADDRESS                             2
 `define   DEBUG_EN                                 0
 `define   CLK_TYPE                                 "SINGLE_ENDED"
-`define   LOAD_MODE_REGISTER                       12'b000000110001
+`define   LOAD_MODE_REGISTER                       12'b000000110001  // BL=2
+//`define   LOAD_MODE_REGISTER                       12'b000000110010  // BL=4
 `define   EXT_LOAD_MODE_REGISTER                   12'b000000000000
 `define   RESET_ACTIVE_LOW                         1'b1
 `define   RAS_COUNT_VALUE                          4'b0011
@@ -88,3 +89,4 @@
 `define   RFC_COUNT_VALUE                          6'b000111
 `define   MAX_REF_WIDTH                            10
 `define   MAX_REF_CNT                              10'b1011100110
+`define   TOTAL_ADDRESS                            (`ROW_ADDRESS + `BANK_ADDRESS + `COLUMN_ADDRESS)

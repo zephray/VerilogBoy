@@ -68,9 +68,7 @@ module    mig_top_0
    output [((`DATA_WIDTH*2)-1):0]     user_output_data,
 
    output                             user_data_valid,
-   input [((`ROW_ADDRESS +
-	    `COLUMN_ADDRESS +       
-	    `BANK_ADDRESS)-1):0]      user_input_address,
+   input [(`TOTAL_ADDRESS-1):0]       user_input_address,
    input [2:0]                        user_command_register,
    output                             user_cmd_ack,
    input                              burst_done,
@@ -134,11 +132,11 @@ module    mig_top_0
       .clk               (clk_int),
       .rst0              (sys_rst_val),
       .rst180            (sys_rst180_val),
-      .address           (user_input_address[(`ROW_ADDRESS + 
-					      `COLUMN_ADDRESS +
-					      `BANK_ADDRESS)-1:
-					     `BANK_ADDRESS]),
-      .bank_address      (user_input_address[`BANK_ADDRESS-1:0]),
+      .address           (
+            {user_input_address[`TOTAL_ADDRESS-1: `BANK_ADDRESS + `COLUMN_ADDRESS],
+             user_input_address[`COLUMN_ADDRESS - 1: 0]}),
+      .bank_address      (
+            user_input_address[`BANK_ADDRESS + `COLUMN_ADDRESS - 1: `COLUMN_ADDRESS]),
       .command_register  (user_command_register),
       .burst_done        (burst_done),
       .ddr_rasb_cntrl    (ddr_rasb_cntrl),

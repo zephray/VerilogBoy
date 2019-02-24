@@ -1,11 +1,11 @@
 NET "CLK_OSC" TNM_NET = CLK_OSC;
-TIMESPEC TS_CLK_OSC = PERIOD "CLK_OSC" 10 ns HIGH 50%;
+TIMESPEC TS_CLK_OSC = PERIOD "CLK_OSC" 100 MHz HIGH 50%;
 
 #NET "clk_100" TNM_NET = clk_100;
 #TIMESPEC TS_CLK_100 = PERIOD "clk_100" 10 ns HIGH 50%;
 
-NET "clk_50" TNM_NET = clk_50;
-TIMESPEC TS_CLK_50 = PERIOD "clk_50" 20 ns HIGH 50%;
+#NET "clk_50" TNM_NET = clk_50;
+#TIMESPEC TS_CLK_50 = PERIOD "clk_50" 20 ns HIGH 50%;
 
 NET "IDT_CLK1" TNM_NET = IDT_CLK1;
 TIMESPEC TS_IDT_CLK1 = PERIOD "IDT_CLK1" 25.175 MHz HIGH 50%;
@@ -133,10 +133,10 @@ NET "LPDDR_DQS[0]" LOC = R15 |IOSTANDARD = LVCMOS18;
 #============================================================
 # VGA Out - TI THS8135
 #============================================================
-NET "VGA_CLK"     LOC = E10  |IOSTANDARD = LVCMOS33;   # CLK
+NET "VGA_CLK"     LOC = E10  |IOSTANDARD = LVCMOS18;   # CLK
 NET "VGA_VSYNC"   LOC = D1  |IOSTANDARD = LVCMOS33;  # B2B A[9]
 NET "VGA_HSYNC"   LOC = C2  |IOSTANDARD = LVCMOS33;  # B2B A[11]
-NET "VGA_BLANK_B" LOC = A8  |IOSTANDARD = LVCMOS33;  # BLANK_
+NET "VGA_BLANK_B" LOC = A8  |IOSTANDARD = LVCMOS18;  # BLANK_
                                                     # SYNC_  = 10k pullup to VDD
                                                     # SYNC_T = 10k R to ?
                                                     # M1 = 10 pulldown to GND
@@ -144,34 +144,34 @@ NET "VGA_BLANK_B" LOC = A8  |IOSTANDARD = LVCMOS33;  # BLANK_
 NET "VGA_SCL"  LOC = D4  |IOSTANDARD = LVCMOS33;
 NET "VGA_SDA"  LOC = G3  |IOSTANDARD = LVCMOS33;
 
-NET "VGA_R[7]" LOC = D9  |IOSTANDARD = LVCMOS33;    # R9
-NET "VGA_R[6]" LOC = E9  |IOSTANDARD = LVCMOS33;    # R8
-NET "VGA_R[5]" LOC = C9  |IOSTANDARD = LVCMOS33;    # R7
-NET "VGA_R[4]" LOC = F9  |IOSTANDARD = LVCMOS33;    # R6
-NET "VGA_R[3]" LOC = F8  |IOSTANDARD = LVCMOS33;    # R5
-NET "VGA_R[2]" LOC = C7  |IOSTANDARD = LVCMOS33;    # R4
-NET "VGA_R[1]" LOC = E8  |IOSTANDARD = LVCMOS33;    # R3
-NET "VGA_R[0]" LOC = F7  |IOSTANDARD = LVCMOS33;    # R2
+NET "VGA_R[7]" LOC = D9  |IOSTANDARD = LVCMOS18;    # R9
+NET "VGA_R[6]" LOC = E9  |IOSTANDARD = LVCMOS18;    # R8
+NET "VGA_R[5]" LOC = C9  |IOSTANDARD = LVCMOS18;    # R7
+NET "VGA_R[4]" LOC = F9  |IOSTANDARD = LVCMOS18;    # R6
+NET "VGA_R[3]" LOC = F8  |IOSTANDARD = LVCMOS18;    # R5
+NET "VGA_R[2]" LOC = C7  |IOSTANDARD = LVCMOS18;    # R4
+NET "VGA_R[1]" LOC = E8  |IOSTANDARD = LVCMOS18;    # R3
+NET "VGA_R[0]" LOC = F7  |IOSTANDARD = LVCMOS18;    # R2
                                                     # R1 = GND
                                                     # R0 = GND
-NET "VGA_G[7]" LOC = G9   |IOSTANDARD = LVCMOS33;   # G9
-NET "VGA_G[6]" LOC = D11  |IOSTANDARD = LVCMOS33;   # G8
-NET "VGA_G[5]" LOC = C4   |IOSTANDARD = LVCMOS33;   # G7
-NET "VGA_G[4]" LOC = A7   |IOSTANDARD = LVCMOS33;   # G6
-NET "VGA_G[3]" LOC = A10  |IOSTANDARD = LVCMOS33;   # G5
-NET "VGA_G[2]" LOC = D10  |IOSTANDARD = LVCMOS33;   # G4
-NET "VGA_G[1]" LOC = C11  |IOSTANDARD = LVCMOS33;   # G3
-NET "VGA_G[0]" LOC = B10  |IOSTANDARD = LVCMOS33;   # G2
+NET "VGA_G[7]" LOC = G9   |IOSTANDARD = LVCMOS18;   # G9
+NET "VGA_G[6]" LOC = D11  |IOSTANDARD = LVCMOS18;   # G8
+NET "VGA_G[5]" LOC = C4   |IOSTANDARD = LVCMOS18;   # G7
+NET "VGA_G[4]" LOC = A7   |IOSTANDARD = LVCMOS18;   # G6
+NET "VGA_G[3]" LOC = A10  |IOSTANDARD = LVCMOS18;   # G5
+NET "VGA_G[2]" LOC = D10  |IOSTANDARD = LVCMOS18;   # G4
+NET "VGA_G[1]" LOC = C11  |IOSTANDARD = LVCMOS18;   # G3
+NET "VGA_G[0]" LOC = B10  |IOSTANDARD = LVCMOS18;   # G2
                                                     # G1 = GND
                                                     # G0 = GND
-NET "VGA_B[7]" LOC = A4  |IOSTANDARD = LVCMOS33;    # B9
-NET "VGA_B[6]" LOC = D6  |IOSTANDARD = LVCMOS33;    # B8
-NET "VGA_B[5]" LOC = C3  |IOSTANDARD = LVCMOS33;    # B7
-NET "VGA_B[4]" LOC = E6  |IOSTANDARD = LVCMOS33;    # B6
-NET "VGA_B[3]" LOC = B4  |IOSTANDARD = LVCMOS33;    # B5
-NET "VGA_B[2]" LOC = C5  |IOSTANDARD = LVCMOS33;    # B4
-NET "VGA_B[1]" LOC = B6  |IOSTANDARD = LVCMOS33;    # B3
-NET "VGA_B[0]" LOC = A6  |IOSTANDARD = LVCMOS33;    # B2
+NET "VGA_B[7]" LOC = A4  |IOSTANDARD = LVCMOS18;    # B9
+NET "VGA_B[6]" LOC = D6  |IOSTANDARD = LVCMOS18;    # B8
+NET "VGA_B[5]" LOC = C3  |IOSTANDARD = LVCMOS18;    # B7
+NET "VGA_B[4]" LOC = E6  |IOSTANDARD = LVCMOS18;    # B6
+NET "VGA_B[3]" LOC = B4  |IOSTANDARD = LVCMOS18;    # B5
+NET "VGA_B[2]" LOC = C5  |IOSTANDARD = LVCMOS18;    # B4
+NET "VGA_B[1]" LOC = B6  |IOSTANDARD = LVCMOS18;    # B3
+NET "VGA_B[0]" LOC = A6  |IOSTANDARD = LVCMOS18;    # B2
                                                     # B1 = GND
                                                     # B0 = GND
 #============================================================
