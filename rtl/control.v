@@ -44,7 +44,7 @@ module control(
     output reg [1:0] ct_op,
     output reg       flags_we,
     output reg       high_mask,
-    output reg       int_master_en,
+    output           int_master_en,
     input            int_dispatch,
     output reg       int_ack,
     output reg       next,
@@ -65,7 +65,7 @@ module control(
     reg ime_clear;
     reg ime_set;
     reg ime;
-    wire int_master_en = ime;
+    assign int_master_en = ime;
 
     always @(posedge clk) begin
         if (ime_clear)

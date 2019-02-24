@@ -96,7 +96,7 @@ module boy(
     reg reg_ie_wr;
     reg [4:0] reg_ie;
     reg [4:0] reg_ie_din;
-    reg [4:0] reg_ie_dout;
+    wire [4:0] reg_ie_dout;
     always @(posedge clk) begin
         if (reg_ie_wr)
             reg_ie <= reg_ie_din;

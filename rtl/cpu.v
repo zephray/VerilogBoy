@@ -26,7 +26,7 @@ module cpu(
     output reg wr,
     input [4:0] int_en,
     input [4:0] int_flags_in,
-    output reg [4:0] int_flags_out,
+    output wire [4:0] int_flags_out,
     output reg done
     );
 
