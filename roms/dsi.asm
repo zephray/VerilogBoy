@@ -3,16 +3,17 @@ SECTION "dsi", ROM0
 REG_DSIC_CTL   EQU $10
 REG_DSIC_TICK  EQU $11
 REG_DSIC_TXDR  EQU $12
-REG_DSIC_HFP   EQU $13
-REG_DSIC_HBP   EQU $14
-REG_DSIC_HACTL EQU $15
-REG_DSIC_HTL   EQU $16
-REG_DSIC_HATH  EQU $17
-REG_DSIC_VFP   EQU $18
-REG_DSIC_VBP   EQU $19
-REG_DSIC_VACTL EQU $1A
-REG_DSIC_VTL   EQU $1B
-REG_DSIC_VATH  EQU $1C
+REG_DSIC_H1    EQU $13
+REG_DSIC_H2    EQU $14
+REG_DSIC_H3L   EQU $15
+REG_DSIC_H3H   EQU $16
+REG_DSIC_H4    EQU $17
+REG_DSIC_V1    EQU $18
+REG_DSIC_V2    EQU $19
+REG_DSIC_V3L   EQU $1A
+REG_DSIC_V3H   EQU $1B
+REG_DSIC_V4L   EQU $1C
+REG_DSIC_V4H   EQU $1D
 
 VAL_DSIC_CTL_NORM EQU $40
 VAL_DSIC_CTL_LPR  EQU $42
@@ -221,8 +222,10 @@ dsi_lp_write_cmd__finish:
 lcd_init_sequence:
     ; Memory data access control: Reverse X, BGR
     db $02, $36, $48
-    ; Interface pixel format: 16.7M Color (not defined in DS???)
+    ; Interface pixel format: 16.7M Color
     db $02, $3a, $77
+    ; Interface pixel format: 64K Color
+    ;db $02, $3a, $55
     ; Command Set Control: Enable Command 2 Part I
     db $02, $f0, $c3
     ; Command Set Control: Enable Command 2 Part II
@@ -256,9 +259,9 @@ lcd_init_sequence:
     ; Display Inversion ON
     db $01, $21
     ; Set column address
-    db $05, $2a, $00, $00, $01, $3f
+    ;db $05, $2a, $00, $00, $01, $3f
     ; Set row address
-    db $05, $2b, $00, $00, $01, $3f
+    ;db $05, $2b, $00, $00, $01, $3f
 lcd_init_sequence_end:
 
 ; name: delay
@@ -288,8 +291,8 @@ dsi_init:
     ; Disable the DSI core
     ld a, 0
     ld [$ff00+REG_DSIC_CTL], a
-    ; Set LP mode tick = 3
-    ld a, 3
+    ; Set LP mode tick = 1
+    ld a, 1
     ld [$ff00+REG_DSIC_TICK], a
     ; Reset the LCD
     ld a, VAL_DSIC_CTL_RST
@@ -315,29 +318,67 @@ dsi_init__send_loop:
     
     ; LCD should be ON at this stage
     ; Setting up Timing Gen
-    ld a, $0C
-    ld [$ff00+REG_DSIC_HFP], a ; HFP = 4 * 3
-    ld a, $0C
-    ld [$ff00+REG_DSIC_HBP], a ; HBP = 4 * 3
-    ld a, $C0
-    ld [$ff00+REG_DSIC_HACTL], a ; HACT = 320 * 3
-    ld a, $D8
-    ld [$ff00+REG_DSIC_HTL], a ; HT = 328 * 3
-    ld a, $33
-    ld [$ff00+REG_DSIC_HATH], a
-    ld a, $40
-    ld [$ff00+REG_DSIC_VFP], a
-    ld a, $40
-    ld [$ff00+REG_DSIC_VBP], a
-    ld a, $40
-    ld [$ff00+REG_DSIC_VACTL], a
-    ld a, $C0
-    ld [$ff00+REG_DSIC_VTL], a
-    ld a, $11
-    ld [$ff00+REG_DSIC_VATH], a
-    ; Enable DSI HS mode
+    ; To programming the DSIC:
+    ; DSIC_H1 = HS * 3
+    ; DSIC_H2 = HFP * 3
+    ; DSIC_H3 = HACT * 3
+    ; DSIC_H4 = HBP * 3
+    ; DSIC_V1 = VS
+    ; DSIC_V2 = VS + VBP
+    ; DSIC_V3 = VS + VBP + VACT
+    ; DSIC_V4 = VS + VBP + VACT + VFP
+; 24bpp configuration
+    ld a, $1E ; H1 = 10 * 3 = 0x1E
+    ld [$ff00+REG_DSIC_H1], a
+    ld a, $1E ; H2 = 10 * 3 = 0x1E
+    ld [$ff00+REG_DSIC_H2], a
+    ld a, $C0 ; H3 = 320 * 3 = 0x03C0
+    ld [$ff00+REG_DSIC_H3L], a
+    ld a, $03
+    ld [$ff00+REG_DSIC_H3H], a
+    ld a, $3C ; H4 = 20 * 3 = 0x3C
+    ld [$ff00+REG_DSIC_H4], a
+    ld a, $08 ; V1 = 8 = 0x08
+    ld [$ff00+REG_DSIC_V1], a
+    ld a, $10 ; V2 = 8 + 8 = 0x10
+    ld [$ff00+REG_DSIC_V2], a
+    ld a, $50 ; V3 = 8 + 8 + 320 = 0x150
+    ld [$ff00+REG_DSIC_V3L], a
+    ld a, $01
+    ld [$ff00+REG_DSIC_V3H], a
+    ld a, $60 ; V4 = 8 + 8 + 320 + 16 = 0x160
+    ld [$ff00+REG_DSIC_V4L], a
+    ld a, $01
+    ld [$ff00+REG_DSIC_V4H], a
+
+; 16bpp configuration
+;    ld a, $14 ; H1 = 10 * 2 = 0x14
+;    ld [$ff00+REG_DSIC_H1], a
+;    ld a, $14 ; H2 = 10 * 2 = 0x14
+;    ld [$ff00+REG_DSIC_H2], a
+;    ld a, $80 ; H3 = 320 * 2 = 0x0280
+;    ld [$ff00+REG_DSIC_H3L], a
+;    ld a, $02
+;    ld [$ff00+REG_DSIC_H3H], a
+;    ld a, $3C ; H4 = 20 * 2 = 0x28
+;    ld [$ff00+REG_DSIC_H4], a
+;    ld a, $08 ; V1 = 8 = 0x08
+;    ld [$ff00+REG_DSIC_V1], a
+;    ld a, $10 ; V2 = 8 + 8 = 0x10
+;    ld [$ff00+REG_DSIC_V2], a
+;    ld a, $50 ; V3 = 8 + 8 + 320 = 0x150
+;    ld [$ff00+REG_DSIC_V3L], a
+;    ld a, $01
+;    ld [$ff00+REG_DSIC_V3H], a
+;    ld a, $60 ; V4 = 8 + 8 + 320 + 16 = 0x160
+;    ld [$ff00+REG_DSIC_V4L], a
+;    ld a, $01
+;    ld [$ff00+REG_DSIC_V4H], a
+
+    ; enable HS clock
     ld a, VAL_DSIC_CTL_HSC
     ld [$ff00+REG_DSIC_CTL], a
+    ; Enable DSI HS mode
     ld a, VAL_DSIC_CTL_TIM
     ld [$ff00+REG_DSIC_CTL], a
     ret

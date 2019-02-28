@@ -88,10 +88,12 @@ module dsi_core(
     wb_stall_o
 );
    
-    // number of pixels processed in each clk_dsi_i cycle
-    parameter g_pixels_per_clock = 1;
-    // max number of DSI lanes
-    parameter g_lanes = 1;
+    // color depth (in bit per pixel)
+    // to change color depth, 
+    // definition of PTYPE_RGB in the dsi_defs.vh need to be changed accordingly
+    parameter g_bits_per_pixel = 16;
+    parameter g_bytes_per_pixel = 2;
+    
     // image FIFO size (holds g_pixels_per_clock * g_fifo_size pixels)
     parameter g_fifo_size = 1024;
     // ineverted lane polarity mask (0 = lane 0, 0x4 = lane 2, etc)
@@ -102,12 +104,13 @@ module dsi_core(
     parameter g_use_external_dsi_clock = 0;
 
     // PHY clock period, in picoseconds. Used to set clock-to-data shift.
-    parameter g_clock_period_ps = 3700;
+    parameter g_clock_period_ps = 11097;
+    //parameter g_clock_period_ps = 7400;
     // picoseconds per ODELAY2 tap.  Used to set clock-to-data shift.
     parameter g_ps_per_delay_tap = 50;
 
-    localparam g_data_delay = (g_clock_period_ps / 2) / g_ps_per_delay_tap - 22;
-    localparam g_pixel_width = 24 * g_pixels_per_clock;
+    localparam g_data_delay = (g_clock_period_ps / 2) / g_ps_per_delay_tap;
+    localparam g_pixel_width = g_bits_per_pixel;
 
     input  [3:0] wb_adr_i;
     input  [7:0] wb_dat_i;
@@ -305,8 +308,7 @@ module dsi_core(
    
     dsi_packet_assembler 
         #(
-        .g_lanes(g_lanes),
-        .g_pixels_per_clock(g_pixels_per_clock)
+        .g_bytes_per_pixel(g_bytes_per_pixel)
     ) U_PktAsm (
         .clk_i(clk_dsi_i),
         .rst_n_i(rst_n_dsi),
@@ -345,7 +347,7 @@ module dsi_core(
     dsi_sync_chain #(2) Sync2 (clk_sys_i, rst_n_i, pix_next_frame_dsi, pix_next_frame_o);
 
     dsi_timing_gen 
-        #( .g_pixels_per_clock(g_pixels_per_clock) )
+        #( .g_bytes_per_pixel(g_bytes_per_pixel) )
     U_TimingGen (
         .clk_i(clk_dsi_i),
         .rst_n_i(rst_n_dsi),
