@@ -20,26 +20,26 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module mig_picorv_bridge(
-    input clk0,
-    input clk90,
-    input sys_rst180,
-    input [24:0] ddr_la_addr,
-    input [31:0] ddr_wdata,
-    output [31:0] ddr_rdata,
-    input [3:0] ddr_wstrb,
-    input ddr_valid,
-    output ddr_ready,
-    input auto_refresh_req,
-    output [63:0] user_input_data,
-    input [63:0] user_output_data,
-    input user_data_valid,
-    output [22:0] user_input_address,
-    output [2:0] user_command_register,
-    input user_cmd_ack,
-    output [7:0] user_data_mask,
-    output burst_done,
-    input init_done,
-    input ar_done
+    input wire clk0,
+    input wire clk90,
+    input wire sys_rst180,
+    input wire [24:0] ddr_la_addr,
+    input wire [31:0] ddr_wdata,
+    output wire [31:0] ddr_rdata,
+    input wire [3:0] ddr_wstrb,
+    input wire ddr_valid,
+    output wire ddr_ready,
+    input wire auto_refresh_req,
+    output wire [63:0] user_input_data,
+    input wire [63:0] user_output_data,
+    input wire user_data_valid,
+    output wire [22:0] user_input_address,
+    output wire [2:0] user_command_register,
+    input wire user_cmd_ack,
+    output wire [7:0] user_data_mask,
+    output wire burst_done,
+    input wire init_done,
+    input wire ar_done
     );
 
     wire [20:0] cache_addr;

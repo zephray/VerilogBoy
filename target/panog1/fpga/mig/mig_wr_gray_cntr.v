@@ -55,10 +55,10 @@
 
 module mig_wr_gray_cntr
   (
-   input        clk,
-   input        reset,
-   input        cnt_en,
-   output [3:0] wgc_gcnt
+   input wire        clk,
+   input wire        reset,
+   input wire        cnt_en,
+   output wire [3:0] wgc_gcnt
    );
    
    reg [3:0]  d_in;

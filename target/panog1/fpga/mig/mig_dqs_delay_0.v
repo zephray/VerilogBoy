@@ -55,9 +55,9 @@
 `timescale 1ns/100ps
 module mig_dqs_delay_0
   (
-   input       clk_in,
-   input [4:0] sel_in,
-   output      clk_out
+   input wire       clk_in,
+   input wire [4:0] sel_in,
+   output wire      clk_out
    );
 
    wire delay1;

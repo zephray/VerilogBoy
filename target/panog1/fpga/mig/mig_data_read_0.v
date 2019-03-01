@@ -59,18 +59,18 @@
 
 module mig_data_read_0
   (
-   input                              clk90,
-   input                              reset90,
-   input [(`DATA_WIDTH-1):0]          ddr_dq_in,
-   input [(`DATA_STROBE_WIDTH-1):0]   fifo_0_wr_en,
-   input [(`DATA_STROBE_WIDTH-1):0]   fifo_1_wr_en,
-   input [(4*`DATA_STROBE_WIDTH)-1:0] fifo_0_wr_addr ,
-   input [(4*`DATA_STROBE_WIDTH)-1:0] fifo_1_wr_addr ,
-   input [(`DATA_STROBE_WIDTH-1):0]   dqs_delayed_col0,
-   input [(`DATA_STROBE_WIDTH-1):0]   dqs_delayed_col1,    
-   input                              read_fifo_rden, 
-   output [((`DATA_WIDTH*2)-1):0]     user_output_data,
-   output                             u_data_val
+   input wire                              clk90,
+   input wire                              reset90,
+   input wire [(`DATA_WIDTH-1):0]          ddr_dq_in,
+   input wire [(`DATA_STROBE_WIDTH-1):0]   fifo_0_wr_en,
+   input wire [(`DATA_STROBE_WIDTH-1):0]   fifo_1_wr_en,
+   input wire [(4*`DATA_STROBE_WIDTH)-1:0] fifo_0_wr_addr ,
+   input wire [(4*`DATA_STROBE_WIDTH)-1:0] fifo_1_wr_addr ,
+   input wire [(`DATA_STROBE_WIDTH-1):0]   dqs_delayed_col0,
+   input wire [(`DATA_STROBE_WIDTH-1):0]   dqs_delayed_col1,    
+   input wire                              read_fifo_rden, 
+   output wire [((`DATA_WIDTH*2)-1):0]     user_output_data,
+   output wire                             u_data_val
    );
 
    reg 				      reset90_r;

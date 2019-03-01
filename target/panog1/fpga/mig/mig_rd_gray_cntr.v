@@ -55,10 +55,10 @@
 
 module mig_rd_gray_cntr
   (
-   input        clk90,
-   input        reset90,
-   input        cnt_en,
-   output [3:0] rgc_gcnt
+   input wire        clk90,
+   input wire        reset90,
+   input wire        cnt_en,
+   output wire [3:0] rgc_gcnt
    );
    
    wire [3:0] gc_int;

@@ -58,13 +58,13 @@
 
 module mig_ram8d_0
   (
-   output [(`DATABITSPERREADCLOCK -1):0] dout,
-   input [3:0]                           waddr,
-   input [(`DATABITSPERREADCLOCK -1):0]  din,
-   input [3:0]                           raddr,
-   input                                 wclk0,
-   input                                 wclk1,
-   input                                 we
+   output wire [(`DATABITSPERREADCLOCK -1):0] dout,
+   input wire [3:0]                           waddr,
+   input wire [(`DATABITSPERREADCLOCK -1):0]  din,
+   input wire [3:0]                           raddr,
+   input wire                                 wclk0,
+   input wire                                 wclk1,
+   input wire                                 we
    );
 
 

@@ -56,11 +56,11 @@
 `timescale 1ns/100ps
 module mig_fifo_1_wr_en_0
   (
-   input  clk,
-   input  rst_dqs_delay_n,
-   input  reset,
-   input  din,
-   output dout
+   input wire  clk,
+   input wire  rst_dqs_delay_n,
+   input wire  reset,
+   input wire  din,
+   output wire dout
    );
 
 

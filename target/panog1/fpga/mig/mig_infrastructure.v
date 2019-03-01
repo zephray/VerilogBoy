@@ -55,13 +55,13 @@
   `timescale 1ns/100ps
 module mig_infrastructure
   (
-   input        clk_int,
-   input        rst_calib1,
-   input [4:0]  delay_sel_val,
-   output [4:0] delay_sel_val1_val,
+   input wire        clk_int,
+   input wire        rst_calib1,
+   input wire [4:0]  delay_sel_val,
+   output wire [4:0] delay_sel_val1_val,
    // debug_signals
-   output [4:0] dbg_delay_sel, 
-   output       dbg_rst_calib
+   output wire [4:0] dbg_delay_sel, 
+   output wire       dbg_rst_calib
    );
 
    reg [4:0] delay_sel_val1;

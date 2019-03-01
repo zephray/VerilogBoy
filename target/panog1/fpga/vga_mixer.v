@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: Wenting Zhang
@@ -19,29 +20,29 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module vga_mixer(
-    input clk,
-    input rst,
+    input wire clk,
+    input wire rst,
     // GameBoy Image Input
-    input gb_hs,
-    input gb_vs,
-    input gb_pclk,
-    input [1:0] gb_pdat,
-    input gb_valid,
-    input gb_en,
+    input wire gb_hs,
+    input wire gb_vs,
+    input wire gb_pclk,
+    input wire [1:0] gb_pdat,
+    input wire gb_valid,
+    input wire gb_en,
     // Debugger Char Input
-    output [6:0] dbg_x,
-    output [4:0] dbg_y,
-    input [6:0] dbg_char,
-    output dbg_sync,
+    output wire [6:0] dbg_x,
+    output wire [4:0] dbg_y,
+    input wire [6:0] dbg_char,
+    output wire dbg_sync,
     // VGA signal Output
-    output vga_hs,
-    output vga_vs,
-    output vga_blank,
+    output wire vga_hs,
+    output wire vga_vs,
+    output wire vga_blank,
     output reg [7:0] vga_r,
     output reg [7:0] vga_g,
     output reg [7:0] vga_b,
     // Debug
-    input hold
+    input wire hold
     );
     
     localparam GB_LIGHT = 24'h8b9a26; // Used for pixel 11

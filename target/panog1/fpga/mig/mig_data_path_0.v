@@ -59,30 +59,30 @@
 
 module mig_data_path_0
   (
-   input [((`DATA_WIDTH*2)-1):0]       user_input_data,
-   input [((`DATA_MASK_WIDTH*2) -1):0] user_data_mask,
-   input                               clk,
-   input                               clk90,
-   input                               reset,
-   input                               reset90,
-   input                               write_enable,
-   input                               rst_dqs_div_in,
-   input [4:0]                         delay_sel,
-   input [(`DATA_WIDTH-1):0]           dq,
-   input [(`DATA_STROBE_WIDTH-1):0]    dqs_int_delay_in,
-   input                               read_fifo_rden, // Added new signal
-   output                              u_data_val,
-   output [((`DATA_WIDTH*2)-1):0]      user_output_data,
-   output                              write_en_val,
-   output [((`DATA_MASK_WIDTH)-1):0]   data_mask_f,
-   output [((`DATA_MASK_WIDTH)-1):0]   data_mask_r,
-   output [(`DATA_WIDTH-1):0]          write_data_falling,
-   output [(`DATA_WIDTH-1):0]          write_data_rising,
+   input wire [((`DATA_WIDTH*2)-1):0]       user_input_data,
+   input wire [((`DATA_MASK_WIDTH*2) -1):0] user_data_mask,
+   input wire                               clk,
+   input wire                               clk90,
+   input wire                               reset,
+   input wire                               reset90,
+   input wire                               write_enable,
+   input wire                               rst_dqs_div_in,
+   input wire [4:0]                         delay_sel,
+   input wire [(`DATA_WIDTH-1):0]           dq,
+   input wire [(`DATA_STROBE_WIDTH-1):0]    dqs_int_delay_in,
+   input wire                               read_fifo_rden, // Added new signal
+   output wire                              u_data_val,
+   output wire [((`DATA_WIDTH*2)-1):0]      user_output_data,
+   output wire                              write_en_val,
+   output wire [((`DATA_MASK_WIDTH)-1):0]   data_mask_f,
+   output wire [((`DATA_MASK_WIDTH)-1):0]   data_mask_r,
+   output wire [(`DATA_WIDTH-1):0]          write_data_falling,
+   output wire [(`DATA_WIDTH-1):0]          write_data_rising,
    //debug_signals
-   input [4:0]				vio_out_dqs,
-   input 				vio_out_dqs_en,
-   input [4:0]                          vio_out_rst_dqs_div,
-   input                                vio_out_rst_dqs_div_en
+   input wire [4:0]				vio_out_dqs,
+   input wire 				vio_out_dqs_en,
+   input wire [4:0]                          vio_out_rst_dqs_div,
+   input wire                                vio_out_rst_dqs_div_en
    );
 
    wire [(4*`DATA_STROBE_WIDTH)-1:0] fifo_0_wr_addr;

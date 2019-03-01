@@ -56,23 +56,22 @@
 
 module mig_data_read_controller_0
   (
-   input                               clk,
-   input                               reset,
-   input                               rst_dqs_div_in,
-   input [4:0]                         delay_sel,
-   input  [(`DATA_STROBE_WIDTH-1):0]   dqs_int_delay_in,
-   output [(`DATA_STROBE_WIDTH-1):0]   fifo_0_wr_en_val,
-   output [(`DATA_STROBE_WIDTH-1):0]   fifo_1_wr_en_val,
-   output [(4*`DATA_STROBE_WIDTH)-1:0] fifo_0_wr_addr_val,
-   output [(4*`DATA_STROBE_WIDTH)-1:0] fifo_1_wr_addr_val,
-   output [(`DATA_STROBE_WIDTH-1):0]   dqs_delayed_col0_val,
-   output [(`DATA_STROBE_WIDTH-1):0]   dqs_delayed_col1_val,
+   input wire                               clk,
+   input wire                               reset,
+   input wire                               rst_dqs_div_in,
+   input wire [4:0]                         delay_sel,
+   input wire  [(`DATA_STROBE_WIDTH-1):0]   dqs_int_delay_in,
+   output wire [(`DATA_STROBE_WIDTH-1):0]   fifo_0_wr_en_val,
+   output wire [(`DATA_STROBE_WIDTH-1):0]   fifo_1_wr_en_val,
+   output wire [(4*`DATA_STROBE_WIDTH)-1:0] fifo_0_wr_addr_val,
+   output wire [(4*`DATA_STROBE_WIDTH)-1:0] fifo_1_wr_addr_val,
+   output wire [(`DATA_STROBE_WIDTH-1):0]   dqs_delayed_col0_val,
+   output wire [(`DATA_STROBE_WIDTH-1):0]   dqs_delayed_col1_val,
    //debug_signals
-   input [4:0]				vio_out_dqs,
-   input 				vio_out_dqs_en,
-   input [4:0]                          vio_out_rst_dqs_div,
-   input                                vio_out_rst_dqs_div_en
-
+   input wire [4:0]				vio_out_dqs,
+   input wire 				vio_out_dqs_en,
+   input wire [4:0]                          vio_out_rst_dqs_div,
+   input wire                                vio_out_rst_dqs_div_en
   );
 
    reg 	                             reset_r;

@@ -20,20 +20,20 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module ddr_cache(
-    input clk,
-    input rst, 
-    input [24:0] sys_la_addr, // byte address
-    input [31:0] sys_wdata,
+    input wire clk,
+    input wire rst, 
+    input wire [24:0] sys_la_addr, // byte address
+    input wire [31:0] sys_wdata,
     output reg [31:0] sys_rdata,
-    input [3:0] sys_wstrb,
-    input sys_valid,
+    input wire [3:0] sys_wstrb,
+    input wire sys_valid,
     output reg sys_ready,
     output reg [20:0] mem_addr,
     output reg [127:0] mem_wdata,
-    input [127:0] mem_rdata,
+    input wire [127:0] mem_rdata,
     output reg mem_wstrb,
     output reg mem_valid,
-    input mem_ready
+    input wire mem_ready
     );
 
     // 2-way set associative cache with LRU replacement

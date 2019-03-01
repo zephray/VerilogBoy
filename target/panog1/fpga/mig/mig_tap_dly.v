@@ -56,10 +56,10 @@
 
 module mig_tap_dly
   (
-   input         clk,
-   input         reset,
-   input         tapin,
-   output [31:0] flop2
+   input wire         clk,
+   input wire         reset,
+   input wire         tapin,
+   output wire [31:0] flop2
   );
 
    reg         reset_r;

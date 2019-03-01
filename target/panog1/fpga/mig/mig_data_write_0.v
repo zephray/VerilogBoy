@@ -57,15 +57,15 @@
 
 module mig_data_write_0
   (
-   input [((`DATA_WIDTH*2)-1):0]      user_input_data,
-   input [((`DATA_MASK_WIDTH*2)-1):0] user_data_mask,
-   input                              clk90,
-   input                              write_enable,
-   output reg                         write_en_val,
-   output [((`DATA_WIDTH)-1):0]       write_data_falling,
-   output [((`DATA_WIDTH)-1):0]       write_data_rising,
-   output [((`DATA_MASK_WIDTH)-1):0]  data_mask_f,
-   output [((`DATA_MASK_WIDTH)-1):0]  data_mask_r
+   input wire [((`DATA_WIDTH*2)-1):0]      user_input_data,
+   input wire [((`DATA_MASK_WIDTH*2)-1):0] user_data_mask,
+   input wire                              clk90,
+   input wire                              write_enable,
+   output reg                              write_en_val,
+   output wire [((`DATA_WIDTH)-1):0]       write_data_falling,
+   output wire [((`DATA_WIDTH)-1):0]       write_data_rising,
+   output wire [((`DATA_MASK_WIDTH)-1):0]  data_mask_f,
+   output wire [((`DATA_MASK_WIDTH)-1):0]  data_mask_r
     );
 
    reg                               write_en_P1;

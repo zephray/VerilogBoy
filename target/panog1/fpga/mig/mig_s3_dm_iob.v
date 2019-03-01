@@ -56,10 +56,10 @@
 
 module mig_s3_dm_iob
   (
-   input  mask_falling,
-   input  mask_rising,
-   input  clk90,
-   output ddr_dm
+   input wire  mask_falling,
+   input wire  mask_rising,
+   input wire  clk90,
+   output wire ddr_dm
    );
 
    wire mask_o;

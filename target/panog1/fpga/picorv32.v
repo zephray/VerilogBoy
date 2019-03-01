@@ -69,9 +69,9 @@ module picorv32 #(
 	parameter [ 0:0] ENABLE_MUL = 0,
 	parameter [ 0:0] ENABLE_FAST_MUL = 0,
 	parameter [ 0:0] ENABLE_DIV = 0,
-	parameter [ 0:0] ENABLE_IRQ = 0,
-	parameter [ 0:0] ENABLE_IRQ_QREGS = 1,
-	parameter [ 0:0] ENABLE_IRQ_TIMER = 1,
+	parameter [ 0:0] ENABLE_IRQ = 1,
+	parameter [ 0:0] ENABLE_IRQ_QREGS = 0,
+	parameter [ 0:0] ENABLE_IRQ_TIMER = 0,
 	parameter [ 0:0] ENABLE_TRACE = 0,
 	parameter [ 0:0] REGS_INIT_ZERO = 0,
 	parameter [31:0] MASKED_IRQ = 32'h 0000_0000,
@@ -80,37 +80,37 @@ module picorv32 #(
 	parameter [31:0] PROGADDR_IRQ = 32'h 0000_0010,
 	parameter [31:0] STACKADDR = 32'h ffff_ffff
 ) (
-	input clk, resetn,
-	output reg trap,
+	input wire         clk, resetn,
+	output reg         trap,
 
-	output reg        mem_valid,
-	output reg        mem_instr,
-	input             mem_ready,
+	output reg         mem_valid,
+	output reg         mem_instr,
+	input wire         mem_ready,
 
-	output reg [31:0] mem_addr,
-	output reg [31:0] mem_wdata,
-	output reg [ 3:0] mem_wstrb,
-	input      [31:0] mem_rdata,
+	output reg  [31:0] mem_addr,
+	output reg  [31:0] mem_wdata,
+	output reg  [ 3:0] mem_wstrb,
+	input wire  [31:0] mem_rdata,
 
 	// Look-Ahead Interface
-	output            mem_la_read,
-	output            mem_la_write,
-	output     [31:0] mem_la_addr,
-	output reg [31:0] mem_la_wdata,
-	output reg [ 3:0] mem_la_wstrb,
+	output wire        mem_la_read,
+	output wire        mem_la_write,
+	output wire [31:0] mem_la_addr,
+	output reg  [31:0] mem_la_wdata,
+	output reg  [ 3:0] mem_la_wstrb,
 
 	// Pico Co-Processor Interface (PCPI)
-	output reg        pcpi_valid,
-	output reg [31:0] pcpi_insn,
-	output     [31:0] pcpi_rs1,
-	output     [31:0] pcpi_rs2,
-	input             pcpi_wr,
-	input      [31:0] pcpi_rd,
-	input             pcpi_wait,
-	input             pcpi_ready,
+	output reg         pcpi_valid,
+	output reg  [31:0] pcpi_insn,
+	output wire [31:0] pcpi_rs1,
+	output wire [31:0] pcpi_rs2,
+	input wire         pcpi_wr,
+	input wire  [31:0] pcpi_rd,
+	input wire         pcpi_wait,
+	input wire         pcpi_ready,
 
 	// IRQ Interface
-	input      [31:0] irq,
+	input wire [31:0] irq,
 	output reg [31:0] eoi,
 
 `ifdef RISCV_FORMAL
@@ -2073,12 +2073,12 @@ module picorv32_pcpi_mul #(
 	parameter STEPS_AT_ONCE = 1,
 	parameter CARRY_CHAIN = 4
 ) (
-	input clk, resetn,
+	input wire clk, resetn,
 
-	input             pcpi_valid,
-	input      [31:0] pcpi_insn,
-	input      [31:0] pcpi_rs1,
-	input      [31:0] pcpi_rs2,
+	input wire        pcpi_valid,
+	input wire [31:0] pcpi_insn,
+	input wire [31:0] pcpi_rs1,
+	input wire [31:0] pcpi_rs2,
 	output reg        pcpi_wr,
 	output reg [31:0] pcpi_rd,
 	output reg        pcpi_wait,
@@ -2195,16 +2195,16 @@ module picorv32_pcpi_fast_mul #(
 	parameter EXTRA_INSN_FFS = 0,
 	parameter MUL_CLKGATE = 0
 ) (
-	input clk, resetn,
+	input wire clk, resetn,
 
-	input             pcpi_valid,
-	input      [31:0] pcpi_insn,
-	input      [31:0] pcpi_rs1,
-	input      [31:0] pcpi_rs2,
-	output            pcpi_wr,
-	output     [31:0] pcpi_rd,
-	output            pcpi_wait,
-	output            pcpi_ready
+	input wire         pcpi_valid,
+	input wire  [31:0] pcpi_insn,
+	input wire  [31:0] pcpi_rs1,
+	input wire  [31:0] pcpi_rs2,
+	output wire        pcpi_wr,
+	output wire [31:0] pcpi_rd,
+	output wire        pcpi_wait,
+	output wire        pcpi_ready
 );
 	reg instr_mul, instr_mulh, instr_mulhsu, instr_mulhu;
 	wire instr_any_mul = |{instr_mul, instr_mulh, instr_mulhsu, instr_mulhu};
@@ -2285,12 +2285,12 @@ endmodule
  ***************************************************************/
 
 module picorv32_pcpi_div (
-	input clk, resetn,
+	input wire clk, resetn,
 
-	input             pcpi_valid,
-	input      [31:0] pcpi_insn,
-	input      [31:0] pcpi_rs1,
-	input      [31:0] pcpi_rs2,
+	input wire        pcpi_valid,
+	input wire [31:0] pcpi_insn,
+	input wire [31:0] pcpi_rs1,
+	input wire [31:0] pcpi_rs2,
 	output reg        pcpi_wr,
 	output reg [31:0] pcpi_rd,
 	output reg        pcpi_wait,
@@ -2395,50 +2395,50 @@ module picorv32_axi #(
 	parameter [31:0] PROGADDR_IRQ = 32'h 0000_0010,
 	parameter [31:0] STACKADDR = 32'h ffff_ffff
 ) (
-	input clk, resetn,
-	output trap,
+	input wire clk, resetn,
+	output wire trap,
 
 	// AXI4-lite master memory interface
 
-	output        mem_axi_awvalid,
-	input         mem_axi_awready,
-	output [31:0] mem_axi_awaddr,
-	output [ 2:0] mem_axi_awprot,
+	output wire        mem_axi_awvalid,
+	input wire         mem_axi_awready,
+	output wire [31:0] mem_axi_awaddr,
+	output wire [ 2:0] mem_axi_awprot,
 
-	output        mem_axi_wvalid,
-	input         mem_axi_wready,
-	output [31:0] mem_axi_wdata,
-	output [ 3:0] mem_axi_wstrb,
+	output wire        mem_axi_wvalid,
+	input wire         mem_axi_wready,
+	output wire [31:0] mem_axi_wdata,
+	output wire [ 3:0] mem_axi_wstrb,
 
-	input         mem_axi_bvalid,
-	output        mem_axi_bready,
+	input wire         mem_axi_bvalid,
+	output wire        mem_axi_bready,
 
-	output        mem_axi_arvalid,
-	input         mem_axi_arready,
-	output [31:0] mem_axi_araddr,
-	output [ 2:0] mem_axi_arprot,
+	output wire        mem_axi_arvalid,
+	input wire         mem_axi_arready,
+	output wire [31:0] mem_axi_araddr,
+	output wire [ 2:0] mem_axi_arprot,
 
-	input         mem_axi_rvalid,
-	output        mem_axi_rready,
-	input  [31:0] mem_axi_rdata,
+	input wire         mem_axi_rvalid,
+	output wire        mem_axi_rready,
+	input wire  [31:0] mem_axi_rdata,
 
 	// Pico Co-Processor Interface (PCPI)
-	output        pcpi_valid,
-	output [31:0] pcpi_insn,
-	output [31:0] pcpi_rs1,
-	output [31:0] pcpi_rs2,
-	input         pcpi_wr,
-	input  [31:0] pcpi_rd,
-	input         pcpi_wait,
-	input         pcpi_ready,
+	output wire        pcpi_valid,
+	output wire [31:0] pcpi_insn,
+	output wire [31:0] pcpi_rs1,
+	output wire [31:0] pcpi_rs2,
+	input wire         pcpi_wr,
+	input wire  [31:0] pcpi_rd,
+	input wire         pcpi_wait,
+	input wire         pcpi_ready,
 
 	// IRQ interface
-	input  [31:0] irq,
-	output [31:0] eoi,
+	input wire  [31:0] irq,
+	output wire [31:0] eoi,
 
 	// Trace Interface
-	output        trace_valid,
-	output [35:0] trace_data
+	output wire        trace_valid,
+	output wire [35:0] trace_data
 );
 	wire        mem_valid;
 	wire [31:0] mem_addr;
@@ -2539,41 +2539,41 @@ endmodule
  ***************************************************************/
 
 module picorv32_axi_adapter (
-	input clk, resetn,
+	input wire clk, resetn,
 
 	// AXI4-lite master memory interface
 
-	output        mem_axi_awvalid,
-	input         mem_axi_awready,
-	output [31:0] mem_axi_awaddr,
-	output [ 2:0] mem_axi_awprot,
+	output wire        mem_axi_awvalid,
+	input wire         mem_axi_awready,
+	output wire [31:0] mem_axi_awaddr,
+	output wire [ 2:0] mem_axi_awprot,
 
-	output        mem_axi_wvalid,
-	input         mem_axi_wready,
-	output [31:0] mem_axi_wdata,
-	output [ 3:0] mem_axi_wstrb,
+	output wire        mem_axi_wvalid,
+	input wire         mem_axi_wready,
+	output wire [31:0] mem_axi_wdata,
+	output wire [ 3:0] mem_axi_wstrb,
 
-	input         mem_axi_bvalid,
-	output        mem_axi_bready,
+	input wire         mem_axi_bvalid,
+	output wire        mem_axi_bready,
 
-	output        mem_axi_arvalid,
-	input         mem_axi_arready,
-	output [31:0] mem_axi_araddr,
-	output [ 2:0] mem_axi_arprot,
+	output wire        mem_axi_arvalid,
+	input wire         mem_axi_arready,
+	output wire [31:0] mem_axi_araddr,
+	output wire [ 2:0] mem_axi_arprot,
 
-	input         mem_axi_rvalid,
-	output        mem_axi_rready,
-	input  [31:0] mem_axi_rdata,
+	input wire         mem_axi_rvalid,
+	output wire        mem_axi_rready,
+	input wire  [31:0] mem_axi_rdata,
 
 	// Native PicoRV32 memory interface
 
-	input         mem_valid,
-	input         mem_instr,
-	output        mem_ready,
-	input  [31:0] mem_addr,
-	input  [31:0] mem_wdata,
-	input  [ 3:0] mem_wstrb,
-	output [31:0] mem_rdata
+	input wire         mem_valid,
+	input wire         mem_instr,
+	output wire        mem_ready,
+	input wire  [31:0] mem_addr,
+	input wire  [31:0] mem_wdata,
+	input wire  [ 3:0] mem_wstrb,
+	output wire [31:0] mem_rdata
 );
 	reg ack_awvalid;
 	reg ack_arvalid;

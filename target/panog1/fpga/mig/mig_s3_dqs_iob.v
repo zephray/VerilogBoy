@@ -60,11 +60,11 @@
 
 module mig_s3_dqs_iob
   (
-   input  clk,
-   input  ddr_dqs_reset,
-   input  ddr_dqs_enable,
-   inout  ddr_dqs,
-   output dqs
+   input wire  clk,
+   input wire  ddr_dqs_reset,
+   input wire  ddr_dqs_enable,
+   inout wire  ddr_dqs,
+   output wire dqs
    );
 
    localparam VCC = 1'b1;

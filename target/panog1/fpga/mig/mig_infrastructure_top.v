@@ -57,21 +57,21 @@
 
 module mig_infrastructure_top
   (
-   input        reset_in_n,
-   input        dcm_lock,
-   output [4:0] delay_sel_val1_val,
-   output       sys_rst_val,
-   output       sys_rst90_val,
-   output       sys_rst180_val,
-   output reg   wait_200us_rout,
-   input        clk_int,
-   input        clk90_int,
+   input wire        reset_in_n,
+   input wire        dcm_lock,
+   output wire [4:0] delay_sel_val1_val,
+   output wire       sys_rst_val,
+   output wire       sys_rst90_val,
+   output wire       sys_rst180_val,
+   output reg        wait_200us_rout,
+   input wire        clk_int,
+   input wire        clk90_int,
    // debug signals
-   output [4:0] dbg_phase_cnt,
-   output [5:0] dbg_cnt,
-   output       dbg_trans_onedtct,
-   output       dbg_trans_twodtct,
-   output       dbg_enb_trans_two_dtct
+   output wire [4:0] dbg_phase_cnt,
+   output wire [5:0] dbg_cnt,
+   output wire       dbg_trans_onedtct,
+   output wire       dbg_trans_twodtct,
+   output wire       dbg_enb_trans_two_dtct
    );
 
    wire       user_rst;

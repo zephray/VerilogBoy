@@ -20,26 +20,26 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module cache_mig_bridge(
-    input clk0,
-    input clk90,
-    input sys_rst180,
-    input [20:0] cache_addr,
-    input [127:0] cache_wdata,
-    output [127:0] cache_rdata,
-    input cache_wstrb,
-    input cache_valid,
+    input wire clk0,
+    input wire clk90,
+    input wire sys_rst180,
+    input wire [20:0] cache_addr,
+    input wire [127:0] cache_wdata,
+    output wire [127:0] cache_rdata,
+    input wire cache_wstrb,
+    input wire cache_valid,
     output reg cache_ready,
-    input auto_refresh_req,
+    input wire auto_refresh_req,
     output reg [63:0] user_input_data,
-    input [63:0] user_output_data,
-    input user_data_valid,
+    input wire [63:0] user_output_data,
+    input wire user_data_valid,
     output reg [22:0] user_input_address,
     output reg [2:0] user_command_register,
-    input user_cmd_ack,
-    output [7:0] user_data_mask,
+    input wire user_cmd_ack,
+    output wire [7:0] user_data_mask,
     output reg burst_done,
-    input init_done,
-    input ar_done
+    input wire init_done,
+    input wire ar_done
     );
 
     reg [3:0] bridge_state;

@@ -20,13 +20,13 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module bram_256_72(
-    input clk,
-    input rst,
-    input [7:0] addr,
-    input en,
-    input we,
-    output [71:0] rd,
-    input [71:0] wr
+    input wire clk,
+    input wire rst,
+    input wire [7:0] addr,
+    input wire en,
+    input wire we,
+    output wire [71:0] rd,
+    input wire [71:0] wr
     );
     
     wire [31:0] DOA;

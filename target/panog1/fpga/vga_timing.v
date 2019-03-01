@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: Wenting Zhang
@@ -19,17 +20,17 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module vga_timing(
-    input clk,
-    input rst,
+    input wire clk,
+    input wire rst,
     output reg hs,
     output reg vs,
-    input vsi,
-    output [10:0] x,
-    output [10:0] y,
-    output [7:0] gb_x,
-    output [7:0] gb_y,
-    output gb_en,
-    output gb_grid,
+    input wire vsi,
+    output wire [10:0] x,
+    output wire [10:0] y,
+    output wire [7:0] gb_x,
+    output wire [7:0] gb_y,
+    output wire gb_en,
+    output wire gb_grid,
     output reg enable
     //output [19:0] address
     );
@@ -148,8 +149,12 @@ module vga_timing(
     //assign address = y * H_ACT + x;
     wire enable_early = (((h_count >= H_BLANK) && (h_count < H_TOTAL))&&
                                      ((v_count >= V_BLANK) && (v_count < V_TOTAL)));    //One pixel shift
-    always @(posedge clk)
-        enable <= enable_early;
+    // why
+    reg enable_delay;
+    always @(posedge clk) begin
+        enable <= enable_delay;
+        enable_delay <= enable_early;
+    end
 
 
 endmodule

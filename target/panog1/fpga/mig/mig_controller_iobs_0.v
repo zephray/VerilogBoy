@@ -57,25 +57,25 @@
 
 module mig_controller_iobs_0
   (
-   input                      clk0,
-   input                      ddr_rasb_cntrl,
-   input                      ddr_casb_cntrl,
-   input                      ddr_web_cntrl,
-   input                      ddr_cke_cntrl,
-   input                      ddr_csb_cntrl,
-   input [`ROW_ADDRESS-1:0]   ddr_address_cntrl,
-   input [`BANK_ADDRESS-1:0]  ddr_ba_cntrl,
-   input                      rst_dqs_div_int,
-   output                     ddr_rasb,
-   output                     ddr_casb,
-   output                     ddr_web,
-   output [`BANK_ADDRESS-1:0] ddr_ba,
-   output [`ROW_ADDRESS-1:0]  ddr_address,
-   output                     ddr_cke,
-   output                     ddr_csb,
-   output                     rst_dqs_div,
-   input                      rst_dqs_div_in,
-   output                     rst_dqs_div_out
+   input wire                      clk0,
+   input wire                      ddr_rasb_cntrl,
+   input wire                      ddr_casb_cntrl,
+   input wire                      ddr_web_cntrl,
+   input wire                      ddr_cke_cntrl,
+   input wire                      ddr_csb_cntrl,
+   input wire [`ROW_ADDRESS-1:0]   ddr_address_cntrl,
+   input wire [`BANK_ADDRESS-1:0]  ddr_ba_cntrl,
+   input wire                      rst_dqs_div_int,
+   output wire                     ddr_rasb,
+   output wire                     ddr_casb,
+   output wire                     ddr_web,
+   output wire [`BANK_ADDRESS-1:0] ddr_ba,
+   output wire [`ROW_ADDRESS-1:0]  ddr_address,
+   output wire                     ddr_cke,
+   output wire                     ddr_csb,
+   output wire                     rst_dqs_div,
+   input wire                      rst_dqs_div_in,
+   output wire                     rst_dqs_div_out
    );
 
 

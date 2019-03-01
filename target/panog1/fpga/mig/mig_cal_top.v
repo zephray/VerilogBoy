@@ -57,16 +57,16 @@
    CORE_GENERATION_INFO = "ddr_sp3,mig_v3_61,{component_name=ddr_sp3, data_width=16, memory_width=8, clk_width=1, bank_address=2, row_address=12, column_address=9, no_of_cs=1, cke_width=1, registered=0, data_mask=1, mask_enable=1, load_mode_register=12'b000000100001, ext_load_mode_register=12'b000000000000, language=Verilog, synthesis_tool=ISE, interface_type=DDR_SDRAM, no_of_controllers=1}" *)
 module mig_cal_top
   (
-   input         clk0,
-   input         clk0dcmlock,
-   input         reset,
-   output [4:0]  tapfordqs,
+   input wire         clk0,
+   input wire         clk0dcmlock,
+   input wire         reset,
+   output wire [4:0]  tapfordqs,
    // debug signals
-    output [4:0] dbg_phase_cnt,
-    output [5:0] dbg_cnt,
-    output       dbg_trans_onedtct,
-    output       dbg_trans_twodtct,
-    output       dbg_enb_trans_two_dtct
+    output wire [4:0] dbg_phase_cnt,
+    output wire [5:0] dbg_cnt,
+    output wire       dbg_trans_onedtct,
+    output wire       dbg_trans_twodtct,
+    output wire       dbg_enb_trans_two_dtct
    );
 
    wire        fpga_rst;

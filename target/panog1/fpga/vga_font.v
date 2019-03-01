@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: Wenting Zhang
@@ -19,11 +20,11 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module vga_font(
-  input clk,
-  input [6:0] ascii_code,
-  input [3:0] row,
-  input [2:0] col,
-  output pixel
+  input wire clk,
+  input wire [6:0] ascii_code,
+  input wire [3:0] row,
+  input wire [2:0] col,
+  output wire pixel
 );
 
 RAMB16_S1 BRAM_PC_VGA_0  (
