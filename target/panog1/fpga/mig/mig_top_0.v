@@ -88,8 +88,8 @@ module    mig_top_0
 
    output [`BANK_ADDRESS-1:0]         ddr_ba,
    output [`ROW_ADDRESS-1:0]          ddr_a,
-   output [`CLK_WIDTH-1:0]            ddr_ck,
-   output [`CLK_WIDTH-1:0]            ddr_ck_n,
+/*   output [`CLK_WIDTH-1:0]            ddr_ck,
+   output [`CLK_WIDTH-1:0]            ddr_ck_n,*/
    //debug_signals
    output [4:0]                       dbg_delay_sel, 
    output                                        dbg_rst_calib,
@@ -121,7 +121,7 @@ module    mig_top_0
    wire                            ddr_cke_cntrl;
    wire                            ddr_csb_cntrl;
    wire                            rst_dqs_div_int;
-
+   wire                            read_fifo_rden;
 
 
 
@@ -215,8 +215,8 @@ module    mig_top_0
       .write_en_val       (write_en_val),
       .data_mask_f        (data_mask_f),
       .data_mask_r        (data_mask_r),
-      .ddr_ck             (ddr_ck),
-      .ddr_ck_n           (ddr_ck_n),
+/*      .ddr_ck             (ddr_ck),
+      .ddr_ck_n           (ddr_ck_n),*/
       .ddr_rasb           (ddr_ras_n),
       .ddr_casb           (ddr_cas_n),
       .ddr_web            (ddr_we_n),

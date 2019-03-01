@@ -514,6 +514,194 @@ INST "mig_top_0/data_path0/data_read_controller0/gen_wr_en[1].fifo_0_wr_en_inst*
 INST "mig_top_0/data_path0/data_read_controller0/gen_wr_en[1].fifo_1_wr_en_inst*" LOC = SLICE_X115Y63;
 
 ##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 16, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe/fifo_bit0"   LOC = SLICE_X112Y72;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe_n/fifo_bit0" LOC = SLICE_X112Y73;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 17, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe/fifo_bit1"   LOC = SLICE_X114Y72;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe_n/fifo_bit1" LOC = SLICE_X114Y73;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 18, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe/fifo_bit2"   LOC = SLICE_X112Y74;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe_n/fifo_bit2" LOC = SLICE_X112Y75;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 19, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe/fifo_bit3"   LOC = SLICE_X114Y74;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe_n/fifo_bit3" LOC = SLICE_X114Y75;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 20, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe/fifo_bit4"   LOC = SLICE_X112Y84;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe_n/fifo_bit4" LOC = SLICE_X112Y85;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 21, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe/fifo_bit5"   LOC = SLICE_X114Y84;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe_n/fifo_bit5" LOC = SLICE_X114Y85;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 22, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe/fifo_bit6"   LOC = SLICE_X112Y90;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe_n/fifo_bit6" LOC = SLICE_X112Y91;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 23, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe/fifo_bit7"   LOC = SLICE_X114Y90;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[2].strobe_n/fifo_bit7" LOC = SLICE_X114Y91;
+
+##############################################################################################################
+## LUT location constraints for dqs_delayed_col0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/one" LOC = SLICE_X114Y81;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/one" BEL = F;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/two" LOC = SLICE_X114Y81;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/two" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/three" LOC = SLICE_X114Y80;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/three" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/four" LOC = SLICE_X114Y80;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/four" BEL = F;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/five" LOC = SLICE_X115Y81;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/five" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/six" LOC = SLICE_X115Y80;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col0/six" BEL = G;
+
+##############################################################################################################
+## LUT location constraints for dqs_delayed_col1
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/one" LOC = SLICE_X112Y81;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/one" BEL = F;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/two" LOC = SLICE_X112Y81;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/two" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/three" LOC = SLICE_X112Y80;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/three" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/four" LOC = SLICE_X112Y80;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/four" BEL = F;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/five" LOC = SLICE_X113Y81;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/five" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/six" LOC = SLICE_X113Y80;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[2].dqs_delay_col1/six" BEL = G;
+
+##############################################################################################################
+## Slice location constraints for Fifo write address and write enable
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[2].fifo_0_wr_addr_inst/bit0" LOC = SLICE_X113Y76;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[2].fifo_0_wr_addr_inst/bit1" LOC = SLICE_X113Y76;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[2].fifo_0_wr_addr_inst/bit2" LOC = SLICE_X113Y77;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[2].fifo_0_wr_addr_inst/bit3" LOC = SLICE_X113Y77;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[2].fifo_1_wr_addr_inst/bit0" LOC = SLICE_X115Y76;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[2].fifo_1_wr_addr_inst/bit1" LOC = SLICE_X115Y76;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[2].fifo_1_wr_addr_inst/bit2" LOC = SLICE_X115Y77;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[2].fifo_1_wr_addr_inst/bit3" LOC = SLICE_X115Y77;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_en[2].fifo_0_wr_en_inst*" LOC = SLICE_X113Y79;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_en[2].fifo_1_wr_en_inst*" LOC = SLICE_X115Y79;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 24, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe/fifo_bit0"   LOC = SLICE_X112Y120;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe_n/fifo_bit0" LOC = SLICE_X112Y121;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 25, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe/fifo_bit1"   LOC = SLICE_X114Y120;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe_n/fifo_bit1" LOC = SLICE_X114Y121;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 26, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe/fifo_bit2"   LOC = SLICE_X112Y122;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe_n/fifo_bit2" LOC = SLICE_X112Y123;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 27, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe/fifo_bit3"   LOC = SLICE_X114Y122;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe_n/fifo_bit3" LOC = SLICE_X114Y123;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 28, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe/fifo_bit4"   LOC = SLICE_X112Y130;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe_n/fifo_bit4" LOC = SLICE_X112Y131;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 29, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe/fifo_bit5"   LOC = SLICE_X114Y130;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe_n/fifo_bit5" LOC = SLICE_X114Y131;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 30, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe/fifo_bit6"   LOC = SLICE_X112Y132;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe_n/fifo_bit6" LOC = SLICE_X112Y133;
+
+##############################################################################################################
+##  constraints for bit cntrl0_ddr_dq, 31, location in tile: 0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe/fifo_bit7"   LOC = SLICE_X114Y132;
+INST "mig_top_0/data_path0/data_read0/gen_strobe[3].strobe_n/fifo_bit7" LOC = SLICE_X114Y133;
+
+##############################################################################################################
+## LUT location constraints for dqs_delayed_col0
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/one" LOC = SLICE_X114Y141;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/one" BEL = F;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/two" LOC = SLICE_X114Y141;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/two" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/three" LOC = SLICE_X114Y140;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/three" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/four" LOC = SLICE_X114Y140;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/four" BEL = F;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/five" LOC = SLICE_X115Y141;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/five" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/six" LOC = SLICE_X115Y140;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col0/six" BEL = G;
+
+##############################################################################################################
+## LUT location constraints for dqs_delayed_col1
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/one" LOC = SLICE_X112Y141;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/one" BEL = F;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/two" LOC = SLICE_X112Y141;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/two" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/three" LOC = SLICE_X112Y140;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/three" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/four" LOC = SLICE_X112Y140;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/four" BEL = F;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/five" LOC = SLICE_X113Y141;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/five" BEL = G;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/six" LOC = SLICE_X113Y140;
+INST "mig_top_0/data_path0/data_read_controller0/gen_delay[3].dqs_delay_col1/six" BEL = G;
+
+##############################################################################################################
+## Slice location constraints for Fifo write address and write enable
+##############################################################################################################
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[3].fifo_0_wr_addr_inst/bit0" LOC = SLICE_X113Y136;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[3].fifo_0_wr_addr_inst/bit1" LOC = SLICE_X113Y136;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[3].fifo_0_wr_addr_inst/bit2" LOC = SLICE_X113Y137;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[3].fifo_0_wr_addr_inst/bit3" LOC = SLICE_X113Y137;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[3].fifo_1_wr_addr_inst/bit0" LOC = SLICE_X115Y136;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[3].fifo_1_wr_addr_inst/bit1" LOC = SLICE_X115Y136;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[3].fifo_1_wr_addr_inst/bit2" LOC = SLICE_X115Y137;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_addr[3].fifo_1_wr_addr_inst/bit3" LOC = SLICE_X115Y137;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_en[3].fifo_0_wr_en_inst*" LOC = SLICE_X113Y139;
+INST "mig_top_0/data_path0/data_read_controller0/gen_wr_en[3].fifo_1_wr_en_inst*" LOC = SLICE_X115Y139;
+
+##############################################################################################################
 ## Slice location constraints for delayed rst_dqs_div signal
 ##############################################################################################################
 INST "mig_top_0/data_path0/data_read_controller0/rst_dqs_div_delayed/one" LOC = SLICE_X114Y51;

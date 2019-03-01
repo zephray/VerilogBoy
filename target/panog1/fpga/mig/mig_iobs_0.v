@@ -78,8 +78,8 @@
      input                              write_en_val,
      input [((`DATA_MASK_WIDTH)-1):0]   data_mask_f,
      input [((`DATA_MASK_WIDTH)-1):0]   data_mask_r,
-     output [`CLK_WIDTH-1:0]            ddr_ck,
-     output [`CLK_WIDTH-1:0]            ddr_ck_n,
+/*     output [`CLK_WIDTH-1:0]            ddr_ck,
+     output [`CLK_WIDTH-1:0]            ddr_ck_n,*/
      output                             ddr_rasb,
      output                             ddr_casb,
      output                             ddr_web,
@@ -95,12 +95,12 @@
      output [((`DATA_WIDTH)-1):0]       dq
      );
 
-   mig_infrastructure_iobs_0 infrastructure_iobs0
+   /*mig_infrastructure_iobs_0 infrastructure_iobs0
      (
       .ddr_ck   (ddr_ck),
       .ddr_ck_n (ddr_ck_n),
       .clk0     (clk)
-      );
+      );*/
 
    mig_controller_iobs_0 controller_iobs0
      (

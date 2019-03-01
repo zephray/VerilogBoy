@@ -97,8 +97,8 @@ module mig_infrastructure_top
    reg        wait_200us_r;
    reg        wait_clk270;
 
-   assign clk_int_val        = clk_int;
-   assign clk90_int_val      = clk90_int;
+   //assign clk_int_val        = clk_int;
+   //assign clk90_int_val      = clk90_int;
    assign sys_rst_val        = sys_rst;
    assign sys_rst90_val      = sys_rst90;
    assign sys_rst180_val     = sys_rst180;
