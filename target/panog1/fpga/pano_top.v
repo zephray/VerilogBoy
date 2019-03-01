@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: Wenting Zhang
@@ -8,7 +9,7 @@
 // Module Name:    vbh_top 
 // Project Name:   VerilogBoy
 // Description: 
-//   Top level file for VerilogBoy Handheld target
+//   Top level file for Pano Logic G1
 // Dependencies: 
 // 
 // Additional Comments: 
@@ -406,12 +407,7 @@ module pano_top(
     
     wire rst_dqs_div_in;
     
-    assign LPDDR_DM[3:2] = 2'b11;
-    //assign LPDDR_DQS[3:2] = LPDDR_DQS[1:0];
-    assign LPDDR_DQS[3:2] = 2'b00;
-    assign LPDDR_DQ[31:16] = 16'bz;
-    
-    wire [23:0] ddr_addr;
+    wire [24:0] ddr_la_addr;
     wire [31:0] ddr_wdata;
     wire [31:0] ddr_rdata;
     wire [3:0] ddr_wstrb;
@@ -419,13 +415,13 @@ module pano_top(
     wire ddr_ready;
     
     wire auto_ref_req;
-    wire [31:0] user_input_data;
-    wire [31:0] user_output_data;
+    wire [63:0] user_input_data;
+    wire [63:0] user_output_data;
     wire user_data_valid;
     wire [22:0] user_input_address;
     wire [2:0] user_command_register;
     wire user_cmd_ack;
-    wire [3:0] user_data_mask;
+    wire [7:0] user_data_mask;
     wire burst_done;
     wire init_done;
     wire ar_done;
@@ -445,8 +441,8 @@ module pano_top(
         .burst_done            (burst_done),
         .init_val              (init_done),
         .ar_done               (ar_done),
-        .ddr_dqs               (LPDDR_DQS[1:0]),
-        .ddr_dq                (LPDDR_DQ[15:0]),
+        .ddr_dqs               (LPDDR_DQS),
+        .ddr_dq                (LPDDR_DQ),
         .ddr_cke               (LPDDR_CKE),
         .ddr_cs_n              (),
         .ddr_ras_n             (LPDDR_RAS_B),
@@ -454,9 +450,9 @@ module pano_top(
         .ddr_we_n              (LPDDR_WE_B),
         .ddr_ba                (LPDDR_BA),
         .ddr_a                 (LPDDR_A),
-        .ddr_dm                (LPDDR_DM[1:0]),
-        .ddr_ck                (),
-        .ddr_ck_n              (),
+        //.ddr_dm                (LPDDR_DM),
+/*        .ddr_ck                (),
+        .ddr_ck_n              (),*/
 
         .clk_int               (clk_100),
         .clk90_int             (clk_100_90),
@@ -466,17 +462,20 @@ module pano_top(
         .sys_rst180_val        (sys_rst180)
     );
     
+    // always valid... due to restriction of IO CLK routing capability of S3E
+    assign LPDDR_DM[3:0] = 4'b0;
+    
     mig_picorv_bridge mig_picorv_bridge(
         .clk0(clk_100),
         .clk90(clk_100_90),
         .sys_rst180(sys_rst180),
-        .ddr_addr(ddr_addr),
+        .ddr_la_addr(ddr_la_addr),
         .ddr_wdata(ddr_wdata),
         .ddr_rdata(ddr_rdata),
         .ddr_wstrb(ddr_wstrb),
         .ddr_valid(ddr_valid),
         .ddr_ready(ddr_ready),
-        .auto_refresh_req(auto_refresh_req),
+        .auto_refresh_req(auto_ref_req),
         .user_input_data(user_input_data),
         .user_output_data(user_output_data),
         .user_data_valid(user_data_valid),
@@ -517,7 +516,7 @@ module pano_top(
     wire la_addr_in_ram = (mem_la_addr < 4*MEM_WORDS);
     wire la_addr_in_vram = (mem_la_addr >= 32'h08000000) && (mem_la_addr < 32'h08004000);
     wire la_addr_in_led = (mem_la_addr >= 32'h03000000) && (mem_la_addr < 32'h03000004);
-    wire la_addr_in_ddr = (mem_la_addr >= 32'h0C000000) && (mem_la_addr < 32'h0D000000);
+    wire la_addr_in_ddr = (mem_la_addr >= 32'h0C000000) && (mem_la_addr < 32'h0E000000);
     
     reg addr_in_ram;
     reg addr_in_vram;
@@ -540,7 +539,7 @@ module pano_top(
     wire led_valid = (mem_valid) && (!mem_ready) && (addr_in_led);
     assign ddr_valid = (mem_valid) && (addr_in_ddr);
     
-    assign ddr_addr = mem_addr[23:0];
+    assign ddr_la_addr = mem_la_addr[24:0];
     assign ddr_wstrb = mem_wstrb;
     assign ddr_wdata = mem_wdata;
     
@@ -575,7 +574,8 @@ module pano_top(
         .mem_wdata(mem_wdata),
         .mem_wstrb(mem_wstrb),
         .mem_rdata(mem_rdata),
-        .mem_la_addr(mem_la_addr)
+        .mem_la_addr(mem_la_addr),
+        .irq({31'b0, PB})
     );
     
     wire [31:0] ram_rdata;
@@ -605,6 +605,7 @@ module pano_top(
     wire [6:0] dbg_x;
     wire [4:0] dbg_y;
     wire [6:0] dbg_char;
+    wire dbg_clk;
     
     vga_mixer vga_mixer(
         .clk(clk_vga),

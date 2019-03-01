@@ -116,13 +116,13 @@ module testbench;
 		// Initialize Inputs
 		CLK_OSC = 0;
 		IDT_CLK1 = 0;
-		PB = 0;
+		PB = 1;
 
 		// Wait 100 ns for global reset to finish
 		#100;
         
 		// Add stimulus here
-        PB = 1;
+        PB = 0;
 	end
     
     always
