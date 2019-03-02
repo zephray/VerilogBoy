@@ -69,13 +69,13 @@ module mig_cal_ctl
    input wire           clk,
    input wire           reset,
    input wire [31:0]    flop2,
-   output reg[4:0] tapfordqs,
+   output reg [4:0] tapfordqs,
    // debug signals
-   output reg [4:0]    dbg_phase_cnt,
-   output reg [5:0]    dbg_cnt,
-   output reg          dbg_trans_onedtct,
-   output reg          dbg_trans_twodtct,
-   output reg          dbg_enb_trans_two_dtct
+   output wire [4:0]    dbg_phase_cnt,
+   output wire [5:0]    dbg_cnt,
+   output wire          dbg_trans_onedtct,
+   output wire          dbg_trans_twodtct,
+   output wire          dbg_enb_trans_two_dtct
    );
 
    localparam tap1        = 5'b01111;

@@ -46,7 +46,7 @@ module cache_testbench;
 	ddr_cache uut (
 		.clk(clk), 
 		.rst(rst), 
-		.sys_addr(sys_addr), 
+		.sys_la_addr(sys_addr), 
 		.sys_wdata(sys_wdata), 
 		.sys_rdata(sys_rdata), 
 		.sys_wstrb(sys_wstrb), 
@@ -129,6 +129,9 @@ module cache_testbench;
         
 		// Add stimulus here
         sys_addr = 25'h000000;
+        wait(clk == 1'b0);
+        wait(clk == 1'b1);
+        wait(clk == 1'b0);
         sys_wdata = 32'h12345678;
         sys_wstrb = 4'b1111;
         sys_valid = 1'b1;
@@ -138,6 +141,9 @@ module cache_testbench;
         wait(sys_ready == 1'b0);
         
         sys_addr = 25'h000000;
+        wait(clk == 1'b0);
+        wait(clk == 1'b1);
+        wait(clk == 1'b0);
         sys_wstrb = 4'b0000;
         sys_valid = 1'b1;
         wait(sys_ready == 1'b1);
@@ -154,6 +160,9 @@ module cache_testbench;
         for (i = 0; i < 128; i = i + 1) begin
             i_in_reg = i;
             sys_addr = {15'd0, i_in_reg, 2'd0};
+            wait(clk == 1'b0);
+            wait(clk == 1'b1);
+            wait(clk == 1'b0);
             sys_wdata = {i_in_reg[2:0], i_in_reg[7:3], i_in_reg[1:0], i_in_reg[7:2], i_in_reg[0], i_in_reg[7:1], i_in_reg[7:0]};
             sys_wstrb = 4'b1111;
             sys_valid = 1'b1;
@@ -166,6 +175,9 @@ module cache_testbench;
         for (i = 0; i < 128; i = i + 1) begin
             i_in_reg = i;
             sys_addr = {15'd0, i_in_reg, 2'd0};
+            wait(clk == 1'b0);
+            wait(clk == 1'b1);
+            wait(clk == 1'b0);
             sys_wstrb = 4'b0000;
             sys_valid = 1'b1;
             wait(sys_ready == 1'b1);
@@ -177,9 +189,25 @@ module cache_testbench;
             wait(sys_ready == 1'b0);
         end
         
+        // Should hit
+        sys_addr = 25'h000000;
+        wait(clk == 1'b0);
+        wait(clk == 1'b1);
+        wait(clk == 1'b0);
+        sys_wdata = 32'h12345678;
+        sys_wstrb = 4'b1111;
+        sys_valid = 1'b1;
+        wait(sys_ready == 1'b1);
+        
+        sys_valid = 1'b0;
+        wait(sys_ready == 1'b0);
+        
         // Should miss
         $display("TB: Expect a cache miss");
         sys_addr = {13'd1, 8'h0, 2'd0, 2'd0};
+        wait(clk == 1'b0);
+        wait(clk == 1'b1);
+        wait(clk == 1'b0);
         sys_wdata = 32'h11451419;
         sys_wstrb = 4'b1111;
         sys_valid = 1'b1;
@@ -191,6 +219,9 @@ module cache_testbench;
         // Should flush
         $display("TB: Expect a cache flush");
         sys_addr = {13'd2, 8'h0, 2'd0, 2'd0};
+        wait(clk == 1'b0);
+        wait(clk == 1'b1);
+        wait(clk == 1'b0);
         sys_wdata = 32'h12458848;
         sys_wstrb = 4'b1111;
         sys_valid = 1'b1;
@@ -202,9 +233,15 @@ module cache_testbench;
         // Should flush
         $display("TB: Expect a cache flush");
         sys_addr = {13'd0, 8'h0, 2'd0, 2'd0};
+        wait(clk == 1'b0);
+        wait(clk == 1'b1);
+        wait(clk == 1'b0);
         sys_wstrb = 4'b0000;
         sys_valid = 1'b1;
         wait(sys_ready == 1'b1);
+        
+        if (sys_rdata != 32'h12345678)
+            $display("TB: Value error");
         
         sys_valid = 1'b0;
         wait(sys_ready == 1'b0);
@@ -212,6 +249,9 @@ module cache_testbench;
         // Should miss
         $display("TB: Expect a cache miss");
         sys_addr = {13'd1, 8'h40, 2'd0, 2'd0};
+        wait(clk == 1'b0);
+        wait(clk == 1'b1);
+        wait(clk == 1'b0);
         sys_wstrb = 4'b0000;
         sys_valid = 1'b1;
         wait(sys_ready == 1'b1);
@@ -222,6 +262,9 @@ module cache_testbench;
         // Should miss
         $display("TB: Expect a cache miss");
         sys_addr = {13'd1, 8'h60, 2'd0, 2'd0};
+        wait(clk == 1'b0);
+        wait(clk == 1'b1);
+        wait(clk == 1'b0);
         sys_wstrb = 4'b0000;
         sys_valid = 1'b1;
         wait(sys_ready == 1'b1);

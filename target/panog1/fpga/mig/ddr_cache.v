@@ -29,7 +29,7 @@ module ddr_cache(
     input wire sys_valid,
     output reg sys_ready,
     output reg [20:0] mem_addr,
-    output reg [127:0] mem_wdata,
+    output wire [127:0] mem_wdata,
     input wire [127:0] mem_rdata,
     output reg mem_wstrb,
     output reg mem_valid,
@@ -126,11 +126,12 @@ module ddr_cache(
                                (mem_rdata[127:96]);
     
     reg mem_w_src;
-    wire mem_wdata_comb = (mem_w_src == 1'b0) ? (cache_way_rd_0) : (cache_way_rd_1);
+    wire [127:0] mem_wdata_comb = (mem_w_src == 1'b0) ? (cache_way_rd_0) : (cache_way_rd_1);
     
-    always@(posedge clk) begin
+    /*always@(posedge clk) begin
         mem_wdata <= mem_wdata_comb;
-    end
+    end*/
+    assign mem_wdata = mem_wdata_comb;
     
     // LRU policy:
     // For every line, both way have its own LRU bit. Both bits are read out everytime, but only one will be written back.
@@ -288,6 +289,7 @@ module ddr_cache(
                                 mem_valid <= 1'b1;
                                 cache_state <= STATE_RW_FLUSH;
                                 $display("Cache miss, way 0 flush.");
+                                //$stop;
                             end
                             else begin
                                 // flush is not required
@@ -307,6 +309,7 @@ module ddr_cache(
                                 mem_valid <= 1'b1;
                                 cache_state <= STATE_RW_FLUSH;
                                 $display("Cache miss, way 1 flush.");
+                                //$stop;
                             end
                             else begin
                                 // flush is not required
