@@ -130,6 +130,8 @@ NET "LPDDR_DQS[2]" LOC = J15 |IOSTANDARD = LVCMOS18;
 NET "LPDDR_DQS[1]" LOC = L18 |IOSTANDARD = LVCMOS18;
 NET "LPDDR_DQS[0]" LOC = R15 |IOSTANDARD = LVCMOS18;
 
+NET "LPDDR_*" SLEW = FAST;
+
 #============================================================
 # VGA Out - TI THS8135
 #============================================================
