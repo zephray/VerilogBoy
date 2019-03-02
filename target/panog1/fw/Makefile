@@ -1,4 +1,4 @@
-BIN2MIF:= ~/Documents/VerilogBoy/tools/bin2mif/bin2mif
+BIN2MIF:= ../../../tools/bin2mif/bin2mif
 
 all: picorv_fw.mif
 
