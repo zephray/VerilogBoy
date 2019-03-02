@@ -1,7 +1,11 @@
 /*
- *  PicoSoC - A simple example SoC using PicoRV32
+ *  VerilogBoy
+ *
+ *  This source code is from: 
+ *    PicoSoC - A simple example SoC using PicoRV32
  *
  *  Copyright (C) 2017  Clifford Wolf <clifford@clifford.at>
+ *  Copyright (C) 2019  Wenting Zhang <zephray@outlook.com>
  *
  *  Permission to use, copy, modify, and/or distribute this software for any
  *  purpose with or without fee is hereby granted, provided that the above
@@ -20,126 +24,148 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MEM_TOTAL 0x400 /* 1 KB */
+#define MEM_TOTAL 0x800     // 2 KB
+#define DDR_TOTAL 0x2000000 // 32 MB
 
 // a pointer to this is a null pointer, but the compiler does not
 // know that because "sram" is a linker symbol from sections.lds.
 extern uint32_t sram;
 
-#define vram ((volatile uint32_t*)0x08000000)
+// For VRAM, only the lowest byte in each 32bit word is used
+#define vram ((volatile uint32_t *)0x08000000)
+#define ddr ((volatile uint32_t *)0x0C000000)
 
-volatile uint32_t *vram_ptr = vram;
+volatile uint32_t *vram_ptr;
+volatile uint32_t *ddr_ptr;
 
-// --------------------------------------------------------
-void putchar(char c)
-{
-	*vram_ptr++ = (uint32_t)c;
+// Virtual Terminal
+// Currently no scrolling is implemented
+// Probably later incorperate the HW scrolling
+// Volatile here to workaround the data region being RW, means variable with
+// initialization value couldn't be used
+volatile int term_x;
+volatile int term_y;
+
+void term_goto(uint8_t x, uint8_t y) {
+	term_x = x;
+	term_y = y;
 }
 
-void print(const char *p)
+void term_newline() {
+	term_x = 0;
+	if (term_y == 30 - 1) {
+		term_y = 0;
+	}
+	else {
+		term_y ++;
+	}
+}
+
+void term_putchar(char c)
+{
+	if (c == '\n') {
+		term_newline();
+	}
+	else {
+		vram_ptr = vram + term_y * 80 + term_x;
+		*vram_ptr = (uint32_t)c;
+		if (term_x == 80 - 1) {
+			term_newline();
+		}
+		else {
+			term_x ++;
+		}
+	}
+}
+
+void term_print(const char *p)
 {
 	while (*p)
-		putchar(*(p++));
+		term_putchar(*(p++));
 }
 
-void print_hex(uint32_t v, int digits)
+void term_print_hex(uint32_t v, int digits)
 {
 	for (int i = 7; i >= 0; i--) {
 		char c = "0123456789abcdef"[(v >> (4*i)) & 15];
 		if (c == '0' && i >= digits) continue;
-		putchar(c);
+		term_putchar(c);
 		digits = i;
 	}
 }
-/*
-void print_dec(uint32_t v)
+
+void term_print_dec(uint32_t v)
 {
-	if (v >= 1000) {
-		print(">=1000");
+	int mul_index;
+	int cmp;
+	int i;
+	int match;
+	const int cmp_start[5] = {90000, 9000, 900, 90, 9};
+	const int cmp_dec[5] = {10000, 1000, 100, 10, 1};
+	if (v >= 100000) {
+		term_print(">=100000");
 		return;
 	}
-
-	if      (v >= 900) { putchar('9'); v -= 900; }
-	else if (v >= 800) { putchar('8'); v -= 800; }
-	else if (v >= 700) { putchar('7'); v -= 700; }
-	else if (v >= 600) { putchar('6'); v -= 600; }
-	else if (v >= 500) { putchar('5'); v -= 500; }
-	else if (v >= 400) { putchar('4'); v -= 400; }
-	else if (v >= 300) { putchar('3'); v -= 300; }
-	else if (v >= 200) { putchar('2'); v -= 200; }
-	else if (v >= 100) { putchar('1'); v -= 100; }
-
-	if      (v >= 90) { putchar('9'); v -= 90; }
-	else if (v >= 80) { putchar('8'); v -= 80; }
-	else if (v >= 70) { putchar('7'); v -= 70; }
-	else if (v >= 60) { putchar('6'); v -= 60; }
-	else if (v >= 50) { putchar('5'); v -= 50; }
-	else if (v >= 40) { putchar('4'); v -= 40; }
-	else if (v >= 30) { putchar('3'); v -= 30; }
-	else if (v >= 20) { putchar('2'); v -= 20; }
-	else if (v >= 10) { putchar('1'); v -= 10; }
-
-	if      (v >= 9) { putchar('9'); v -= 9; }
-	else if (v >= 8) { putchar('8'); v -= 8; }
-	else if (v >= 7) { putchar('7'); v -= 7; }
-	else if (v >= 6) { putchar('6'); v -= 6; }
-	else if (v >= 5) { putchar('5'); v -= 5; }
-	else if (v >= 4) { putchar('4'); v -= 4; }
-	else if (v >= 3) { putchar('3'); v -= 3; }
-	else if (v >= 2) { putchar('2'); v -= 2; }
-	else if (v >= 1) { putchar('1'); v -= 1; }
-	else putchar('0');
-}*/
-/*
-void cmd_memtest()
-{
-	int cyc_count = 5;
-	int stride = 256;
-	uint32_t state;
-
-	volatile uint32_t *base_word = (uint32_t *) 0;
-	volatile uint8_t *base_byte = (uint8_t *) 0;
-
-	print("Running memtest ");
-
-	// Walk in stride increments, word access
-	for (int i = 1; i <= cyc_count; i++) {
-		state = i;
-
-		for (int word = 0; word < MEM_TOTAL / sizeof(int); word += stride) {
-			*(base_word + word) = xorshift32(&state);
+	for (mul_index = 0; mul_index < 5; mul_index++) {
+		cmp = cmp_start[mul_index];
+		match = 0;
+		for (i = 0; i < 9; i += 1) {
+			if (v >= cmp) {
+				term_putchar('9' - i);
+				v -= cmp;
+				match = 1;
+				break;
+			}
+			cmp -= cmp_dec[mul_index];
 		}
+		if (!match) term_putchar('0');
+	}
+}
 
-		state = i;
+uint32_t generate_test_word_C(uint32_t input) {
+	return (input << 23) | input;
+}
 
-		for (int word = 0; word < MEM_TOTAL / sizeof(int); word += stride) {
-			if (*(base_word + word) != xorshift32(&state)) {
-				print(" ***FAILED WORD*** at ");
-				print_hex(4*word, 4);
-				print("\n");
+void ddr_memtest()
+{
+	volatile uint32_t *ptr;
+	volatile uint8_t *base_byte = (uint8_t *)ddr;
+
+	int counter;
+	ptr = ddr;
+	counter = 0;
+	for (int i = 0; i < (DDR_TOTAL/1024); i++) {
+		//ptr = ddr + i * (1024/4); 
+		for (int j = 0; j < (1024/4); j++) {
+			*ptr++ = generate_test_word_C(counter);
+			counter ++;
+		}
+		term_x = 3;
+		term_print_dec(i + 1);
+		term_print(" KB testing...");
+	}
+	ptr = ddr;
+	counter = 0;
+	for (int i = 0; i < (DDR_TOTAL/1024); i++) { // (DDR_TOTAL/1024)
+		for (int j = 0; j < (1024/4); j++) { // (1024/4)
+			uint32_t dat = *ptr;
+			if (dat != generate_test_word_C(counter)) {
+				term_print("Failed at word ");
+				term_print_hex((uint32_t)ptr, 8);
+				term_print(": ");
+				term_print_hex((uint32_t)(dat), 8);
+				term_print(" Expected: ");
+				term_print_hex((uint32_t)(generate_test_word_C(counter)), 8);
 				return;
 			}
+			ptr++;
+			counter++;
 		}
-
-		print(".");
+		term_x = 3;
+		term_print_dec(i + 1);
+		term_print(" KB passed.   ");
 	}
-
-	// Byte access
-	for (int byte = 0; byte < 128; byte++) {
-		*(base_byte + byte) = (uint8_t) byte;
-	}
-
-	for (int byte = 0; byte < 128; byte++) {
-		if (*(base_byte + byte) != (uint8_t) byte) {
-			print(" ***FAILED BYTE*** at ");
-			print_hex(byte, 4);
-			print("\n");
-			return;
-		}
-	}
-
-	print(" passed\n");
-}*/
+}
 
 // --------------------------------------------------------
 /*
@@ -221,5 +247,18 @@ uint32_t cmd_benchmark(bool verbose, uint32_t *instns_p)
 
 void main()
 {
-	print("Hello, world!");
+	term_goto(0,0);
+	term_print("Pano Logic G1, ");
+	term_print("PicoRV32 @ 100MHz, ");
+	term_print("LPDDR @ 100MHz, det delay = ");
+	term_print_hex(*((uint8_t *)0x03000000), 2);
+	term_print("\n");
+	for (int i = 0; i < 29; i++) {
+		*((uint8_t *)0x03000000) = i;
+		term_print_hex(i, 2);
+		term_print(" ");
+		ddr_memtest();
+		term_newline();
+	}
+	while (1);
 }

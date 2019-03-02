@@ -36,9 +36,9 @@ addi x30, zero, 0
 addi x31, zero, 0
 
 # Update LEDs
-li a0, 0x03000000
-li a1, 1
-sw a1, 0(a0)
+# li a0, 0x03000000
+# li a1, 1
+# sw a1, 0(a0)
 
 # zero-init bss section
 la a0, _sbss
