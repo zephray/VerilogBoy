@@ -27,6 +27,7 @@ module cpu(
     input [4:0] int_en,
     input [4:0] int_flags_in,
     output wire [4:0] int_flags_out,
+    input [7:0] key_in,
     output reg done
     );
 
@@ -51,6 +52,8 @@ module cpu(
     wire        next;
     wire        stop;
     wire        halt;
+    reg         wake;
+    wire        fault;
     reg         int_dispatch;
     wire        int_master_en;
     wire        int_ack;
@@ -156,13 +159,27 @@ module cpu(
         .int_ack(int_ack),
         .next(next),
         .stop(stop),
-        .halt(halt)
+        .halt(halt),
+        .wake(wake),
+        .fault(fault)
     );
     
     always @(posedge clk) begin
-        done <= stop | halt; 
+        done <= stop | halt | fault; 
         // only used to stop simulation if needed
         // and delay 1 clk
+    end
+
+    wire wake_comb = 
+        // Any enabled interrupt can wake up halted CPU, IME doesn't matter
+        (halt) ? ((int_flags_in & int_en) != 0) : (
+        // Any enabled interrupt and any keypress can wake up stopped CPU
+        // IME doesn't matter. Though the typical usage is clear the IE before
+        // entering STOP mode, so only keypad can wake up the CPU.
+        (stop) ? (((int_flags_in & int_en) != 0) || (key_in != 0)) : 
+        (1'b0));
+    always @(posedge clk) begin
+        wake <= wake_comb;
     end
 
     wire [7:3] current_opcode;

@@ -49,7 +49,9 @@ module control(
     output reg       int_ack,
     output reg       next,
     output reg       stop,
-    output reg       halt
+    output reg       halt,
+    input            wake,
+    output reg       fault
     );
 
     reg [27:0] decoding_lut [0:255]; // pc_src is not in the lut
@@ -79,6 +81,15 @@ module control(
         int_dispatch_deffered <= int_dispatch;
     end
 
+    reg halt_last;
+    reg stop_last;
+    reg fault_last;
+    always @(posedge clk) begin
+        halt_last <= halt;
+        stop_last <= stop;
+        fault_last <= fault;
+    end
+
     // All these nonsense will be replaced by a vector decoding ROM... 
     // in the future
     always @(*) begin
@@ -92,6 +103,7 @@ module control(
         pc_jr = 1'b0;
         stop = 1'b0;
         halt = 1'b0;
+        fault = 1'b0;
         high_mask = 1'b0;
         alu_op_signed = 1'b0;
         temp_redir = 1'b0;
@@ -99,527 +111,559 @@ module control(
         ime_set = 1'b0;
         ime_clear = 1'b0;
         int_ack = 1'b0;
-        case (m_cycle)
-        3'd0: begin
-            // First cycle is usually handled by the decoding lut
-            // except interrupt dispatching and other special cases
-            // (how to integrate these into vector decoder?)
-            if (int_dispatch_deffered) begin
-                // Make sure all commands are from here, not ROM!
-                // Nullify ALU operation
-                alu_src_a = 2'b00;
-                alu_src_b = 3'b010;
-                alu_op_prefix = 2'b00;
-                alu_op_src = 2'b10;
-                alu_dst = 2'b00;
-                // Disable PC we
-                pc_we = 1'b0;
-                // Doesn't matter what RF rd/wr is
-                flags_we = 1'b0;
-                next = 1'b1;
-                bus_op = 2'b00;
-                ct_op = 2'b10;
-            end
-            else if (opcode == 8'h10) begin
-                stop = 1'b1;
-            end
-            else if (opcode == 8'hF3) begin
-                ime_clear = 1'b1;
-            end
-            else if (opcode == 8'hFB) begin
-                ime_set = 1'b1;
-            end
-            else if (opcode == 8'h76) begin
-                halt = 1'b1;
-            end
-            else if ((opcode == 8'h02) || (opcode == 8'h0A)) begin
-                rf_rdw_sel = 2'b00; // Select BC
-            end
-            else if ((opcode == 8'h12) || (opcode == 8'h1A)) begin
-                rf_rdw_sel = 2'b01; // Select DE
-            end
-            else if (opcode == 8'hE2) begin
-                rf_rdw_sel = 2'b00; // Select BC
-                high_mask = 1'b1; // Select C only
-            end
-            else if (opcode == 8'hF2) begin
-                rf_rdw_sel = 2'b00; // Select BC
-                high_mask = 1'b1; // Select C only
-            end
-            else if (opcode == 8'hD9) begin
-                // RETI
-                ime_clear = 1'b1;
-            end
-            else if ((opcode == 8'h86) ||
-                     (opcode == 8'h96) ||
-                     (opcode == 8'hA6) ||
-                     (opcode == 8'hB6) ||
-                     (opcode == 8'hC6) ||
-                     (opcode == 8'hE6) ||
-                     (opcode == 8'hD6) ||
-                     (opcode == 8'hF6) ||
-                     (opcode == 8'h8E) ||
-                     (opcode == 8'h9E) ||
-                     (opcode == 8'hAE) ||
-                     (opcode == 8'hBE) ||
-                     (opcode == 8'hCE) ||
-                     (opcode == 8'hEE) ||
-                     (opcode == 8'hDE) ||
-                     (opcode == 8'hFE)) begin
-                // ADD/SUB/AND/OR [HL]
-                // ADC/SBC/XOR/CP [HL]
-                // ADD/SUB/AND/OR n
-                // ADC/SBC/XOR/CP n
-                alu_dst = 2'b11; // Don't WB in the first cycle
-            end
-            else if ((opcode == 8'hD3) || 
-                     (opcode == 8'hD3) ||
-                     (opcode == 8'hE4) ||
-                     (opcode == 8'hF4) ||
-                     (opcode == 8'hDB) ||
-                     (opcode == 8'hEB) ||
-                     (opcode == 8'hCE) ||
-                     (opcode == 8'hCF) ||
-                     (opcode == 8'hDD) ||
-                     (opcode == 8'hDE) ||
-                     (opcode == 8'hDF)) begin
-                // Invalid Op
-                stop = 1'b1;
-                halt = 1'b1;
+        // Though the idea behind the original GB is that when in halt or stop
+        // mode, the clock can be stopped, thus lower the power consumption and
+        // save the battery. On FPGA, this is hard to achieve since clocking in
+        // FPGA works very differently than on ASIC. So here, when halted, CPU
+        // would executing NOP in place as if it was halted.
+        if (halt_last || stop_last || fault_last) begin
+            // Nullify ALU operation
+            alu_src_a = 2'b00;
+            alu_src_b = 3'b010;
+            alu_op_prefix = 2'b00;
+            alu_op_src = 2'b10;
+            alu_dst = 2'b00;
+            // Disable PC we
+            pc_we = 1'b0;
+            // Doesn't matter what RF rd/wr is
+            flags_we = 1'b0;
+            // Mcycle keeps at 0
+            next = 1'b0;
+            // No operation for both
+            bus_op = 2'b00;
+            ct_op = 2'b00;
+            // Wake up condition
+            halt = halt_last;
+            stop = stop_last;
+            fault = fault_last;
+            if (wake) begin
+                halt = 1'b0;
+                stop = 1'b0;
+                // Fault could not be waked up 
             end
         end
-        3'd1: begin
-            if (int_dispatch_deffered) begin
-                // Save PCh
-                // Make sure all commands are from here, not ROM!
-                alu_src_a = 2'b01;
-                alu_src_b = 3'b010;
-                alu_op_prefix = 2'b00;
-                alu_op_src = 2'b10;
-                alu_dst = 2'b11;
-                // Disable PC we
-                pc_we = 1'b0;
-                // Doesn't matter what RF rd/wr is
-                flags_we = 1'b0;
-                next = 1'b1;
-                // Bus Operation
-                bus_op = 2'b10;
-                ab_src = 2'b11;
-                db_src = 2'b11;
-                ct_op = 2'b10;
-            end
-            else if ((opcode[7:6] == 2'b00)&&(opcode[3:0] == 4'b0001)) begin
-                // 16bit Load Imm
-                next = 1'b1;
-            end
-            else if ((opcode[7:6] == 2'b11)&&(opcode[3:0] == 4'b0001)) begin
-                // POP instruction 
-                next = 1'b1;
-            end
-            else if ((opcode == 8'hCD) || (opcode == 8'hCC) || (opcode == 8'hDC) || (opcode == 8'hC4) || (opcode == 8'hD4)) begin
-                // CALL instruction
-                next = 1'b1;
-            end
-            else if ((opcode == 8'hC5) || (opcode == 8'hD5) || (opcode == 8'hE5) || (opcode == 8'hF5)) begin
-                // PUSH instruction
-                bus_op = 2'b10;
-                next = 1'b1;
-            end
-            else if (opcode == 8'hE0) begin
-                // LDH (n), A
-                bus_op = 2'b10;
-                db_src = 2'b00;
-                ab_src = 2'b01;
-                ct_op = 2'b00;
-                next = 1'b1;
-                high_mask = 1'b1;
-            end
-            else if (opcode == 8'hF0) begin
-                // LDH A, (n)
-                bus_op = 2'b11;
-                ab_src = 2'b01;
-                ct_op = 2'b00;
-                next = 1'b1;
-                high_mask = 1'b1;
-            end
-            else if ((opcode == 8'hC3) || (opcode == 8'hC2) || (opcode == 8'hD2) || (opcode == 8'hCA) || (opcode == 8'hDA)) begin
-                // JP
-                next = 1'b1;
-            end
-            else if ((opcode == 8'h34) || (opcode == 8'h35)) begin
-                // INC (HL) / DEC (HL)
-                bus_op = 2'b10;
-                next = 1'b1;
-            end
-            else if ((opcode == 8'h36)) begin
-                // LD (HL), n
-                bus_op = 2'b10;
-                ab_src = 2'b10;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else if ((opcode == 8'hC7) ||
-                     (opcode == 8'hD7) ||
-                     (opcode == 8'hE7) ||
-                     (opcode == 8'hF7) ||
-                     (opcode == 8'hCF) ||
-                     (opcode == 8'hEF) ||
-                     (opcode == 8'hDF) ||
-                     (opcode == 8'hFF)) begin
-                // RST
-                bus_op = 2'b10;
-                next = 1'b1;
-            end
-            else if (((opcode == 8'h20) && (!f_z)) ||     // JR NZ
-                     ((opcode == 8'h30) && (!f_c)) ||     // JR NC
-                     ((opcode == 8'h18)) ||               // JR
-                     ((opcode == 8'h28) && (f_z)) ||      // JR Z
-                     ((opcode == 8'h38) && (f_c))) begin  // JR C
-                pc_jr = 1'b1;
-                next = 1'b1;
-            end
-            else if ((opcode == 8'hC9) || (opcode == 8'hD9)) begin
-                // RET
-                // RETI
-                alu_src_a = 2'b11;
-                alu_dst = 2'b01;
-                pc_b_sel = 1'b0;
-                next = 1'b1;
-            end
-            else if (((opcode == 8'hC0) && (!f_z)) ||     // RET NZ
-                     ((opcode == 8'hD0) && (!f_c)) ||     // RET NC
-                     ((opcode == 8'hC8) && (f_z)) ||      // RET Z
-                     ((opcode == 8'hD8) && (f_c))) begin  // RET C
-                bus_op = 2'b11;
-                ab_src = 2'b11;
-                ct_op = 2'b11;
-                next = 1'b1;
-            end
-            else if (opcode == 8'hE8) begin
-                // ADD SP, e8
-                alu_src_b = 3'b110;
-                alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
-                bus_op = 2'b00;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else if (opcode == 8'hF8) begin
-                // LD HL, SP+e8
-                alu_src_b = 3'b110;
-                alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
-                rf_wr_sel = 3'b101;
-                bus_op = 2'b00;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else if ((opcode == 8'h08) || (opcode == 8'hEA) || (opcode == 8'hFA)) begin
-                // LD (nn), SP
-                // LD (nn), A
-                // LD A, (nn)
-                next = 1'b1;
-            end
-            else begin
-                // Case for instructions end at this cycle
-                bus_op = 2'b01; // Restore to normal instruction fetch
-                ab_src = 2'b00; // Restore to fetch from PC
-                ct_op = 2'b01;  // Restore to PC + 1
-                next = 1'b0;
-                if ((opcode == 8'h22) || (opcode == 8'h32) || (opcode == 8'h2A) || (opcode == 8'h3A)) begin
-                    // LD [HL+/-], A
-                    // LD A, [HL+/-]
-                    alu_src_b = 3'b001; // Input from carry
-                    rf_rd_sel = 3'b100; // Select H
-                    rf_wr_sel = 3'b100; // Select H
-                end
-                else if ((opcode[7:6] == 2'b00)&&
-                    ((opcode[3:0] == 4'b0011)||(opcode[3:0] == 4'b1011))) begin
-                    // 16-bit INC or DEC
-                    alu_src_b = 3'b001;
-                    rf_rd_sel = {opcode[5:4], 1'b0};
-                    rf_wr_sel = {opcode[5:4], 1'b0};
-                end
-                else if ((opcode == 8'h09) || (opcode == 8'h19) || (opcode == 8'h29) || (opcode == 8'h39)) begin
-                    // ADD HL, r16
-                    alu_src_b = 3'b100; // Select H
-                    rf_wr_sel = 3'b100; // Select H
-                    rf_rd_sel = {opcode[5:4], 1'b0};
-                    alu_op_signed = 1'b1;
-                end
-                else if (opcode == 8'hF9) begin
-                    // LD SP, HL
-                    rf_wr_sel = 3'b111;
-                    rf_rd_sel = 3'b101;
-                end
-                else if (opcode == 8'hCB) begin
-                    opcode_redir = 1'b1;
-                    if (imm[2:0] == 3'b110) begin
-                        alu_src_a = 2'b11;
-                        alu_dst = 2'b11;
-                        next = 1'b1;
-                    end
-                    else if (imm[2:0] == 3'b111) begin
-                        alu_src_a = 2'b00;
-                        alu_dst = 2'b00;
-                    end
-                    else begin
-                        alu_src_a = 2'b10;
-                        alu_dst = 2'b10;
-                        rf_rd_sel = imm[2:0];
-                        rf_wr_sel = imm[2:0];
-                    end
-                    if (imm[7:6] == 2'b00) begin
-                        alu_op_prefix = 2'b01;
-                        alu_op_src = 2'b00;
-                    end
-                    else begin
-                        alu_op_prefix = 2'b11;
-                        alu_op_src = 2'b01;
-                    end
-                    flags_we = !imm[7];
-                end
-            end
-        end
-        3'd2: begin
-            if (int_dispatch_deffered) begin
-                // Save PCl
-                // Make sure all commands are from here, not ROM!
-                alu_src_a = 2'b01;
-                alu_src_b = 3'b010;
-                alu_op_prefix = 2'b00;
-                alu_op_src = 2'b10;
-                alu_dst = 2'b11;
-                // Allow PC we
-                pc_we = 1'b1;
-                // Doesn't matter what RF rd/wr is
-                flags_we = 1'b0;
-                next = 1'b1;
-                // Bus Operation
-                bus_op = 2'b10;
-                ab_src = 2'b11;
-                db_src = 2'b11;
-                // No calculation this cycle
-                ct_op = 2'b00;
-            end
-            else if (((opcode == 8'hC2) && (!f_z)) ||     // JP NZ
-                ((opcode == 8'hD2) && (!f_c)) ||     // JP NC
-                ((opcode == 8'hC3)) ||               // JP
-                ((opcode == 8'hCA) && (f_z)) ||      // JP Z
-                ((opcode == 8'hDA) && (f_c))) begin  // JP C
-                // JP nn
-                pc_src = 2'b10;// PC from temp register
-                bus_op = 2'b00;
-                ct_op = 2'b00;
-                pc_we = 1'b1;  // PC write en
-                next = 1'b1;
-            end
-            else if ((opcode == 8'hC5) || (opcode == 8'hD5) || (opcode == 8'hE5)) begin
-                // PUSH BC/DE/HL
-                bus_op = 2'b10;
-                rf_rd_sel = {opcode[5:4], 1'b1};
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else if (opcode == 8'hF5) begin
-                // PUSH AF
-                bus_op = 2'b10;
-                db_src = 2'b01;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else if ((opcode == 8'hC7) ||
-                     (opcode == 8'hD7) ||
-                     (opcode == 8'hE7) ||
-                     (opcode == 8'hF7) ||
-                     (opcode == 8'hCF) ||
-                     (opcode == 8'hEF) ||
-                     (opcode == 8'hDF) ||
-                     (opcode == 8'hFF)) begin
-                // RST
-                // It doesn't matter what ALU do
-                pc_src = 2'b01;
-                pc_we = 1'b1;
-                bus_op = 2'b10;
-                next = 1'b1;
-            end
-            else if (((opcode == 8'hC4) && (!f_z)) ||     // CALL NZ
-                     ((opcode == 8'hD4) && (!f_c)) ||     // CALL NC
-                     ((opcode == 8'hCD)) ||               // CALL
-                     ((opcode == 8'hCC) && (f_z)) ||      // CALL Z
-                     ((opcode == 8'hDC) && (f_c))) begin  // CALL C
-                bus_op = 2'b00;
-                ct_op = 2'b10;
-                next = 1'b1;
-            end
-            else if ((opcode == 8'hC9) || (opcode == 8'hD9))  begin
-                // RET
-                // RETI
-                alu_src_a = 2'b11;
-                alu_dst = 2'b01;
-                pc_b_sel = 1'b1;
-                bus_op = 2'b00;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else if ((opcode == 8'hC0) ||     // RET NZ
-                     (opcode == 8'hD0) ||     // RET NC
-                     (opcode == 8'hC8) ||     // RET Z
-                     (opcode == 8'hD8)) begin // RET C
-                bus_op = 2'b11;
-                ab_src = 2'b11;
-                ct_op = 2'b11;
-                alu_src_a = 2'b11;
-                alu_dst = 2'b01;
-                pc_b_sel = 1'b0;
-                next = 1'b1;
-            end
-            else if (opcode == 8'hE8) begin
-                // ADD SP, e8
-                alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
-                alu_src_b = 3'b001;
-                rf_rd_sel = 3'b110;
-                rf_wr_sel = 3'b110;
-                bus_op = 2'b00;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else if (opcode == 8'h08) begin
-                // LD (nn), SP
-                ab_src = 2'b01;
-                db_src = 2'b10;
-                rf_rd_sel = 3'b111;
-                bus_op = 2'b10;
-                ct_op = 2'b11;
-                temp_redir = 1'b1;
-                next = 1'b1;
-            end
-            else if (opcode == 8'hEA) begin
-                // LD (nn), A
-                ab_src = 2'b01;
-                db_src = 2'b00;
-                bus_op = 2'b10;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else if (opcode == 8'hFA) begin
-                // LD A, (nn)
-                bus_op = 2'b11;
-                ab_src = 2'b01;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else begin
-                // Case for instructions end at this cycle
-                bus_op = 2'b01; // Restore to normal instruction fetch
-                ab_src = 2'b00; // Restore to fetch from PC
-                ct_op = 2'b01;  // Restore to PC + 1
-                next = 1'b0;
-                if ((opcode[7:6] == 2'b00)&&(opcode[3:0] == 4'b0001)) begin
-                    // 16bit Load Imm
-                    rf_wr_sel = {opcode[5:4], 1'b0};
-                end
-                else if ((opcode == 8'hC1) || (opcode == 8'hD1) || (opcode == 8'hE1)) begin
-                    // POP BC/DE/HL
-                    rf_wr_sel = {opcode[5:4], 1'b0};
-                end
-                else if (opcode == 8'hF1) begin
-                    // POP AF
-                    alu_op_prefix = 2'b10; // Special
-                    alu_op_src = 2'b11;    // Input A to Flags
-                    alu_src_b = 3'b000;    // Acc to Input B
-                    flags_we = 1'b1;
-                end
-                else if (opcode == 8'hF8) begin
-                    // LD HL, SP+e8
-                    alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
-                    alu_src_b = 3'b001;
-                    rf_rd_sel = 3'b110;
-                    rf_wr_sel = 3'b100;
-                end
-            end
-        end
-        3'd3: begin
-            if ((opcode == 8'hCD) || (opcode == 8'hCC) || (opcode == 8'hDC) || (opcode == 8'hC4) || (opcode == 8'hD4)) begin
-                // CALL instruction
-                bus_op = 2'b10;
-                ab_src = 2'b11;
-                ct_op = 2'b10;
-                next = 1'b1;
-            end
-            else if ((opcode == 8'hC0) ||     // RET NZ
-                     (opcode == 8'hD0) ||     // RET NC
-                     (opcode == 8'hC8) ||     // RET Z
-                     (opcode == 8'hD8)) begin // RET C
-                alu_src_a = 2'b11;
-                alu_dst = 2'b01;
-                pc_b_sel = 1'b1;
-                bus_op = 2'b00;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else if (opcode == 8'h08) begin
-                // LD (nn), SP
-                ab_src = 2'b01;
-                db_src = 2'b10;
-                rf_rd_sel = 3'b110;
-                bus_op = 2'b10;
-                ct_op = 2'b00;
-                next = 1'b1;
-            end
-            else begin
-                // Case for instructions end at this cycle
-                bus_op = 2'b01; // Restore to normal instruction fetch
-                ab_src = 2'b00; // Restore to fetch from PC
-                ct_op = 2'b01;  // Restore to PC + 1
-                next = 1'b0;
+        else begin
+            case (m_cycle)
+            3'd0: begin
+                // First cycle is usually handled by the decoding lut
+                // except interrupt dispatching and other special cases
+                // (how to integrate these into vector decoder?)
                 if (int_dispatch_deffered) begin
-                    ime_clear = 1'b1;
+                    // Make sure all commands are from here, not ROM!
+                    // Nullify ALU operation
                     alu_src_a = 2'b00;
                     alu_src_b = 3'b010;
                     alu_op_prefix = 2'b00;
                     alu_op_src = 2'b10;
                     alu_dst = 2'b00;
+                    // Disable PC we
                     pc_we = 1'b0;
+                    // Doesn't matter what RF rd/wr is
                     flags_we = 1'b0;
-                    int_ack = 1'b1;
+                    next = 1'b1;
+                    bus_op = 2'b00;
+                    ct_op = 2'b10;
+                end
+                else if (opcode == 8'h10) begin
+                    stop = 1'b1;
+                end
+                else if (opcode == 8'hF3) begin
+                    ime_clear = 1'b1;
+                end
+                else if (opcode == 8'hFB) begin
+                    // EI here need to be delayed for 1 clock?
+                    ime_set = 1'b1;
+                end
+                else if (opcode == 8'h76) begin
+                    halt = 1'b1;
+                end
+                else if ((opcode == 8'h02) || (opcode == 8'h0A)) begin
+                    rf_rdw_sel = 2'b00; // Select BC
+                end
+                else if ((opcode == 8'h12) || (opcode == 8'h1A)) begin
+                    rf_rdw_sel = 2'b01; // Select DE
+                end
+                else if (opcode == 8'hE2) begin
+                    rf_rdw_sel = 2'b00; // Select BC
+                    high_mask = 1'b1; // Select C only
+                end
+                else if (opcode == 8'hF2) begin
+                    rf_rdw_sel = 2'b00; // Select BC
+                    high_mask = 1'b1; // Select C only
+                end
+                else if (opcode == 8'hD9) begin
+                    // RETI
+                    ime_clear = 1'b1;
+                end
+                else if ((opcode == 8'h86) ||
+                        (opcode == 8'h96) ||
+                        (opcode == 8'hA6) ||
+                        (opcode == 8'hB6) ||
+                        (opcode == 8'hC6) ||
+                        (opcode == 8'hE6) ||
+                        (opcode == 8'hD6) ||
+                        (opcode == 8'hF6) ||
+                        (opcode == 8'h8E) ||
+                        (opcode == 8'h9E) ||
+                        (opcode == 8'hAE) ||
+                        (opcode == 8'hBE) ||
+                        (opcode == 8'hCE) ||
+                        (opcode == 8'hEE) ||
+                        (opcode == 8'hDE) ||
+                        (opcode == 8'hFE)) begin
+                    // ADD/SUB/AND/OR [HL]
+                    // ADC/SBC/XOR/CP [HL]
+                    // ADD/SUB/AND/OR n
+                    // ADC/SBC/XOR/CP n
+                    alu_dst = 2'b11; // Don't WB in the first cycle
+                end
+                else if ((opcode == 8'hD3) || 
+                        (opcode == 8'hD3) ||
+                        (opcode == 8'hE4) ||
+                        (opcode == 8'hF4) ||
+                        (opcode == 8'hDB) ||
+                        (opcode == 8'hEB) ||
+                        (opcode == 8'hCE) ||
+                        (opcode == 8'hCF) ||
+                        (opcode == 8'hDD) ||
+                        (opcode == 8'hDE) ||
+                        (opcode == 8'hDF)) begin
+                    // Invalid Op
+                    fault = 1'b1;
+                end
+            end
+            3'd1: begin
+                if (int_dispatch_deffered) begin
+                    // Save PCh
+                    // Make sure all commands are from here, not ROM!
+                    alu_src_a = 2'b01;
+                    alu_src_b = 3'b010;
+                    alu_op_prefix = 2'b00;
+                    alu_op_src = 2'b10;
+                    alu_dst = 2'b11;
+                    // Disable PC we
+                    pc_we = 1'b0;
+                    // Doesn't matter what RF rd/wr is
+                    flags_we = 1'b0;
+                    next = 1'b1;
+                    // Bus Operation
+                    bus_op = 2'b10;
+                    ab_src = 2'b11;
+                    db_src = 2'b11;
+                    ct_op = 2'b10;
+                end
+                else if ((opcode[7:6] == 2'b00)&&(opcode[3:0] == 4'b0001)) begin
+                    // 16bit Load Imm
+                    next = 1'b1;
+                end
+                else if ((opcode[7:6] == 2'b11)&&(opcode[3:0] == 4'b0001)) begin
+                    // POP instruction 
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'hCD) || (opcode == 8'hCC) || (opcode == 8'hDC) || (opcode == 8'hC4) || (opcode == 8'hD4)) begin
+                    // CALL instruction
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'hC5) || (opcode == 8'hD5) || (opcode == 8'hE5) || (opcode == 8'hF5)) begin
+                    // PUSH instruction
+                    bus_op = 2'b10;
+                    next = 1'b1;
+                end
+                else if (opcode == 8'hE0) begin
+                    // LDH (n), A
+                    bus_op = 2'b10;
+                    db_src = 2'b00;
+                    ab_src = 2'b01;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                    high_mask = 1'b1;
+                end
+                else if (opcode == 8'hF0) begin
+                    // LDH A, (n)
+                    bus_op = 2'b11;
+                    ab_src = 2'b01;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                    high_mask = 1'b1;
+                end
+                else if ((opcode == 8'hC3) || (opcode == 8'hC2) || (opcode == 8'hD2) || (opcode == 8'hCA) || (opcode == 8'hDA)) begin
+                    // JP
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'h34) || (opcode == 8'h35)) begin
+                    // INC (HL) / DEC (HL)
+                    bus_op = 2'b10;
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'h36)) begin
+                    // LD (HL), n
+                    bus_op = 2'b10;
+                    ab_src = 2'b10;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'hC7) ||
+                        (opcode == 8'hD7) ||
+                        (opcode == 8'hE7) ||
+                        (opcode == 8'hF7) ||
+                        (opcode == 8'hCF) ||
+                        (opcode == 8'hEF) ||
+                        (opcode == 8'hDF) ||
+                        (opcode == 8'hFF)) begin
+                    // RST
+                    bus_op = 2'b10;
+                    next = 1'b1;
+                end
+                else if (((opcode == 8'h20) && (!f_z)) ||     // JR NZ
+                        ((opcode == 8'h30) && (!f_c)) ||     // JR NC
+                        ((opcode == 8'h18)) ||               // JR
+                        ((opcode == 8'h28) && (f_z)) ||      // JR Z
+                        ((opcode == 8'h38) && (f_c))) begin  // JR C
+                    pc_jr = 1'b1;
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'hC9) || (opcode == 8'hD9)) begin
+                    // RET
+                    // RETI
+                    alu_src_a = 2'b11;
+                    alu_dst = 2'b01;
+                    pc_b_sel = 1'b0;
+                    next = 1'b1;
+                end
+                else if (((opcode == 8'hC0) && (!f_z)) ||     // RET NZ
+                        ((opcode == 8'hD0) && (!f_c)) ||     // RET NC
+                        ((opcode == 8'hC8) && (f_z)) ||      // RET Z
+                        ((opcode == 8'hD8) && (f_c))) begin  // RET C
+                    bus_op = 2'b11;
+                    ab_src = 2'b11;
+                    ct_op = 2'b11;
+                    next = 1'b1;
+                end
+                else if (opcode == 8'hE8) begin
+                    // ADD SP, e8
+                    alu_src_b = 3'b110;
+                    alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                    bus_op = 2'b00;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else if (opcode == 8'hF8) begin
+                    // LD HL, SP+e8
+                    alu_src_b = 3'b110;
+                    alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                    rf_wr_sel = 3'b101;
+                    bus_op = 2'b00;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'h08) || (opcode == 8'hEA) || (opcode == 8'hFA)) begin
+                    // LD (nn), SP
+                    // LD (nn), A
+                    // LD A, (nn)
+                    next = 1'b1;
+                end
+                else begin
+                    // Case for instructions end at this cycle
+                    bus_op = 2'b01; // Restore to normal instruction fetch
+                    ab_src = 2'b00; // Restore to fetch from PC
+                    ct_op = 2'b01;  // Restore to PC + 1
+                    next = 1'b0;
+                    if ((opcode == 8'h22) || (opcode == 8'h32) || (opcode == 8'h2A) || (opcode == 8'h3A)) begin
+                        // LD [HL+/-], A
+                        // LD A, [HL+/-]
+                        alu_src_b = 3'b001; // Input from carry
+                        rf_rd_sel = 3'b100; // Select H
+                        rf_wr_sel = 3'b100; // Select H
+                    end
+                    else if ((opcode[7:6] == 2'b00)&&
+                        ((opcode[3:0] == 4'b0011)||(opcode[3:0] == 4'b1011))) begin
+                        // 16-bit INC or DEC
+                        alu_src_b = 3'b001;
+                        rf_rd_sel = {opcode[5:4], 1'b0};
+                        rf_wr_sel = {opcode[5:4], 1'b0};
+                    end
+                    else if ((opcode == 8'h09) || (opcode == 8'h19) || (opcode == 8'h29) || (opcode == 8'h39)) begin
+                        // ADD HL, r16
+                        alu_src_b = 3'b100; // Select H
+                        rf_wr_sel = 3'b100; // Select H
+                        rf_rd_sel = {opcode[5:4], 1'b0};
+                        alu_op_signed = 1'b1;
+                    end
+                    else if (opcode == 8'hF9) begin
+                        // LD SP, HL
+                        rf_wr_sel = 3'b111;
+                        rf_rd_sel = 3'b101;
+                    end
+                    else if (opcode == 8'hCB) begin
+                        opcode_redir = 1'b1;
+                        if (imm[2:0] == 3'b110) begin
+                            alu_src_a = 2'b11;
+                            alu_dst = 2'b11;
+                            next = 1'b1;
+                        end
+                        else if (imm[2:0] == 3'b111) begin
+                            alu_src_a = 2'b00;
+                            alu_dst = 2'b00;
+                        end
+                        else begin
+                            alu_src_a = 2'b10;
+                            alu_dst = 2'b10;
+                            rf_rd_sel = imm[2:0];
+                            rf_wr_sel = imm[2:0];
+                        end
+                        if (imm[7:6] == 2'b00) begin
+                            alu_op_prefix = 2'b01;
+                            alu_op_src = 2'b00;
+                        end
+                        else begin
+                            alu_op_prefix = 2'b11;
+                            alu_op_src = 2'b01;
+                        end
+                        flags_we = !imm[7];
+                    end
+                end
+            end
+            3'd2: begin
+                if (int_dispatch_deffered) begin
+                    // Save PCl
+                    // Make sure all commands are from here, not ROM!
+                    alu_src_a = 2'b01;
+                    alu_src_b = 3'b010;
+                    alu_op_prefix = 2'b00;
+                    alu_op_src = 2'b10;
+                    alu_dst = 2'b11;
+                    // Allow PC we
+                    pc_we = 1'b1;
+                    // Doesn't matter what RF rd/wr is
+                    flags_we = 1'b0;
+                    next = 1'b1;
+                    // Bus Operation
+                    bus_op = 2'b10;
+                    ab_src = 2'b11;
+                    db_src = 2'b11;
+                    // No calculation this cycle
+                    ct_op = 2'b00;
+                end
+                else if (((opcode == 8'hC2) && (!f_z)) ||     // JP NZ
+                    ((opcode == 8'hD2) && (!f_c)) ||     // JP NC
+                    ((opcode == 8'hC3)) ||               // JP
+                    ((opcode == 8'hCA) && (f_z)) ||      // JP Z
+                    ((opcode == 8'hDA) && (f_c))) begin  // JP C
+                    // JP nn
+                    pc_src = 2'b10;// PC from temp register
+                    bus_op = 2'b00;
+                    ct_op = 2'b00;
+                    pc_we = 1'b1;  // PC write en
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'hC5) || (opcode == 8'hD5) || (opcode == 8'hE5)) begin
+                    // PUSH BC/DE/HL
+                    bus_op = 2'b10;
+                    rf_rd_sel = {opcode[5:4], 1'b1};
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else if (opcode == 8'hF5) begin
+                    // PUSH AF
+                    bus_op = 2'b10;
+                    db_src = 2'b01;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'hC7) ||
+                        (opcode == 8'hD7) ||
+                        (opcode == 8'hE7) ||
+                        (opcode == 8'hF7) ||
+                        (opcode == 8'hCF) ||
+                        (opcode == 8'hEF) ||
+                        (opcode == 8'hDF) ||
+                        (opcode == 8'hFF)) begin
+                    // RST
+                    // It doesn't matter what ALU do
+                    pc_src = 2'b01;
+                    pc_we = 1'b1;
+                    bus_op = 2'b10;
+                    next = 1'b1;
+                end
+                else if (((opcode == 8'hC4) && (!f_z)) ||     // CALL NZ
+                        ((opcode == 8'hD4) && (!f_c)) ||     // CALL NC
+                        ((opcode == 8'hCD)) ||               // CALL
+                        ((opcode == 8'hCC) && (f_z)) ||      // CALL Z
+                        ((opcode == 8'hDC) && (f_c))) begin  // CALL C
+                    bus_op = 2'b00;
+                    ct_op = 2'b10;
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'hC9) || (opcode == 8'hD9))  begin
+                    // RET
+                    // RETI
+                    alu_src_a = 2'b11;
+                    alu_dst = 2'b01;
+                    pc_b_sel = 1'b1;
+                    bus_op = 2'b00;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'hC0) ||     // RET NZ
+                        (opcode == 8'hD0) ||     // RET NC
+                        (opcode == 8'hC8) ||     // RET Z
+                        (opcode == 8'hD8)) begin // RET C
+                    bus_op = 2'b11;
+                    ab_src = 2'b11;
+                    ct_op = 2'b11;
+                    alu_src_a = 2'b11;
+                    alu_dst = 2'b01;
+                    pc_b_sel = 1'b0;
+                    next = 1'b1;
+                end
+                else if (opcode == 8'hE8) begin
+                    // ADD SP, e8
+                    alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                    alu_src_b = 3'b001;
+                    rf_rd_sel = 3'b110;
+                    rf_wr_sel = 3'b110;
+                    bus_op = 2'b00;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else if (opcode == 8'h08) begin
+                    // LD (nn), SP
+                    ab_src = 2'b01;
+                    db_src = 2'b10;
+                    rf_rd_sel = 3'b111;
+                    bus_op = 2'b10;
+                    ct_op = 2'b11;
+                    temp_redir = 1'b1;
+                    next = 1'b1;
+                end
+                else if (opcode == 8'hEA) begin
+                    // LD (nn), A
+                    ab_src = 2'b01;
+                    db_src = 2'b00;
+                    bus_op = 2'b10;
+                    ct_op = 2'b00;
+                    next = 1'b1;
                 end
                 else if (opcode == 8'hFA) begin
                     // LD A, (nn)
-                    alu_src_a = 2'b11;
+                    bus_op = 2'b11;
+                    ab_src = 2'b01;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else begin
+                    // Case for instructions end at this cycle
+                    bus_op = 2'b01; // Restore to normal instruction fetch
+                    ab_src = 2'b00; // Restore to fetch from PC
+                    ct_op = 2'b01;  // Restore to PC + 1
+                    next = 1'b0;
+                    if ((opcode[7:6] == 2'b00)&&(opcode[3:0] == 4'b0001)) begin
+                        // 16bit Load Imm
+                        rf_wr_sel = {opcode[5:4], 1'b0};
+                    end
+                    else if ((opcode == 8'hC1) || (opcode == 8'hD1) || (opcode == 8'hE1)) begin
+                        // POP BC/DE/HL
+                        rf_wr_sel = {opcode[5:4], 1'b0};
+                    end
+                    else if (opcode == 8'hF1) begin
+                        // POP AF
+                        alu_op_prefix = 2'b10; // Special
+                        alu_op_src = 2'b11;    // Input A to Flags
+                        alu_src_b = 3'b000;    // Acc to Input B
+                        flags_we = 1'b1;
+                    end
+                    else if (opcode == 8'hF8) begin
+                        // LD HL, SP+e8
+                        alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                        alu_src_b = 3'b001;
+                        rf_rd_sel = 3'b110;
+                        rf_wr_sel = 3'b100;
+                    end
                 end
             end
-        end
-        3'd4: begin
-            if ((opcode == 8'hCD) || (opcode == 8'hCC) || (opcode == 8'hDC) || (opcode == 8'hC4) || (opcode == 8'hD4)) begin
-                // CALL instruction
-                pc_src = 2'b10;
-                pc_we = 1'b1;
-                bus_op = 2'b10;
-                ab_src = 2'b11;
-                ct_op = 2'b00;
-                next = 1'b1;
+            3'd3: begin
+                if ((opcode == 8'hCD) || (opcode == 8'hCC) || (opcode == 8'hDC) || (opcode == 8'hC4) || (opcode == 8'hD4)) begin
+                    // CALL instruction
+                    bus_op = 2'b10;
+                    ab_src = 2'b11;
+                    ct_op = 2'b10;
+                    next = 1'b1;
+                end
+                else if ((opcode == 8'hC0) ||     // RET NZ
+                        (opcode == 8'hD0) ||     // RET NC
+                        (opcode == 8'hC8) ||     // RET Z
+                        (opcode == 8'hD8)) begin // RET C
+                    alu_src_a = 2'b11;
+                    alu_dst = 2'b01;
+                    pc_b_sel = 1'b1;
+                    bus_op = 2'b00;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else if (opcode == 8'h08) begin
+                    // LD (nn), SP
+                    ab_src = 2'b01;
+                    db_src = 2'b10;
+                    rf_rd_sel = 3'b110;
+                    bus_op = 2'b10;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else begin
+                    // Case for instructions end at this cycle
+                    bus_op = 2'b01; // Restore to normal instruction fetch
+                    ab_src = 2'b00; // Restore to fetch from PC
+                    ct_op = 2'b01;  // Restore to PC + 1
+                    next = 1'b0;
+                    if (int_dispatch_deffered) begin
+                        ime_clear = 1'b1;
+                        alu_src_a = 2'b00;
+                        alu_src_b = 3'b010;
+                        alu_op_prefix = 2'b00;
+                        alu_op_src = 2'b10;
+                        alu_dst = 2'b00;
+                        pc_we = 1'b0;
+                        flags_we = 1'b0;
+                        int_ack = 1'b1;
+                    end
+                    else if (opcode == 8'hFA) begin
+                        // LD A, (nn)
+                        alu_src_a = 2'b11;
+                    end
+                end
             end
-            else begin
+            3'd4: begin
+                if ((opcode == 8'hCD) || (opcode == 8'hCC) || (opcode == 8'hDC) || (opcode == 8'hC4) || (opcode == 8'hD4)) begin
+                    // CALL instruction
+                    pc_src = 2'b10;
+                    pc_we = 1'b1;
+                    bus_op = 2'b10;
+                    ab_src = 2'b11;
+                    ct_op = 2'b00;
+                    next = 1'b1;
+                end
+                else begin
+                    // Case for instructions end at this cycle
+                    bus_op = 2'b01; // Restore to normal instruction fetch
+                    ab_src = 2'b00; // Restore to fetch from PC
+                    ct_op = 2'b01;  // Restore to PC + 1
+                    next = 1'b0;
+                end
+            end
+            3'd5: begin
                 // Case for instructions end at this cycle
                 bus_op = 2'b01; // Restore to normal instruction fetch
                 ab_src = 2'b00; // Restore to fetch from PC
                 ct_op = 2'b01;  // Restore to PC + 1
                 next = 1'b0;
             end
+            default: begin
+                // Bug, need nlr_raise
+                fault = 1'b1;
+                next = 1'b1;
+            end
+            endcase
         end
-        3'd5: begin
-            // Case for instructions end at this cycle
-            bus_op = 2'b01; // Restore to normal instruction fetch
-            ab_src = 2'b00; // Restore to fetch from PC
-            ct_op = 2'b01;  // Restore to PC + 1
-            next = 1'b0;
-        end
-        default: begin
-            // Illegal Instruction ??
-            stop = 1'b1;
-            halt = 1'b1;
-            next = 1'b1;
-        end
-        endcase
     end
 
     // Generated from control_unit.ods sheet, don't patch here
