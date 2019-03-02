@@ -11,7 +11,13 @@ int main(int argc, char * argv[])
 {
 	int size;
 	int width = 8;
-	if (argc == 5) {
+	int offset = 0;
+	int skip = 0;
+	if (argc >= 7) {
+		offset = atoi(argv[5]);
+		skip = atoi(argv[6]);
+	}
+	if (argc >= 5) {
 		width = atoi(argv[4]);
 	}
 	if (argc >= 4) {
@@ -21,7 +27,7 @@ int main(int argc, char * argv[])
 		size = 256; // Default GB BROM Size
 	}
 	else {
-		cout << "Usage: bin2mif <input.bin> <output.mif> [size] [width]" << endl;
+		cout << "Usage: bin2mif <input.bin> <output.mif> [size] [width] [offset] [skip]" << endl;
 		return -1;
 	}
 
@@ -29,11 +35,14 @@ int main(int argc, char * argv[])
 	ofstream outFile(argv[2], ios::out | ios::trunc);
 
 	char * buffer;
+	int in_size = offset + size * (skip + 1);
 
-	buffer = (char *)malloc(size);
-	inFile.read(buffer, size);
+	buffer = (char *)malloc(in_size);
+	inFile.read(buffer, in_size);
+	int rd_ptr = offset;
 	for (int i = 0; i < size; i++) {
-		outFile << hex << uppercase << setw(2) << setfill('0') << int((uint8_t)buffer[i]);
+		outFile << hex << uppercase << setw(2) << setfill('0') << int((uint8_t)buffer[rd_ptr]);
+		rd_ptr += (skip + 1);
 		if (i % (width / 8) == (width / 8 - 1))
 			outFile << endl;
 	}
