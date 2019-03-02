@@ -57,20 +57,20 @@
 
 module mig_data_path_iobs_0
   (
-   input                             clk,
-   input                             clk90,
-   input                             dqs_reset,
-   input                             dqs_enable,
-   inout  [(`DATA_STROBE_WIDTH-1):0] ddr_dqs,
-   inout  [(`DATA_WIDTH-1):0]        ddr_dq,
-   input  [(`DATA_WIDTH-1):0]        write_data_falling,
-   input  [(`DATA_WIDTH-1):0]        write_data_rising,
-   input                             write_en_val,
-   output [(`DATA_STROBE_WIDTH-1):0] dqs_int_delay_in,
-   output [((`DATA_MASK_WIDTH)-1):0] ddr_dm,
-   input  [(`DATA_MASK_WIDTH-1):0]   data_mask_f,
-   input  [(`DATA_MASK_WIDTH-1):0]   data_mask_r,
-   output [(`DATA_WIDTH-1):0]        ddr_dq_val
+   input wire                             clk,
+   input wire                             clk90,
+   input wire                             dqs_reset,
+   input wire                             dqs_enable,
+   inout wire  [(`DATA_STROBE_WIDTH-1):0] ddr_dqs,
+   inout wire  [(`DATA_WIDTH-1):0]        ddr_dq,
+   input wire  [(`DATA_WIDTH-1):0]        write_data_falling,
+   input wire  [(`DATA_WIDTH-1):0]        write_data_rising,
+   input wire                             write_en_val,
+   output wire [(`DATA_STROBE_WIDTH-1):0] dqs_int_delay_in,
+   output wire [((`DATA_MASK_WIDTH)-1):0] ddr_dm,
+   input wire  [(`DATA_MASK_WIDTH-1):0]   data_mask_f,
+   input wire  [(`DATA_MASK_WIDTH-1):0]   data_mask_r,
+   output wire [(`DATA_WIDTH-1):0]        ddr_dq_val
    );
 
    wire [(`DATA_WIDTH-1):0] ddr_dq_in;
@@ -137,5 +137,8 @@ module mig_data_path_iobs_0
 
       end
    endgenerate
+   
+   // Instead of generating all the iob instances, instantiate them manually.
+   // Then the delay of each bit can be controlled independently.
 
 endmodule

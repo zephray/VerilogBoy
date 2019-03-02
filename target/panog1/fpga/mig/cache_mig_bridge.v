@@ -44,6 +44,8 @@ module cache_mig_bridge(
 
     reg [3:0] bridge_state;
     reg [1:0] wait_counter;
+    reg [63:0] user_input_data_int;
+    reg cache_ready_int;
     
     localparam BSTATE_STARTUP = 4'd0;
     localparam BSTATE_WAIT_INIT = 4'd1;
@@ -67,7 +69,7 @@ module cache_mig_bridge(
             bridge_state <= BSTATE_STARTUP;
             user_input_address <= 23'b0;
             burst_done <= 1'b0;
-            cache_ready <= 1'b0;
+            cache_ready_int <= 1'b0;
             user_command_register <= 3'b000;
         end
         else begin
@@ -80,7 +82,7 @@ module cache_mig_bridge(
                     else begin
                         bridge_state <= BSTATE_IDLE;
                     end
-                    cache_ready <= 1'b0;
+                    cache_ready_int <= 1'b0;
                 end
                 BSTATE_WAIT_INIT: begin
                     user_command_register <= 3'b000;
@@ -92,7 +94,7 @@ module cache_mig_bridge(
                         bridge_state <= BSTATE_WAIT_REFRESH;
                     end
                     else if (cache_valid) begin
-                        cache_ready <= 1'b0;
+                        cache_ready_int <= 1'b0;
                         if (!user_cmd_ack) begin
                             if (cache_wstrb != 0) begin
                                 user_command_register <= 3'b100;
@@ -107,14 +109,14 @@ module cache_mig_bridge(
                         end
                     end
                     else begin
-                        cache_ready <= 1'b0;
+                        cache_ready_int <= 1'b0;
                     end
                 end
                 BSTATE_WAIT_REFRESH: begin
                     if (ar_done)
                         bridge_state <= BSTATE_IDLE;
                     if (cache_valid)
-                        cache_ready <= 1'b0;
+                        cache_ready_int <= 1'b0;
                 end
                 BSTATE_WRITE_CMD: begin
                     if (user_cmd_ack) begin
@@ -135,7 +137,7 @@ module cache_mig_bridge(
                     user_command_register <= 3'b000;
                     if (wait_counter == 2'd1) begin
                         burst_done <= 1'b0;
-                        cache_ready <= 1'b1;
+                        cache_ready_int <= 1'b1;
                         bridge_state <= BSTATE_IDLE;
                     end
                     else
@@ -169,12 +171,16 @@ module cache_mig_bridge(
                 end
                 BSTATE_READ_DONE: begin
                     user_command_register <= 3'b000;
-                    cache_ready <= 1'b1;
+                    cache_ready_int <= 1'b1;
                     if (!cache_valid)
                         bridge_state <= BSTATE_IDLE;
                 end
             endcase
         end
+    end
+    
+    always @(posedge clk0) begin
+        cache_ready <= cache_ready_int;
     end
     
     reg [3:0] datapath_state;
@@ -187,7 +193,7 @@ module cache_mig_bridge(
     assign cache_rdata = rd_buffer;
     assign user_data_mask = 8'd0;
     
-    always @(posedge clk90) begin
+    always @(posedge clk0) begin
         if (!init_done) begin
             datapath_state <= DSTATE_IDLE;
         end
@@ -197,7 +203,7 @@ module cache_mig_bridge(
                     if (user_cmd_ack) begin
                         if (user_command_register == 3'b100) begin
                             datapath_state <= DSTATE_WRITE;
-                            user_input_data <= cache_wdata[63:0];
+                            user_input_data_int <= cache_wdata[127:64];
                         end
                         else if (user_command_register == 3'b110) begin
                             datapath_state <= DSTATE_READ_WAIT;
@@ -207,17 +213,17 @@ module cache_mig_bridge(
                 DSTATE_WRITE: begin
                     datapath_state <= DSTATE_WAIT;
                     // Write second word
-                    user_input_data <= cache_wdata[127:64];
+                    user_input_data_int <= cache_wdata[63:0];
                 end
                 DSTATE_READ_WAIT: begin
                     if (user_data_valid) begin
                         datapath_state <= DSTATE_READ;
-                        rd_buffer[63:0] <= user_output_data;
+                        rd_buffer[127:64] <= user_output_data;
                     end
                 end
                 DSTATE_READ: begin
                     datapath_state <= DSTATE_WAIT;
-                    rd_buffer[127:64] <= user_output_data;
+                    rd_buffer[63:0] <= user_output_data;
                 end
                 DSTATE_WAIT: begin
                     if (!user_cmd_ack)
@@ -225,6 +231,10 @@ module cache_mig_bridge(
                 end
             endcase
         end
+    end
+    
+    always @(posedge clk90) begin
+        user_input_data <= user_input_data_int;
     end
 
 endmodule

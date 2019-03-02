@@ -302,7 +302,7 @@ NET "mig_top_0/data_path0/data_read_controller0/rst_dqs_div_delayed/delay*"  MAX
 ##############################################################################################################
 ## Constraint from the dqs PAD to input of LUT delay element.
 ##############################################################################################################
-NET "mig_top_0/dqs_int_delay_in*" MAXDELAY = 460 ps;
+NET "mig_top_0/dqs_int_delay_in*" MAXDELAY = 476 ps;
 
 ##############################################################################################################
 ## Constraint from rst_dqs_div_in PAD to input of LUT delay element.

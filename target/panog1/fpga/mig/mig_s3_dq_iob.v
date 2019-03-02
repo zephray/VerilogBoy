@@ -56,14 +56,13 @@
 
 `timescale 1ns/100ps
 
-module mig_s3_dq_iob
-  (
-   inout  ddr_dq_inout,
-   input  write_data_falling,
-   input  write_data_rising,
-   input  clk90,
-   input  write_en_val,
-   output read_data_in
+module mig_s3_dq_iob (
+   inout wire  ddr_dq_inout,
+   input wire  write_data_falling,
+   input wire  write_data_rising,
+   input wire  clk90,
+   input wire  write_en_val,
+   output wire read_data_in
    );
 
 
