@@ -22,7 +22,7 @@
 module ddr_cache(
     input wire clk,
     input wire rst, 
-    input wire [24:0] sys_la_addr, // byte address
+    input wire [24:0] sys_addr, // byte address
     input wire [31:0] sys_wdata,
     output reg [31:0] sys_rdata,
     input wire [3:0] sys_wstrb,
@@ -56,6 +56,10 @@ module ddr_cache(
     //   Write, cache miss: 5 cylces + memory read latency
     //   Write, cache miss + flush: 13 cycles + 2x memory read latency
     
+    // If 3_CYCLE_CACHE is defined, add 1 to all the above.
+    
+    //`define 3_CYCLE_CACHE 1
+    
     // Parameters are for descriptive purposes, they are non-adjustable.
     localparam CACHE_WAY = 2; 
     localparam CACHE_WAY_BITS = 1;
@@ -77,7 +81,7 @@ module ddr_cache(
     localparam BIT_VALID = 142;
     localparam BIT_DIRTY = 141;
     
-    wire [CACHE_ADDR_BITS - 1: 0] sys_word_addr = sys_la_addr[CACHE_ADDR_BITS + 1: 2];
+    wire [CACHE_ADDR_BITS - 1: 0] sys_word_addr = sys_addr[CACHE_ADDR_BITS + 1: 2];
     
     wire [CACHE_LEN_ABITS - 1: 0] addr_word = sys_word_addr[CACHE_LEN_ABITS - 1: 0];
     wire [CACHE_LINE_BITS - 1: 0] addr_line = sys_word_addr[CACHE_LINE_BITS + CACHE_LEN_ABITS - 1: CACHE_LEN_ABITS];
@@ -101,6 +105,7 @@ module ddr_cache(
     
     wire cache_comparator_0_comb = ((addr_tag == cache_way_rd_0[BIT_TAG_END: BIT_TAG_START]) && (cache_way_rd_0[BIT_VALID])) ? 1'b1 : 1'b0;
     wire cache_comparator_1_comb = ((addr_tag == cache_way_rd_1[BIT_TAG_END: BIT_TAG_START]) && (cache_way_rd_1[BIT_VALID])) ? 1'b1 : 1'b0;
+`ifdef 3_CYCLE_CACHE
     reg cache_comparator_0;
     reg cache_comparator_1;
     
@@ -108,6 +113,10 @@ module ddr_cache(
         cache_comparator_0 <= cache_comparator_0_comb;
         cache_comparator_1 <= cache_comparator_1_comb;
     end
+`else
+    wire cache_comparator_0 = cache_comparator_0_comb;
+    wire cache_comparator_1 = cache_comparator_1_comb;
+`endif
 
     wire [31: 0] cache_way_0_output_mux = 
         (addr_word == 2'b00) ? (cache_way_rd_0[31:0]) :
@@ -216,12 +225,13 @@ module ddr_cache(
     // Cache hit takes 2 cycles
     localparam STATE_RESET = 4'd0;      // State after reset
     localparam STATE_IDLE = 4'd1;
-    localparam STATE_RW_CHECK = 4'd2;
-    localparam STATE_RW_MISS = 4'd3;
-    localparam STATE_RW_DONE = 4'd4;
-    localparam STATE_RW_FLUSH = 4'd5;
-    localparam STATE_RW_FLUSH_WAIT = 4'd6;
-    localparam STATE_WRITE_MISS_APPLY = 4'd7;
+    localparam STATE_RW_COMPARE = 4'd2;
+    localparam STATE_RW_CHECK = 4'd3;
+    localparam STATE_RW_MISS = 4'd4;
+    localparam STATE_RW_DONE = 4'd5;
+    localparam STATE_RW_FLUSH = 4'd6;
+    localparam STATE_RW_FLUSH_WAIT = 4'd7;
+    localparam STATE_WRITE_MISS_APPLY = 4'd8;
     localparam STATE_WAIT = 4'd15;
     
     reg [CACHE_LINE_BITS - 1: 0] invalidate_counter;
@@ -252,8 +262,16 @@ module ddr_cache(
                     cache_way_we_0 <= 1'b0;
                     cache_way_we_1 <= 1'b0;
                     if (sys_valid) begin
+                    `ifdef 3_CYCLE_CACHE
+                        cache_state <= STATE_RW_COMPARE;
+                    `else
                         cache_state <= STATE_RW_CHECK;
+                    `endif
                     end
+                end
+                STATE_RW_COMPARE: begin
+                    // Block RAM is so slow
+                    cache_state <= STATE_RW_CHECK;
                 end
                 STATE_RW_CHECK: begin
                     if (cache_comparator_0) begin
@@ -293,7 +311,7 @@ module ddr_cache(
                             end
                             else begin
                                 // flush is not required
-                                mem_addr <= sys_la_addr[24:4];
+                                mem_addr <= sys_addr[24:4];
                                 mem_wstrb <= 1'b0;
                                 mem_valid <= 1'b1;
                                 cache_state <= STATE_RW_MISS;
@@ -313,7 +331,7 @@ module ddr_cache(
                             end
                             else begin
                                 // flush is not required
-                                mem_addr <= sys_la_addr[24:4];
+                                mem_addr <= sys_addr[24:4];
                                 mem_wstrb <= 1'b0;
                                 mem_valid <= 1'b1;
                                 cache_state <= STATE_RW_MISS;

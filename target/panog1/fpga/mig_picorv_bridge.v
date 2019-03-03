@@ -23,7 +23,7 @@ module mig_picorv_bridge(
     input wire clk0,
     input wire clk90,
     input wire sys_rst180,
-    input wire [24:0] ddr_la_addr,
+    input wire [24:0] ddr_addr,
     input wire [31:0] ddr_wdata,
     output wire [31:0] ddr_rdata,
     input wire [3:0] ddr_wstrb,
@@ -52,7 +52,7 @@ module mig_picorv_bridge(
     ddr_cache ddr_cache(
         .clk(clk0),
         .rst(sys_rst180),
-        .sys_la_addr(ddr_la_addr),
+        .sys_addr(ddr_addr),
         .sys_wdata(ddr_wdata),
         .sys_rdata(ddr_rdata),
         .sys_wstrb(ddr_wstrb),
