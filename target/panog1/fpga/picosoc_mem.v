@@ -13,10 +13,10 @@ module picosoc_mem #(
     reg [7:0] mem_3 [0:WORDS-1];
 
     initial begin
-        $readmemh("picorv_fw_0.mif", mem_0, 0, WORDS-1);
-        $readmemh("picorv_fw_1.mif", mem_1, 0, WORDS-1);
-        $readmemh("picorv_fw_2.mif", mem_2, 0, WORDS-1);
-        $readmemh("picorv_fw_3.mif", mem_3, 0, WORDS-1);
+        $readmemh("picorv_bl_0.mif", mem_0, 0, WORDS-1);
+        $readmemh("picorv_bl_1.mif", mem_1, 0, WORDS-1);
+        $readmemh("picorv_bl_2.mif", mem_2, 0, WORDS-1);
+        $readmemh("picorv_bl_3.mif", mem_3, 0, WORDS-1);
     end
 
     always @(posedge clk) begin

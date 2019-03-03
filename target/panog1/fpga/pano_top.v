@@ -35,10 +35,10 @@ module pano_top(
     input  wire PB,
 
     // SPI Flash
-    /*output wire SPI_CS_B,
+    output wire SPI_CS_B,
     output wire SPI_SCK,
     output wire SPI_MOSI,
-    input  wire SPI_MISO,*/
+    input  wire SPI_MISO,
 
     // WM8750 Codec
     /*output wire AUDIO_MCLK,
@@ -75,21 +75,27 @@ module pano_top(
     output wire [7:0] VGA_B,
 
     // USB
-    output wire USB_CLKIN
-    /*output wire USB_RESET_B,
-    output wire USB_CS_B,
+    output wire USB_CLKIN,
+    output wire USB_RESET_B,
+    /*output wire USB_CS_B,
     output wire USB_RD_B,
     output wire USB_WR_B,
     input  wire USB_IRQ,
     output wire [17:1] USB_A,
     inout  wire [15:0] USB_D*/
+    
+    // USB HUB
+    output wire USB_HUB_CLKIN,
+    output wire USB_HUB_RESET_B
     );
     
     // ----------------------------------------------------------------------
     // Clocking
     wire clk_100_in;
-    wire clk_12_raw;
+    reg clk_12_raw;
     wire clk_12;
+    wire clk_24_raw;
+    wire clk_24;
     wire clk_100_raw;
     wire clk_100;
     wire clk_100_90_raw;
@@ -121,7 +127,7 @@ module pano_top(
     DCM_SP #(
         // 100 / 25 * 3 = 12MHz
         .CLKFX_DIVIDE(25),   
-        .CLKFX_MULTIPLY(3),
+        .CLKFX_MULTIPLY(6),
         .CLKIN_DIVIDE_BY_2("FALSE"),          // TRUE/FALSE to enable CLKIN divide by two feature
         .CLKIN_PERIOD(10.0),                  // 100MHz input
         .CLK_FEEDBACK("1X"),
@@ -137,7 +143,7 @@ module pano_top(
         .CLK0(clk_100_raw),
         .CLK90(clk_100_90_raw),
         .CLK180(clk_100_180_raw),
-        .CLKFX(clk_12_raw),                   // DCM CLK synthesis out (M/D)
+        .CLKFX(clk_24_raw),                   // DCM CLK synthesis out (M/D)
         //.CLKDV(clk_50_raw),
         .CLKFB(clk_100),                      // DCM clock feedback
         .PSCLK(1'b0),                         // Dynamic phase adjust clock input
@@ -146,6 +152,18 @@ module pano_top(
         .RST(PB),                             // DCM asynchronous reset input
         .LOCKED(dcm_locked_12)
     );
+    
+    BUFG bufg_clk_24 (
+        .O(clk_24),
+        .I(clk_24_raw)
+    );
+    
+    always@(posedge clk_24) begin
+        if (!dcm_locked_12)
+            clk_12_raw <= 1'b0;
+        else
+            clk_12_raw <= !clk_12_raw;
+    end
     
     BUFG bufg_clk_12 (
         .O(clk_12),
@@ -407,7 +425,7 @@ module pano_top(
     
     wire rst_dqs_div_in;
     
-    wire [24:0] ddr_la_addr;
+    wire [24:0] ddr_addr;
     wire [31:0] ddr_wdata;
     wire [31:0] ddr_rdata;
     wire [3:0] ddr_wstrb;
@@ -469,7 +487,7 @@ module pano_top(
         .clk0(clk_100),
         .clk90(clk_100_90),
         .sys_rst180(sys_rst180),
-        .ddr_la_addr(ddr_la_addr),
+        .ddr_addr(ddr_addr),
         .ddr_wdata(ddr_wdata),
         .ddr_rdata(ddr_rdata),
         .ddr_wstrb(ddr_wstrb),
@@ -497,7 +515,7 @@ module pano_top(
     // Memory Map
     // 00000000 - 000007FF Internal RAM  (2KB)
     // 01000000 - 0103FFFF SPI Flash ROM (256KB)
-    // 03000000 - 03000003 LED           (4B)
+    // 03000000 - 03000100 GPIO          See description below
     // 08000000 - 08000FFF Video RAM     (4KB)
     // 0C000000 - 0BFFFFFF LPDDR SDRAM   (32MB)
     parameter integer MEM_WORDS = 1024;
@@ -506,7 +524,7 @@ module pano_top(
     
     wire mem_valid;
     wire mem_instr;
-    reg mem_ready;
+    wire mem_ready;
     wire [31:0] mem_addr;
     wire [31:0] mem_wdata;
     wire [3:0] mem_wstrb;
@@ -515,31 +533,35 @@ module pano_top(
     
     wire la_addr_in_ram = (mem_la_addr < 4*MEM_WORDS);
     wire la_addr_in_vram = (mem_la_addr >= 32'h08000000) && (mem_la_addr < 32'h08004000);
-    wire la_addr_in_led = (mem_la_addr >= 32'h03000000) && (mem_la_addr < 32'h03000004);
+    wire la_addr_in_gpio = (mem_la_addr >= 32'h03000000) && (mem_la_addr < 32'h03000100);
     wire la_addr_in_ddr = (mem_la_addr >= 32'h0C000000) && (mem_la_addr < 32'h0E000000);
     
     reg addr_in_ram;
     reg addr_in_vram;
-    reg addr_in_led;
+    reg addr_in_gpio;
     reg addr_in_ddr;
     
     always@(posedge clk_rv) begin
         addr_in_ram <= la_addr_in_ram;
         addr_in_vram <= la_addr_in_vram;
-        addr_in_led <= la_addr_in_led;
+        addr_in_gpio <= la_addr_in_gpio;
         addr_in_ddr <= la_addr_in_ddr;
     end
     
+    reg default_ready;
+    
     always @(posedge clk_rv) begin
-        mem_ready <= (la_addr_in_ddr) ? (ddr_ready) : (mem_valid);
+        default_ready <= mem_valid;
     end
+    
+    assign mem_ready = (addr_in_ddr) ? (ddr_ready) : (default_ready);
     
     wire ram_valid = (mem_valid) && (!mem_ready) && (addr_in_ram);
     wire vram_valid = (mem_valid) && (!mem_ready) && (addr_in_vram);
-    wire led_valid = (mem_valid) && (!mem_ready) && (addr_in_led);
+    wire gpio_valid = (mem_valid) && (!mem_ready) && (addr_in_gpio);
     assign ddr_valid = (mem_valid) && (addr_in_ddr);
     
-    assign ddr_la_addr = mem_la_addr[24:0];
+    assign ddr_addr = mem_addr[24:0];
     assign ddr_wstrb = mem_wstrb;
     assign ddr_wdata = mem_wdata;
     
@@ -578,6 +600,7 @@ module pano_top(
         .irq({31'b0, PB})
     );
     
+    // Internal RAM & Boot ROM
     wire [31:0] ram_rdata;
     picosoc_mem #(
         .WORDS(MEM_WORDS)
@@ -589,14 +612,60 @@ module pano_top(
         .rdata(ram_rdata)
     );
     
-    assign mem_rdata = (addr_in_ram) ? (ram_rdata) : ((addr_in_ddr) ? (ddr_rdata) : ((addr_in_led) ? ({27'b0, delay_sel_val_det}) : (32'hFFFFFFFF)));
-
+    // GPIO
+    // 03000000 (0) - R: delay_sel_det / W: delay_sel_val
+    // 03000004 (1) - W: led_green
+    // 03000008 (2) - W: led_red
+    // 0300000c (3) - W: spi_cs_n
+    // 03000010 (4) - W: spi_clk
+    // 03000014 (5) - W: spi_do
+    // 03000018 (6) - R: spi_di
+    // 0300001c (7) - W: usb_rst_n
+    
+    reg [31:0] gpio_rdata;
+    reg led_green;
+    reg led_red;
+    reg spi_csn;
+    reg spi_clk;
+    reg spi_do;
+    wire spi_di;
+    reg usb_rstn;
+    
     always@(posedge clk_rv) begin
-        if (!rst_rv)
+        if (!rst_rv) begin
             delay_sel_val[4:0] <= delay_sel_val_det[4:0];
-        else if (led_valid && (mem_wstrb != 0))
-            delay_sel_val[4:0] <= mem_wdata[4:0];
+            led_green <= 1'b0;
+            led_red <= 1'b0;
+            spi_csn <= 1'b1;
+        end
+        else if (gpio_valid)
+             if (mem_wstrb != 0) begin
+                case (mem_addr[4:2])
+                    3'd0: delay_sel_val[4:0] <= mem_wdata[4:0];
+                    3'd1: led_green <= mem_wdata[0];
+                    3'd2: led_red <= mem_wdata[0];
+                    3'd3: spi_csn <= mem_wdata[0];
+                    3'd4: spi_clk <= mem_wdata[0];
+                    3'd5: spi_do <= mem_wdata[0];
+                    3'd7: usb_rstn <= mem_wdata[0];
+                endcase
+             end
+             else begin
+                case (mem_addr[4:2])
+                    3'd0: gpio_rdata <= {27'd0, delay_sel_val_det};
+                    3'd6: gpio_rdata <= {31'd0, spi_di};
+                endcase
+             end
     end
+    
+    assign SPI_CS_B = spi_csn;
+    assign SPI_SCK = spi_clk;
+    assign SPI_MOSI = spi_do;
+    assign spi_di = SPI_MISO;
+    assign USB_RESET_B = usb_rstn;
+    assign USB_HUB_RESET_B = usb_rstn;
+    
+    assign mem_rdata = (addr_in_ram) ? (ram_rdata) : ((addr_in_ddr) ? (ddr_rdata) : ((addr_in_gpio) ? (gpio_rdata) : (32'hFFFFFFFF)));
 
     // ----------------------------------------------------------------------
     // VGA Controller
@@ -635,10 +704,6 @@ module pano_top(
     assign VGA_CLK = clk_vga_90;
     assign VGA_VSYNC = vga_vs;
     assign VGA_HSYNC = vga_hs;
-    //assign VGA_VSYNC = 1'b1;
-    //assign VGA_HSYNC = 1'b1;
-    //assign VGA_VSYNC = clk_vga_in;
-    //assign VGA_HSYNC = clk_vga;
     
     assign VGA_SCL = 1'bz;
     assign VGA_SDA = 1'bz;
@@ -669,17 +734,13 @@ module pano_top(
     // ----------------------------------------------------------------------
     // USB
     assign USB_CLKIN = clk_12;
+    assign USB_HUB_CLKIN = clk_24;
     
     // ----------------------------------------------------------------------
-    // LED
-    //reg led;
-    
-    
-    
-    assign LED_RED = init_done;
+    // LED 
     assign LED_BLUE = dcm_locked_12;
-    //assign LED_GREEN = !led;
-    assign LED_GREEN = 1'b0;
+    assign LED_RED = !led_red;
+    assign LED_GREEN = !led_green;
     
 
 endmodule
