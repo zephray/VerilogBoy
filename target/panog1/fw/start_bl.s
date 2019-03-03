@@ -52,5 +52,7 @@ end_init_bss:
 
 # call main
 call main
-loop:
-j loop
+
+# make sure we jump here so the sp is back to top
+li a0, 0x0c000000
+jr a0, 0

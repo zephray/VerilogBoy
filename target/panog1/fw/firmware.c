@@ -24,19 +24,17 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MEM_TOTAL 0x800     // 2 KB
-#define DDR_TOTAL 0x2000000 // 32 MB
+// For VRAM, only the lowest byte in each 32bit word is used
+#define vram ((volatile uint32_t *)0x08000000)
+
+#define led_grn *((volatile uint32_t *)0x03000004)
+#define led_red *((volatile uint32_t *)0x03000008)
 
 // a pointer to this is a null pointer, but the compiler does not
 // know that because "sram" is a linker symbol from sections.lds.
 extern uint32_t sram;
 
-// For VRAM, only the lowest byte in each 32bit word is used
-#define vram ((volatile uint32_t *)0x08000000)
-#define ddr ((volatile uint32_t *)0x0C000000)
-
 volatile uint32_t *vram_ptr;
-volatile uint32_t *ddr_ptr;
 
 // Virtual Terminal
 // Currently no scrolling is implemented
@@ -45,6 +43,13 @@ volatile uint32_t *ddr_ptr;
 // initialization value couldn't be used
 volatile int term_x;
 volatile int term_y;
+
+void term_clear() {
+    vram_ptr = vram;
+    for (int i = 0; i < 80 * 30; i++) {
+        *vram_ptr++ = 0x20;
+    }
+}
 
 void term_goto(uint8_t x, uint8_t y) {
 	term_x = x;
@@ -122,143 +127,13 @@ void term_print_dec(uint32_t v)
 	}
 }
 
-uint32_t generate_test_word_C(uint32_t input) {
-	return (input << 23) | input;
-}
-
-void ddr_memtest()
-{
-	volatile uint32_t *ptr;
-	volatile uint8_t *base_byte = (uint8_t *)ddr;
-
-	int counter;
-	ptr = ddr;
-	counter = 0;
-	for (int i = 0; i < (DDR_TOTAL/1024); i++) {
-		//ptr = ddr + i * (1024/4); 
-		for (int j = 0; j < (1024/4); j++) {
-			*ptr++ = generate_test_word_C(counter);
-			counter ++;
-		}
-		term_x = 3;
-		term_print_dec(i + 1);
-		term_print(" KB testing...");
-	}
-	ptr = ddr;
-	counter = 0;
-	for (int i = 0; i < (DDR_TOTAL/1024); i++) { // (DDR_TOTAL/1024)
-		for (int j = 0; j < (1024/4); j++) { // (1024/4)
-			uint32_t dat = *ptr;
-			if (dat != generate_test_word_C(counter)) {
-				term_print("Failed at word ");
-				term_print_hex((uint32_t)ptr, 8);
-				term_print(": ");
-				term_print_hex((uint32_t)(dat), 8);
-				term_print(" Expected: ");
-				term_print_hex((uint32_t)(generate_test_word_C(counter)), 8);
-				return;
-			}
-			ptr++;
-			counter++;
-		}
-		term_x = 3;
-		term_print_dec(i + 1);
-		term_print(" KB passed.   ");
-	}
-}
-
-// --------------------------------------------------------
-/*
-void cmd_read_flash_id()
-{
-	uint8_t buffer[17] = { 0x9F };
-	flashio(buffer, 17, 0);
-
-	for (int i = 1; i <= 16; i++) {
-		putchar(' ');
-		print_hex(buffer[i], 2);
-	}
-	putchar('\n');
-}
-*/
-// --------------------------------------------------------
-
-// --------------------------------------------------------
-/*
-uint32_t cmd_benchmark(bool verbose, uint32_t *instns_p)
-{
-	uint8_t data[256];
-	uint32_t *words = (void*)data;
-
-	uint32_t x32 = 314159265;
-
-	uint32_t cycles_begin, cycles_end;
-	uint32_t instns_begin, instns_end;
-	__asm__ volatile ("rdcycle %0" : "=r"(cycles_begin));
-	__asm__ volatile ("rdinstret %0" : "=r"(instns_begin));
-
-	for (int i = 0; i < 20; i++)
-	{
-		for (int k = 0; k < 256; k++)
-		{
-			x32 ^= x32 << 13;
-			x32 ^= x32 >> 17;
-			x32 ^= x32 << 5;
-			data[k] = x32;
-		}
-
-		for (int k = 0, p = 0; k < 256; k++)
-		{
-			if (data[k])
-				data[p++] = k;
-		}
-
-		for (int k = 0, p = 0; k < 64; k++)
-		{
-			x32 = x32 ^ words[k];
-		}
-	}
-
-	__asm__ volatile ("rdcycle %0" : "=r"(cycles_end));
-	__asm__ volatile ("rdinstret %0" : "=r"(instns_end));
-
-	if (verbose)
-	{
-		print("Cycles: 0x");
-		print_hex(cycles_end - cycles_begin, 8);
-		putchar('\n');
-
-		print("Instns: 0x");
-		print_hex(instns_end - instns_begin, 8);
-		putchar('\n');
-
-		print("Chksum: 0x");
-		print_hex(x32, 8);
-		putchar('\n');
-	}
-
-	if (instns_p)
-		*instns_p = instns_end - instns_begin;
-
-	return cycles_end - cycles_begin;
-}
-*/
-// --------------------------------------------------------
-
 void main()
 {
+    led_red = 1;
+    term_clear();
 	term_goto(0,0);
 	term_print("Pano Logic G1, ");
 	term_print("PicoRV32 @ 100MHz, ");
-	term_print("LPDDR @ 100MHz, det delay = ");
-	term_print_hex(*((uint8_t *)0x03000000), 2);
-	term_print("\n");
-	for (int i = 0; i < 29; i++) {
-		*((uint8_t *)0x03000000) = i;
-		term_print_hex(i, 2);
-		term_print(" ");
-		ddr_memtest();
-		term_newline();
-	}
+	term_print("LPDDR @ 100MHz.");
 	while (1);
 }
