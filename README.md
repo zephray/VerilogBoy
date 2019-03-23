@@ -5,12 +5,12 @@ Coding for fun - the hard way. Trying to implement a Game Boy® compatible machi
 
 This project consists of two parts:
 
- - An open source Game Boy® compatible console Verilog RTL implementation (the *VerilogBoy*)
+ - An open source Game Boy® compatible console Verilog RTL implementation (the *VerilogBoy Core*)
  - An open source FPGA-based handheld game console hardware (the *VerilogBoy Handheld*, or *vbh* for short.)
 
 Both are hosted in this repository.
 
-# VerilogBoy
+# VerilogBoy Core
 
 ## System Architecture
 
@@ -30,8 +30,9 @@ Several targets are supported by this project. See target folder for details.
 
 Refactoring in progress. Previous version could run *The Legend of Zelda: Link's Awakening* and *Pokemon Yellow* with no noticable glitch on the Xilinx ML505 board (as shown in the photo). See 'master' branch for previous version, at least for now.
 
-VerilogBoy core:
  - [ ] SM83 CPU <- Refactor in progress
+ - [ ] PPU
+ - [ ] PSG
 
 For progress regarding different ports, view README.md under the specific target folder.
 
@@ -49,7 +50,9 @@ VerilogBoy Handheld is an open source FPGA-based handheld game console. All desi
 
 ![Hardware-Architecture](https://github.com/zephray/VerilogBoy/raw/refactor/doc/hardware_arch.png)
 
- - FPGA: Xilinx Spartan-6 XC6SLX16
+Note: the architecture is subject to change.
+
+ - FPGA: Xilinx® Spartan®-6 XC6SLX16
  - RAM: Using on-board PSRAM for VRAM/WRAM
  - ROM: Using on-board PSRAM for game cartridge emulation
  - Video output: 1.54" MIPI-DSI 320x320 IPS TFT-LCD
