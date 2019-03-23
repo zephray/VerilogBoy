@@ -27,6 +27,6 @@ vbh_mcu:
 
 .PHONY: clean
 clean:
-	cd doc; $(MAKE) --no-print-directory clean
+#	cd doc; $(MAKE) --no-print-directory clean
 	cd rtl; $(MAKE) --no-print-directory clean
 	cd sim/verilator; $(MAKE) --no-print-directory clean
