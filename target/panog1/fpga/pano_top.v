@@ -77,12 +77,12 @@ module pano_top(
     // USB
     output wire USB_CLKIN,
     output wire USB_RESET_B,
-    /*output wire USB_CS_B,
+    output wire USB_CS_B,
     output wire USB_RD_B,
     output wire USB_WR_B,
     input  wire USB_IRQ,
     output wire [17:1] USB_A,
-    inout  wire [15:0] USB_D*/
+    inout  wire [15:0] USB_D,
     
     // USB HUB
     output wire USB_HUB_CLKIN,
@@ -116,6 +116,7 @@ module pano_top(
     wire dcm_locked;
     wire rst_12 = !dcm_locked_12;
     wire rst = !dcm_locked;
+    reg rst_rv;
     
     IBUFG ibufg_clk_100 (
         .O(clk_100_in),
@@ -509,18 +510,59 @@ module pano_top(
     assign LPDDR_CK_P = clk_100;
     assign LPDDR_CK_N = clk_100_180;
         
+    
+    // ----------------------------------------------------------------------
+    // USB
+    
+    wire [18:0] usb_addr;
+    wire [31:0] usb_wdata;
+    wire [31:0] usb_rdata;
+    wire [3:0] usb_wstrb;
+    wire usb_valid;
+    wire usb_ready;
+    wire [15:0] usb_din;
+    wire [15:0] usb_dout;
+    wire bus_dir;
+        
+    assign USB_CLKIN = clk_12;
+    assign USB_HUB_CLKIN = clk_24;
+    
+    usb_picorv_bridge usb_picorv_bridge(
+        .clk(clk_rv),
+        .rst(!rst_rv),
+        .sys_addr(usb_addr),
+        .sys_rdata(usb_rdata),
+        .sys_wdata(usb_wdata),
+        .sys_wstrb(usb_wstrb),
+        .sys_valid(usb_valid),
+        .sys_ready(usb_ready),
+        .usb_csn(USB_CS_B),
+        .usb_rdn(USB_RD_B),
+        .usb_wrn(USB_WR_B),
+        .usb_a(USB_A),
+        .usb_dout(usb_dout),
+        .usb_din(usb_din),
+        .bus_dir(bus_dir)
+    );
+    
+    // Tristate bus
+    // 0 - output, 1 - input 
+    assign USB_D = (bus_dir) ? (16'bz) : (usb_dout);
+    assign usb_din = USB_D;
+    
     // ----------------------------------------------------------------------
     // PicoRV32
     
     // Memory Map
     // 00000000 - 000007FF Internal RAM  (2KB)
-    // 01000000 - 0103FFFF SPI Flash ROM (256KB)
     // 03000000 - 03000100 GPIO          See description below
+    // 03000100 - 03000104 UART          (4B)
+    // 04000000 - 04080000 USB           (512KB)
     // 08000000 - 08000FFF Video RAM     (4KB)
     // 0C000000 - 0BFFFFFF LPDDR SDRAM   (32MB)
     parameter integer MEM_WORDS = 1024;
     parameter [31:0] STACKADDR = (4*MEM_WORDS);      // end of memory
-    parameter [31:0] PROGADDR_RESET = 32'h00000000; // start of the RAM
+    parameter [31:0] PROGADDR_RESET = 32'h00000000;  // start of the RAM
     
     wire mem_valid;
     wire mem_instr;
@@ -534,17 +576,23 @@ module pano_top(
     wire la_addr_in_ram = (mem_la_addr < 4*MEM_WORDS);
     wire la_addr_in_vram = (mem_la_addr >= 32'h08000000) && (mem_la_addr < 32'h08004000);
     wire la_addr_in_gpio = (mem_la_addr >= 32'h03000000) && (mem_la_addr < 32'h03000100);
+    wire la_addr_in_uart = (mem_la_addr == 32'h03000100);
+    wire la_addr_in_usb = (mem_la_addr >= 32'h04000000) && (mem_la_addr < 32'h04080000);
     wire la_addr_in_ddr = (mem_la_addr >= 32'h0C000000) && (mem_la_addr < 32'h0E000000);
     
     reg addr_in_ram;
     reg addr_in_vram;
     reg addr_in_gpio;
+    reg addr_in_uart;
+    reg addr_in_usb;
     reg addr_in_ddr;
     
     always@(posedge clk_rv) begin
         addr_in_ram <= la_addr_in_ram;
         addr_in_vram <= la_addr_in_vram;
         addr_in_gpio <= la_addr_in_gpio;
+        addr_in_uart <= la_addr_in_uart;
+        addr_in_usb <= la_addr_in_usb;
         addr_in_ddr <= la_addr_in_ddr;
     end
     
@@ -554,19 +602,24 @@ module pano_top(
         default_ready <= mem_valid;
     end
     
-    assign mem_ready = (addr_in_ddr) ? (ddr_ready) : (default_ready);
+    assign mem_ready = (addr_in_ddr) ? (ddr_ready) : (addr_in_usb) ? (usb_ready) : (default_ready);
     
     wire ram_valid = (mem_valid) && (!mem_ready) && (addr_in_ram);
     wire vram_valid = (mem_valid) && (!mem_ready) && (addr_in_vram);
     wire gpio_valid = (mem_valid) && (!mem_ready) && (addr_in_gpio);
+    wire uart_valid = (mem_valid) && (!mem_ready) && (addr_in_uart) && (mem_wstrb != 0);
     assign ddr_valid = (mem_valid) && (addr_in_ddr);
+    assign usb_valid = (mem_valid) && (addr_in_usb);
     
     assign ddr_addr = mem_addr[24:0];
     assign ddr_wstrb = mem_wstrb;
     assign ddr_wdata = mem_wdata;
     
+    assign usb_addr = mem_addr[18:0];
+    assign usb_wstrb = mem_wstrb;
+    assign usb_wdata = mem_wdata;
+    
     wire rst_rv_pre = !init_done;
-    reg rst_rv;
     reg [3:0] rst_counter;
     
     always @(posedge clk_rv)
@@ -596,8 +649,8 @@ module pano_top(
         .mem_wdata(mem_wdata),
         .mem_wstrb(mem_wstrb),
         .mem_rdata(mem_rdata),
-        .mem_la_addr(mem_la_addr),
-        .irq({31'b0, PB})
+        .mem_la_addr(mem_la_addr)
+        //.irq({31'b0, PB})
     );
     
     // Internal RAM & Boot ROM
@@ -612,7 +665,20 @@ module pano_top(
         .rdata(ram_rdata)
     );
     
+    // UART
+    // ----------------------------------------------------------------------
+    
+    /*simple_uart simple_uart(
+        .clk(clk_rv),
+        .rst(rst),
+        .wstrb(uart_valid),
+        .dat(mem_wdata[7:0]),
+        .txd(VGA_SCL)
+    );*/
+    
     // GPIO
+    // ----------------------------------------------------------------------
+    
     // 03000000 (0) - R: delay_sel_det / W: delay_sel_val
     // 03000004 (1) - W: led_green
     // 03000008 (2) - W: led_red
@@ -665,7 +731,11 @@ module pano_top(
     assign USB_RESET_B = usb_rstn;
     assign USB_HUB_RESET_B = usb_rstn;
     
-    assign mem_rdata = (addr_in_ram) ? (ram_rdata) : ((addr_in_ddr) ? (ddr_rdata) : ((addr_in_gpio) ? (gpio_rdata) : (32'hFFFFFFFF)));
+    assign mem_rdata = 
+        (addr_in_ram) ? (ram_rdata) : 
+        ((addr_in_ddr) ? (ddr_rdata) : 
+        ((addr_in_gpio) ? (gpio_rdata) : 
+        ((addr_in_usb) ? (usb_rdata) : (32'hFFFFFFFF))));
 
     // ----------------------------------------------------------------------
     // VGA Controller
@@ -705,8 +775,8 @@ module pano_top(
     assign VGA_VSYNC = vga_vs;
     assign VGA_HSYNC = vga_hs;
     
-    assign VGA_SCL = 1'bz;
     assign VGA_SDA = 1'bz;
+    assign VGA_SCL = 1'bz;
     
     wire vram_wea = (vram_valid && (mem_wstrb != 0)) ? 1'b1 : 1'b0;
     
@@ -730,11 +800,6 @@ module pano_top(
         end
     end
 // synthesis translate_on
-    
-    // ----------------------------------------------------------------------
-    // USB
-    assign USB_CLKIN = clk_12;
-    assign USB_HUB_CLKIN = clk_24;
     
     // ----------------------------------------------------------------------
     // LED 

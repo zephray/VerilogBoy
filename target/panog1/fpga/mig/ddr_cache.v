@@ -58,7 +58,7 @@ module ddr_cache(
     
     // If 3_CYCLE_CACHE is defined, add 1 to all the above.
     
-    //`define 3_CYCLE_CACHE 1
+    `define USE_3_CYCLE_CACHE 1
     
     // Parameters are for descriptive purposes, they are non-adjustable.
     localparam CACHE_WAY = 2; 
@@ -105,7 +105,7 @@ module ddr_cache(
     
     wire cache_comparator_0_comb = ((addr_tag == cache_way_rd_0[BIT_TAG_END: BIT_TAG_START]) && (cache_way_rd_0[BIT_VALID])) ? 1'b1 : 1'b0;
     wire cache_comparator_1_comb = ((addr_tag == cache_way_rd_1[BIT_TAG_END: BIT_TAG_START]) && (cache_way_rd_1[BIT_VALID])) ? 1'b1 : 1'b0;
-`ifdef 3_CYCLE_CACHE
+`ifdef USE_3_CYCLE_CACHE
     reg cache_comparator_0;
     reg cache_comparator_1;
     
@@ -262,7 +262,7 @@ module ddr_cache(
                     cache_way_we_0 <= 1'b0;
                     cache_way_we_1 <= 1'b0;
                     if (sys_valid) begin
-                    `ifdef 3_CYCLE_CACHE
+                    `ifdef USE_3_CYCLE_CACHE
                         cache_state <= STATE_RW_COMPARE;
                     `else
                         cache_state <= STATE_RW_CHECK;
