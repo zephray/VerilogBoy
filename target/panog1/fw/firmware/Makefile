@@ -1,5 +1,5 @@
 OBJS = firmware.o syscalls.o term.o isp1760.o misc.o usb.o usb_kbd.o
-CFLAGS = -MD -O3 -march=rv32i -Wl,--no-relax -fdata-sections -ffunction-sections
+CFLAGS = -MD -O1 -march=rv32i -Wl,--no-relax -fdata-sections -ffunction-sections
 TOOLCHAIN_PREFIX = riscv32-unknown-elf-
 
 firmware.bin: firmware.elf

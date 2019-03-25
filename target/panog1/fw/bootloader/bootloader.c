@@ -1,7 +1,7 @@
 /*
  *  VerilogBoy
  *
- *  This source code is adapted from: 
+ *  This source code is adapted from:
  *    PicoSoC - A simple example SoC using PicoRV32
  *
  *  Copyright (C) 2017  Clifford Wolf <clifford@clifford.at>
@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MEM_TOTAL 0x800     // 2 KB
+#define MEM_TOTAL 0x2000     // 8 KB
 #define DDR_TOTAL 0x2000000 // 32 MB
 
 // a pointer to this is a null pointer, but the compiler does not
@@ -51,8 +51,11 @@ extern uint32_t sram;
 #define spi_select() spi_csn = 0
 #define spi_deselect() spi_csn = 1
 
+#define uart_tx *((volatile uint32_t *)0x03000100)
+
 volatile uint32_t *vram_ptr;
 volatile uint32_t *ddr_ptr;
+uint32_t enable_uart = 0;
 
 void term_clear() {
     vram_ptr = vram;
@@ -64,13 +67,14 @@ void term_clear() {
 
 void term_putchar(char p)
 {
-    *vram_ptr++ = p;
+    if (p != '\n') *vram_ptr++ = p;
+    if (enable_uart) uart_tx = p;
 }
 
 void term_print(const char *p)
 {
     while (*p)
-        *vram_ptr++ = *p++;
+        term_putchar(*p++);
 }
 
 void term_print_hex(uint32_t v, int digits)
@@ -111,6 +115,19 @@ void term_print_dec(uint32_t v)
 	}
 }
 
+void irq_handler(uint32_t pc) {
+    // External logic is required to connect fault signal to IRQ line,
+    // and ENABLE_IRQ_QREGS should be turned off.
+    vram_ptr = vram;
+    for (int i = 0; i < 80; i++)
+        *vram_ptr++ = 0x20;
+    vram_ptr = vram;
+    enable_uart = 1;
+    term_print("HARD FAULT PC = ");
+    term_print_hex(pc, 8);
+    while (1);
+}
+
 uint32_t ddr_generate_test_word(uint32_t input) {
 	return (input << 24) | (input << 12) | input;
 }
@@ -129,7 +146,7 @@ void ddr_memtest()
 			*ptr++ = ddr_generate_test_word(counter);
 			counter ++;
 		}
-		vram_ptr = vram + 80;
+		vram_ptr = vram;
 		term_print_dec(i + 1);
 		term_print(" KB testing...");
 	}
@@ -150,11 +167,11 @@ void ddr_memtest()
 			ptr++;
 			counter++;
 		}
-		vram_ptr = vram + 80;
+		vram_ptr = vram;
 		term_print_dec(i + 1);
 		term_print(" KB passed.   ");
 	}
-    vram_ptr = vram + 160;
+    vram_ptr = vram + 80;
 }
 
 void spi_send_byte(unsigned char b) {
@@ -194,8 +211,9 @@ void check_id() {
         term_print(" Check passed.");
     else
         term_print(" Check failed.");
-    // goto line 2
-    vram_ptr = vram + 80;
+    // goto line 3
+    term_putchar('\n');
+    vram_ptr = vram + 160;
 }
 
 void copy_loop() {
@@ -219,7 +237,7 @@ void copy_loop() {
         }
         spi_deselect();
     }
-    term_print("done.");
+    term_print("done.\n\n");
 }
 
 void check_bytes() {
@@ -240,9 +258,11 @@ void main()
     spi_csn = 1;
     led_grn = 1;
     vram_ptr = vram;
+    enable_uart = 0;
     term_clear();
-    check_id();
     ddr_memtest();
+    enable_uart = 1;
+    check_id();
     copy_loop();
     //check_bytes();
     led_grn = 0;

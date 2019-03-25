@@ -1,7 +1,20 @@
+#define regnum_q0   0
+#define regnum_a0  10
+
 .section .text
 
-start:
+boot:
+j start
+nop
+nop
+nop
 
+irq:
+#.word 0x0000450B
+addi a0, gp, 0
+call irq_handler
+
+start:
 # zero-initialize register file
 addi x1, zero, 0
 # x2 (sp) is initialized by reset
@@ -53,6 +66,7 @@ end_init_bss:
 # call main
 call main
 
-# make sure we jump here so the sp is back to top
+# set the sp to be top of the DDR
+# li sp, 0x0cfffffc
 li a0, 0x0c000000
 jr a0, 0

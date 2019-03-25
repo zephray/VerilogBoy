@@ -33,9 +33,13 @@ void main()
 {
     char msg[127];
     led_red = 0;
-    // for some reason printf doesn't work.
+    
+    // Set interrupt mask to zero (enable all interrupts)
+    // This is a PicoRV32 custom instruction 
+    asm(".word 0x0600000b");
+
     term_goto(0,4);
-	printf("Pano Logic G1, PicoRV32 @ 100MHz, LPDDR @ 100MHz.\n");
+    printf("Pano Logic G1, PicoRV32 @ 100MHz, LPDDR @ 100MHz.\n");
     usb_init();
     led_grn = 1;
 	while (1) {
