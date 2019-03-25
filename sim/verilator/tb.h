@@ -1,18 +1,25 @@
-////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: Wenting Zhang
-// 
-// Create Date:    07/15/2018 
-// Module Name:    vb_sim
-// Project Name:   VerilogBoy
-// Description: 
-//   Testbench Class Template. Basically feeding the module with clock.
-//   Only one single clock is supported.
-// Dependencies: 
-// 
-// Additional Comments: 
-//   
-////////////////////////////////////////////////////////////////////////////////
+/*
+ *  VerilogBoy
+ *  
+ *  tb.h: Testbench Class Template. Basically feeding the module with clock.
+ *        Only one single clock is supported.
+ * 
+ *  Copyright (C) 2019  Wenting Zhang <zephray@outlook.com>
+ *  Copyright (C) 2015,2017, Gisselquist Technology, LLC
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms and conditions of the GNU General Public License as 
+ *  published by the Free Software Foundation, either version 3 of the license,
+ *  or (at your option) any later version.
+ *
+ *  This program is distributed in the hope it will be useful, but WITHOUT
+ *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ *  more details.
+ *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, see <http://www.gnu.org/licenses/> for a copy.
+ */
 #include <stdio.h>
 #include <stdint.h>
 #include <verilated_vcd_c.h>
