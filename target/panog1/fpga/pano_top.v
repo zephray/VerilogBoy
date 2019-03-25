@@ -554,15 +554,16 @@ module pano_top(
     // PicoRV32
     
     // Memory Map
-    // 00000000 - 000007FF Internal RAM  (2KB)
     // 03000000 - 03000100 GPIO          See description below
     // 03000100 - 03000104 UART          (4B)
     // 04000000 - 04080000 USB           (512KB)
     // 08000000 - 08000FFF Video RAM     (4KB)
-    // 0C000000 - 0BFFFFFF LPDDR SDRAM   (32MB)
+    // 0C000000 - 0DFFFFFF LPDDR SDRAM   (32MB)
+    // FFFF0000 - FFFFFFFF Internal RAM  (4KB w/ echo)
     parameter integer MEM_WORDS = 1024;
-    parameter [31:0] STACKADDR = (4*MEM_WORDS);      // end of memory
-    parameter [31:0] PROGADDR_RESET = 32'h00000000;  // start of the RAM
+    parameter [31:0] STACKADDR = 32'hfffffffc;
+    parameter [31:0] PROGADDR_RESET = 32'hffff0000;  // start of the RAM
+    parameter [31:0] PROGADDR_IRQ = 32'hffff0010;
     
     wire mem_valid;
     wire mem_instr;
@@ -573,7 +574,9 @@ module pano_top(
     wire [31:0] mem_rdata;
     wire [31:0] mem_la_addr;
     
-    wire la_addr_in_ram = (mem_la_addr < 4*MEM_WORDS);
+    reg cpu_irq;
+    
+    wire la_addr_in_ram = (mem_la_addr >= 32'hFFFF0000);
     wire la_addr_in_vram = (mem_la_addr >= 32'h08000000) && (mem_la_addr < 32'h08004000);
     wire la_addr_in_gpio = (mem_la_addr >= 32'h03000000) && (mem_la_addr < 32'h03000100);
     wire la_addr_in_uart = (mem_la_addr == 32'h03000100);
@@ -596,20 +599,38 @@ module pano_top(
         addr_in_ddr <= la_addr_in_ddr;
     end
     
-    reg default_ready;
-    
-    always @(posedge clk_rv) begin
-        default_ready <= mem_valid;
-    end
-    
-    assign mem_ready = (addr_in_ddr) ? (ddr_ready) : (addr_in_usb) ? (usb_ready) : (default_ready);
-    
     wire ram_valid = (mem_valid) && (!mem_ready) && (addr_in_ram);
     wire vram_valid = (mem_valid) && (!mem_ready) && (addr_in_vram);
     wire gpio_valid = (mem_valid) && (!mem_ready) && (addr_in_gpio);
-    wire uart_valid = (mem_valid) && (!mem_ready) && (addr_in_uart) && (mem_wstrb != 0);
+    wire uart_valid = (mem_valid) && (addr_in_uart);
     assign ddr_valid = (mem_valid) && (addr_in_ddr);
     assign usb_valid = (mem_valid) && (addr_in_usb);
+    wire general_valid = (mem_valid) && (!mem_ready) && (!addr_in_ddr) && (!addr_in_uart) && (!addr_in_usb);
+    
+    reg default_ready;
+    
+    always @(posedge clk_rv) begin
+        //default_ready <= ram_valid || vram_valid || gpio_valid || usb_valid || uart_valid;
+        default_ready <= general_valid;
+    end
+    
+    wire uart_ready;
+    assign mem_ready = uart_ready || ddr_ready || usb_ready || default_ready;
+    
+    reg mem_valid_last;
+    always @(posedge clk_rv) begin
+        if (!rst_rv)
+            cpu_irq <= 1'b0;
+        else begin
+            mem_valid_last <= mem_valid;
+            if (mem_valid && !mem_valid_last && !(ram_valid || vram_valid || gpio_valid || usb_valid || uart_valid || ddr_valid))
+                cpu_irq <= 1'b1;
+            //else
+            //    cpu_irq <= 1'b0;
+        end
+    end
+    
+    assign ddr_addr = mem_addr[24:0];
     
     assign ddr_addr = mem_addr[24:0];
     assign ddr_wstrb = mem_wstrb;
@@ -638,7 +659,13 @@ module pano_top(
     
     picorv32 #(
         .STACKADDR(STACKADDR),
-        .PROGADDR_RESET(PROGADDR_RESET)
+        .PROGADDR_RESET(PROGADDR_RESET),
+        .ENABLE_IRQ(1),
+        .ENABLE_IRQ_QREGS(0),
+        .ENABLE_IRQ_TIMER(0),
+        .PROGADDR_IRQ(PROGADDR_IRQ),
+        .MASKED_IRQ(32'hfffffffe),
+        .LATCHED_IRQ(32'hffffffff)
     ) cpu (
         .clk(clk_rv),
         .resetn(rst_rv),
@@ -649,8 +676,8 @@ module pano_top(
         .mem_wdata(mem_wdata),
         .mem_wstrb(mem_wstrb),
         .mem_rdata(mem_rdata),
-        .mem_la_addr(mem_la_addr)
-        //.irq({31'b0, PB})
+        .mem_la_addr(mem_la_addr),
+        .irq({31'b0, cpu_irq})
     );
     
     // Internal RAM & Boot ROM
@@ -660,7 +687,7 @@ module pano_top(
     ) memory (
         .clk(clk_rv),
         .wen(ram_valid ? mem_wstrb : 4'b0),
-        .addr(mem_addr[23:2]),
+        .addr({12'b0, mem_addr[11:2]}),
         .wdata(mem_wdata),
         .rdata(ram_rdata)
     );
@@ -668,13 +695,14 @@ module pano_top(
     // UART
     // ----------------------------------------------------------------------
     
-    /*simple_uart simple_uart(
+    simple_uart simple_uart(
         .clk(clk_rv),
-        .rst(rst),
+        .rst(!rst_rv),
         .wstrb(uart_valid),
+        .ready(uart_ready),
         .dat(mem_wdata[7:0]),
         .txd(VGA_SCL)
-    );*/
+    );
     
     // GPIO
     // ----------------------------------------------------------------------
@@ -776,7 +804,7 @@ module pano_top(
     assign VGA_HSYNC = vga_hs;
     
     assign VGA_SDA = 1'bz;
-    assign VGA_SCL = 1'bz;
+    //assign VGA_SCL = 1'bz;
     
     wire vram_wea = (vram_valid && (mem_wstrb != 0)) ? 1'b1 : 1'b0;
     

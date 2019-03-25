@@ -31,27 +31,27 @@ module cache_testbench_with_rv;
 	//reg [31:0] sys_wdata;
 	//reg [3:0] sys_wstrb;
 	//reg sys_valid;
-	wire [127:0] mem_rdata;
-	reg mem_ready;
+	wire [127:0] fakeddr_rdata;
+	reg fakeddr_ready;
 
 	// Outputs
 	//wire [31:0] sys_rdata;
 	wire ddr_ready;
-	wire [20:0] mem_addr;
-	wire [127:0] mem_wdata;
-	wire mem_wstrb;
-	wire mem_valid;
+	wire [20:0] fakeddr_addr;
+	wire [127:0] fakeddr_wdata;
+	wire fakeddr_wstrb;
+	wire fakeddr_valid;
     wire [24:0] ddr_addr;
     
-    wire sys_valid;
-    wire sys_instr;
-    wire sys_ready;
-    wire [31:0] sys_addr;
-    wire [31:0] sys_wdata;
-    wire [3:0] sys_wstrb;
-    wire [31:0] sys_rdata;
+    wire mem_valid;
+    wire mem_instr;
+    wire mem_ready;
+    wire [31:0] mem_addr;
+    wire [31:0] mem_wdata;
+    wire [3:0] mem_wstrb;
+    wire [31:0] mem_rdata;
     wire [31:0] ddr_rdata;
-    wire [31:0] sys_la_addr;
+    wire [31:0] mem_la_addr;
     wire ddr_valid;
 
 	// Instantiate the Unit Under Test (UUT)
@@ -59,71 +59,71 @@ module cache_testbench_with_rv;
 		.clk(clk), 
 		.rst(rst), 
 		.sys_addr(ddr_addr), 
-		.sys_wdata(sys_wdata), 
+		.sys_wdata(mem_wdata), 
 		.sys_rdata(ddr_rdata), 
-		.sys_wstrb(sys_wstrb), 
+		.sys_wstrb(mem_wstrb), 
 		.sys_valid(ddr_valid), 
 		.sys_ready(ddr_ready), 
-		.mem_addr(mem_addr), 
-		.mem_wdata(mem_wdata), 
-		.mem_rdata(mem_rdata), 
-		.mem_wstrb(mem_wstrb), 
-		.mem_valid(mem_valid), 
-		.mem_ready(mem_ready)
+		.mem_addr(fakeddr_addr), 
+		.mem_wdata(fakeddr_wdata), 
+		.mem_rdata(fakeddr_rdata), 
+		.mem_wstrb(fakeddr_wstrb), 
+		.mem_valid(fakeddr_valid), 
+		.mem_ready(fakeddr_ready)
 	);
     
     // Clock
     always
         #5 clk = !clk;
     
-    // 4 KB memory space
-    reg [127:0] mem [0: 255];
-    reg last_mem_valid;
-    reg mem_valid_slow;
-    wire mem_valid_gated;
-    reg [2:0] mem_valid_counter;
+    // 8 KB fakeddr memory space
+    reg [127:0] fakeddr [0: 131072 - 1];
+    reg last_fakeddr_valid;
+    reg fakeddr_valid_slow;
+    wire fakeddr_valid_gated;
+    reg [2:0] fakeddr_valid_counter;
     
     // make this memory slower
     always @(posedge clk) begin
-        last_mem_valid <= mem_valid;
-        if (!last_mem_valid && mem_valid) begin
-            mem_valid_counter <= 3'd7;
+        last_fakeddr_valid <= fakeddr_valid;
+        if (!last_fakeddr_valid && fakeddr_valid) begin
+            fakeddr_valid_counter <= 3'd7;
         end
-        else if (!mem_valid) begin
-            mem_valid_slow <= 1'b0;
-            mem_valid_counter <= 1'b0; // disable
+        else if (!fakeddr_valid) begin
+            fakeddr_valid_slow <= 1'b0;
+            fakeddr_valid_counter <= 1'b0; // disable
         end
-        else if ((mem_valid_counter != 0)&&(mem_valid_counter != 1)) begin
-            mem_valid_counter <= mem_valid_counter - 1;
+        else if ((fakeddr_valid_counter != 0)&&(fakeddr_valid_counter != 1)) begin
+            fakeddr_valid_counter <= fakeddr_valid_counter - 1;
         end
-        else if (mem_valid_counter == 1) begin
-            mem_valid_slow <= 1'b1;
+        else if (fakeddr_valid_counter == 1) begin
+            fakeddr_valid_slow <= 1'b1;
         end
     end
     
-    assign mem_valid_gated = mem_valid_slow & mem_valid;
-    reg [127:0] mem_rdata_tr;
-    wire [127:0] mem_wdata_tr = 
-        {mem_wdata[7:0], mem_wdata[15:8], mem_wdata[23:16], mem_wdata[31:24], 
-        mem_wdata[39:32], mem_wdata[47:40], mem_wdata[55:48], mem_wdata[63:56],
-        mem_wdata[71:64], mem_wdata[79:72], mem_wdata[87:80], mem_wdata[95:88], 
-        mem_wdata[103:96], mem_wdata[111:104], mem_wdata[119:112], mem_wdata[127:120]};
-    assign mem_rdata = 
-        {mem_rdata_tr[7:0], mem_rdata_tr[15:8], mem_rdata_tr[23:16], mem_rdata_tr[31:24], 
-        mem_rdata_tr[39:32], mem_rdata_tr[47:40], mem_rdata_tr[55:48], mem_rdata_tr[63:56],
-        mem_rdata_tr[71:64], mem_rdata_tr[79:72], mem_rdata_tr[87:80], mem_rdata_tr[95:88], 
-        mem_rdata_tr[103:96], mem_rdata_tr[111:104], mem_rdata_tr[119:112], mem_rdata_tr[127:120]};
+    assign fakeddr_valid_gated = fakeddr_valid_slow & fakeddr_valid;
+    reg [127:0] fakeddr_rdata_tr;
+    wire [127:0] fakeddr_wdata_tr = 
+        {fakeddr_wdata[7:0], fakeddr_wdata[15:8], fakeddr_wdata[23:16], fakeddr_wdata[31:24], 
+        fakeddr_wdata[39:32], fakeddr_wdata[47:40], fakeddr_wdata[55:48], fakeddr_wdata[63:56],
+        fakeddr_wdata[71:64], fakeddr_wdata[79:72], fakeddr_wdata[87:80], fakeddr_wdata[95:88], 
+        fakeddr_wdata[103:96], fakeddr_wdata[111:104], fakeddr_wdata[119:112], fakeddr_wdata[127:120]};
+    assign fakeddr_rdata = 
+        {fakeddr_rdata_tr[7:0], fakeddr_rdata_tr[15:8], fakeddr_rdata_tr[23:16], fakeddr_rdata_tr[31:24], 
+        fakeddr_rdata_tr[39:32], fakeddr_rdata_tr[47:40], fakeddr_rdata_tr[55:48], fakeddr_rdata_tr[63:56],
+        fakeddr_rdata_tr[71:64], fakeddr_rdata_tr[79:72], fakeddr_rdata_tr[87:80], fakeddr_rdata_tr[95:88], 
+        fakeddr_rdata_tr[103:96], fakeddr_rdata_tr[111:104], fakeddr_rdata_tr[119:112], fakeddr_rdata_tr[127:120]};
 
     always @(posedge clk) begin
-        if (mem_valid_slow) begin
-            if (mem_wstrb)
-                mem[mem_addr] <= mem_wdata_tr;
+        if (fakeddr_valid_slow) begin
+            if (fakeddr_wstrb)
+                fakeddr[fakeddr_addr] <= fakeddr_wdata_tr;
             else
-                mem_rdata_tr <= mem[mem_addr];
-            mem_ready <= 1'b1;
+                fakeddr_rdata_tr <= fakeddr[fakeddr_addr];
+            fakeddr_ready <= 1'b1;
         end
         else begin
-            mem_ready <= 1'b0;
+            fakeddr_ready <= 1'b0;
         end
     end
     
@@ -137,40 +137,72 @@ module cache_testbench_with_rv;
     // 08000000 - 08000FFF Video RAM     (4KB)
     // 0C000000 - 0BFFFFFF LPDDR SDRAM   (32MB)
     parameter integer MEM_WORDS = 1024;
-    parameter [31:0] STACKADDR = (4*MEM_WORDS);      // end of memory
-    parameter [31:0] PROGADDR_RESET = 32'h0C000000; // start of the DDR
+    parameter [31:0] STACKADDR = 32'hfffffffc;
+    parameter [31:0] PROGADDR_IRQ = 32'hffff0010;
+    parameter [31:0] PROGADDR_RESET = 32'h0c000000;  // start of the DDR
     
-    wire la_addr_in_ram = (sys_la_addr < 4*MEM_WORDS);
-    wire la_addr_in_vram = (sys_la_addr >= 32'h08000000) && (sys_la_addr < 32'h08004000);
-    wire la_addr_in_gpio = (sys_la_addr >= 32'h03000000) && (sys_la_addr < 32'h03000100);
-    wire la_addr_in_ddr = (sys_la_addr >= 32'h0C000000) && (sys_la_addr < 32'h0E000000);
+    reg cpu_irq;
+    
+    wire la_addr_in_ram = (mem_la_addr >= 32'hFFFF0000);
+    wire la_addr_in_vram = (mem_la_addr >= 32'h08000000) && (mem_la_addr < 32'h08004000);
+    wire la_addr_in_gpio = (mem_la_addr >= 32'h03000000) && (mem_la_addr < 32'h03000100);
+    wire la_addr_in_ddr = (mem_la_addr >= 32'h0C000000) && (mem_la_addr < 32'h0E000000);
+    wire la_addr_in_uart = (mem_la_addr == 32'h03000100);
+    wire la_addr_in_usb = (mem_la_addr >= 32'h04000000) && (mem_la_addr < 32'h04080000);
     
     reg addr_in_ram;
     reg addr_in_vram;
     reg addr_in_gpio;
     reg addr_in_ddr;
+    reg addr_in_usb;
+    reg addr_in_uart;
     
     always@(posedge clk) begin
         addr_in_ram <= la_addr_in_ram;
         addr_in_vram <= la_addr_in_vram;
         addr_in_gpio <= la_addr_in_gpio;
+        addr_in_uart <= la_addr_in_uart;
+        addr_in_usb <= la_addr_in_usb;
         addr_in_ddr <= la_addr_in_ddr;
     end
+    
+    wire ram_valid = (mem_valid) && (!mem_ready) && (addr_in_ram);
+    wire vram_valid = (mem_valid) && (!mem_ready) && (addr_in_vram);
+    wire gpio_valid = (mem_valid) && (!mem_ready) && (addr_in_gpio);
+    wire uart_valid = (mem_valid) && (!mem_ready) && (addr_in_uart);
+    wire usb_valid = (mem_valid) && (!mem_ready) && (addr_in_usb);
+    assign ddr_valid = (mem_valid) && (addr_in_ddr);
+    wire general_valid = (mem_valid) && (!mem_ready) && (!addr_in_ddr);
+    
+    assign ddr_addr = mem_addr[24:0];
     
     reg default_ready;
     
     always @(posedge clk) begin
-        default_ready <= sys_valid;
+        //default_ready <= ram_valid || vram_valid || gpio_valid || usb_valid || uart_valid;
+        default_ready <= general_valid;
     end
     
-    assign sys_ready = (addr_in_ddr) ? (ddr_ready) : (default_ready);
+    always @(posedge clk) begin
+        if (uart_valid && mem_wstrb)
+            $display("%c", mem_wdata[7:0]);
+    end
     
-    wire ram_valid = (sys_valid) && (!sys_ready) && (addr_in_ram);
-    wire vram_valid = (sys_valid) && (!sys_ready) && (addr_in_vram);
-    wire gpio_valid = (sys_valid) && (!sys_ready) && (addr_in_gpio);
-    assign ddr_valid = (sys_valid) && (addr_in_ddr);
+    reg mem_valid_last;
+    always @(posedge clk) begin
+        if (rst)
+            cpu_irq <= 1'b0;
+        else begin
+            mem_valid_last <= mem_valid;
+            if (mem_valid && !mem_valid_last && !(ram_valid || vram_valid || gpio_valid || usb_valid || uart_valid || ddr_valid))
+                cpu_irq <= 1'b1;
+            //else
+            //    cpu_irq <= 1'b0;
+        end
+    end
     
-    assign ddr_addr = sys_addr[24:0];
+    wire uart_ready;
+    assign mem_ready = ddr_ready || default_ready;
     
     wire rst_rv_pre = rst;
     reg rst_rv;
@@ -192,19 +224,26 @@ module cache_testbench_with_rv;
     
     picorv32 #(
         .STACKADDR(STACKADDR),
-        .PROGADDR_RESET(PROGADDR_RESET)
+        .PROGADDR_RESET(PROGADDR_RESET),
+        .REGS_INIT_ZERO(1),
+        .ENABLE_IRQ(1),
+        .ENABLE_IRQ_QREGS(0),
+        .ENABLE_IRQ_TIMER(0),
+        .PROGADDR_IRQ(PROGADDR_IRQ),
+        .MASKED_IRQ(32'hfffffffe),
+        .LATCHED_IRQ(32'hffffffff)
     ) cpu (
         .clk(clk),
         .resetn(rst_rv),
-        .mem_valid(sys_valid),
-        .mem_instr(sys_instr),
-        .mem_ready(sys_ready),
-        .mem_addr(sys_addr),
-        .mem_wdata(sys_wdata),
-        .mem_wstrb(sys_wstrb),
-        .mem_rdata(sys_rdata),
-        .mem_la_addr(sys_la_addr),
-        .irq({32'b0})
+        .mem_valid(mem_valid),
+        .mem_instr(mem_instr),
+        .mem_ready(mem_ready),
+        .mem_addr(mem_addr),
+        .mem_wdata(mem_wdata),
+        .mem_wstrb(mem_wstrb),
+        .mem_rdata(mem_rdata),
+        .mem_la_addr(mem_la_addr),
+        .irq({31'b0, cpu_irq})
     );
     
     // Internal RAM & Boot ROM
@@ -213,9 +252,9 @@ module cache_testbench_with_rv;
         .WORDS(MEM_WORDS)
     ) memory (
         .clk(clk),
-        .wen(ram_valid ? sys_wstrb : 4'b0),
-        .addr(sys_addr[23:2]),
-        .wdata(sys_wdata),
+        .wen(ram_valid ? mem_wstrb : 4'b0),
+        .addr({12'b0, mem_addr[11:2]}),
+        .wdata(mem_wdata),
         .rdata(ram_rdata)
     );
     
@@ -240,7 +279,7 @@ module cache_testbench_with_rv;
     always@(posedge clk) begin
         if (!rst_rv) begin
             led_green <= 1'b0;
-            led_red <= 1'b0;
+            led_red <= 1'b1;
             spi_csn <= 1'b1;
         end
         else if (gpio_valid)
@@ -256,14 +295,14 @@ module cache_testbench_with_rv;
              end
     end
     
-    assign sys_rdata = (addr_in_ram) ? (ram_rdata) : ((addr_in_ddr) ? (ddr_rdata) : ((addr_in_gpio) ? (gpio_rdata) : (32'hFFFFFFFF)));
+    assign mem_rdata = (addr_in_ram) ? (ram_rdata) : ((addr_in_ddr) ? (ddr_rdata) : ((addr_in_gpio) ? (gpio_rdata) : (32'hFFFFFFFF)));
 
 	initial begin
 		// Initialize Inputs
 		clk = 0;
 		rst = 1;
         
-        $readmemh("picorv_fw.mif", mem, 0, 256-1);
+        $readmemh("picorv_fw.mif", fakeddr, 0, 131072-1);
 
 		// Wait 100 ns for global reset to finish
 		#100;

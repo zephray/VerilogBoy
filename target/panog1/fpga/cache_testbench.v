@@ -46,7 +46,7 @@ module cache_testbench;
 	ddr_cache uut (
 		.clk(clk), 
 		.rst(rst), 
-		.sys_la_addr(sys_addr), 
+		.sys_addr(sys_addr), 
 		.sys_wdata(sys_wdata), 
 		.sys_rdata(sys_rdata), 
 		.sys_wstrb(sys_wstrb), 
