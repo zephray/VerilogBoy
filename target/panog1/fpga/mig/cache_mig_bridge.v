@@ -58,6 +58,7 @@ module cache_mig_bridge(
     localparam BSTATE_READ_WAIT_1 = 4'd8;
     localparam BSTATE_READ_WAIT_2 = 4'd9;
     localparam BSTATE_READ_DONE = 4'd10;
+    localparam BSTATE_WAIT = 4'd11;
     
     // Burst length is fixed to 4, and each read or write consists of 1 burst.
     // Means each time it will read/ write 4 32bit words, but only 1 is valid 
@@ -138,7 +139,7 @@ module cache_mig_bridge(
                     if (wait_counter == 2'd1) begin
                         burst_done <= 1'b0;
                         cache_ready_int <= 1'b1;
-                        bridge_state <= BSTATE_IDLE;
+                        bridge_state <= BSTATE_WAIT;
                     end
                     else
                         wait_counter <= wait_counter - 2'd1;
@@ -172,8 +173,13 @@ module cache_mig_bridge(
                 BSTATE_READ_DONE: begin
                     user_command_register <= 3'b000;
                     cache_ready_int <= 1'b1;
+                    bridge_state <= BSTATE_WAIT;
+                end
+                BSTATE_WAIT: begin
+                    cache_ready_int <= 1'b0;
                     if (!cache_valid)
                         bridge_state <= BSTATE_IDLE;
+
                 end
             endcase
         end

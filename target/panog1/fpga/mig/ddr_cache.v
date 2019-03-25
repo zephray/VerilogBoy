@@ -284,7 +284,7 @@ module ddr_cache(
                         cache_way_we_1 <= 1'b0;
                         cache_line_wb_src <= 2'b00;
                         cache_state <= STATE_WAIT;
-                        $display("Cache hit in way 0.");
+                        //$display("Cache hit in way 0.");
                     end
                     else if (cache_comparator_1) begin
                         sys_rdata <= cache_way_1_output_mux;
@@ -293,7 +293,7 @@ module ddr_cache(
                         cache_way_we_1 <= 1'b1;
                         cache_line_wb_src <= 2'b00;
                         cache_state <= STATE_WAIT;
-                        $display("Cache hit in way 1.");
+                        //$display("Cache hit in way 1.");
                     end
                     else begin
                         // Cache miss
@@ -306,7 +306,7 @@ module ddr_cache(
                                 mem_wstrb <= 1'b1;
                                 mem_valid <= 1'b1;
                                 cache_state <= STATE_RW_FLUSH;
-                                $display("Cache miss, way 0 flush.");
+                                //$display("Cache miss, way 0 flush.");
                                 //$stop;
                             end
                             else begin
@@ -315,7 +315,7 @@ module ddr_cache(
                                 mem_wstrb <= 1'b0;
                                 mem_valid <= 1'b1;
                                 cache_state <= STATE_RW_MISS;
-                                $display("Cache miss, way 0 load.");
+                                //$display("Cache miss, way 0 load.");
                             end
                         end
                         else begin
@@ -326,7 +326,7 @@ module ddr_cache(
                                 mem_wstrb <= 1'b1;
                                 mem_valid <= 1'b1;
                                 cache_state <= STATE_RW_FLUSH;
-                                $display("Cache miss, way 1 flush.");
+                                //$display("Cache miss, way 1 flush.");
                                 //$stop;
                             end
                             else begin
@@ -335,7 +335,7 @@ module ddr_cache(
                                 mem_wstrb <= 1'b0;
                                 mem_valid <= 1'b1;
                                 cache_state <= STATE_RW_MISS;
-                                $display("Cache miss, way 1 load.");
+                                //$display("Cache miss, way 1 load.");
                             end
                         end
                     end
@@ -390,9 +390,9 @@ module ddr_cache(
                     cache_way_we_0 <= 1'b0;
                     cache_way_we_1 <= 1'b0;
                     mem_valid <= 1'b0;
+                    sys_ready <= 1'b0;
                     if (!sys_valid) begin
                         cache_state <= STATE_IDLE;
-                        sys_ready <= 1'b0;
                     end
                 end
             endcase
