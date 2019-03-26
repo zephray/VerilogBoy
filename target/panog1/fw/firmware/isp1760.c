@@ -23,6 +23,21 @@
 #include "term.h"
 #include "usb.h"
 #include "isp1760.h"
+#include "isp_roothub.h"
+
+#undef USE_ROOT_HUB
+
+//#define ISP_DEBUG
+
+#ifdef ISP_DEBUG
+#define debug_print(x) term_print(x)
+#define debug_print_hex(x,d) term_print_hex(x,d)
+#define	debug_printf(fmt, args...) printf(fmt , ##args)
+#else
+#define debug_print(x)
+#define debug_print_hex(x,d)
+#define	debug_printf(fmt, args...)
+#endif
 
 uint32_t isp_read_word(uint32_t address) {
     return *((volatile uint32_t *)(ISP_BASE_ADDR | (address << 1)));
@@ -67,7 +82,7 @@ void isp_read_memory(uint32_t address, uint32_t *data, uint32_t length) {
     isp_write_dword(ISP_MEMORY, address);
     for (uint32_t i = 0; i < length; i+= 4) {
         *data++ = isp_read_dword(address);
-        address ++;
+        address += 4;
     }
 }
 
@@ -141,7 +156,7 @@ int isp_init() {
 
     delay_ms(100);
     /*if (isp_wait(ISP_USBCMD, ISP_USBCMD_RESET, 0, 250) != ISP_SUCCESS) {
-        term_print("Failed to reset the ISP1760!\n");
+        debug_print("Failed to reset the ISP1760!\n");
         return;
     }*/
 
@@ -151,6 +166,10 @@ int isp_init() {
     // Clear USB reset command
     value &= ~ISP_USBCMD_RESET;
     isp_write_dword(ISP_USBCMD, value);
+
+    // Config port 1
+    // Config as USB HOST (On ISP1761 it can also be device)
+    isp_write_dword(ISP_PORT_1_CONTROL, 0x00800018);
 
     // Configure interrupt here
     isp_write_dword(ISP_INTERRUPT, 2);
@@ -192,10 +211,7 @@ int isp_init() {
     isp_write_dword(ISP_INT_PTD_LASTPTD, 0x80000000);
     isp_write_dword(ISP_ISO_PTD_LASTPTD, 0x00000001);
 
-    // Config port 1
-    // Config as USB HOST (On ISP1761 it can also be device)
-    isp_write_dword(ISP_PORT_1_CONTROL, 0x00800018);
-
+#ifndef USE_ROOT_HUB
     // Enable port power
     isp_write_dword(ISP_PORTSC1, ISP_PORTSC1_PP);
 
@@ -220,6 +236,7 @@ int isp_init() {
     // Clear reset
     isp_write_dword(ISP_PORTSC1, 
             isp_read_dword(ISP_PORTSC1) & ~(ISP_PORTSC1_PR));
+#endif
 
     return 0;
 }
@@ -231,7 +248,7 @@ void isp_enable_irq(uint32_t enable) {
 ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
         ISP_TRANSFER_DIRECTION direction, USB_TOKEN token, 
         uint32_t device_address, uint32_t parent_port, uint32_t parent_address, 
-        uint32_t max_packet_length, uint32_t toggle,  USB_EP_TYPE ep_type,
+        uint32_t max_packet_length, uint32_t *toggle,  USB_EP_TYPE ep_type,
         uint32_t ep, uint8_t *buffer, uint32_t max_length, uint32_t *length) {
     ISP_RESULT result = ISP_SUCCESS;
     uint32_t payload_address;
@@ -244,12 +261,11 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
     uint32_t start_ticks;
     uint32_t actual_transfer_length;
 
-    printf("111\n");
-
     payload_address = MEM_PAYLOAD_BASE;
 
     switch(ptd_type) {
         case TYPE_ATL:
+            debug_print("A");
             ptd_address = MEM_ATL_BASE;
             reg_ptd_donemap = ISP_ATL_PTD_DONEMAP;
             reg_ptd_skipmap = ISP_ATL_PTD_SKIPMAP;
@@ -257,6 +273,7 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
             buffer_status_filled = ISP_BUFFER_STATUS_ATL_FILLED;
             break;
         case TYPE_INT:
+            debug_print("I");
             ptd_address = MEM_INT_BASE;
             reg_ptd_donemap = ISP_INT_PTD_DONEMAP;
             reg_ptd_skipmap = ISP_INT_PTD_SKIPMAP;
@@ -266,6 +283,7 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
         case TYPE_ISO:
             // not supported
         default:
+            debug_print("ERR");
             result = ISP_NOT_IMPLEMENTED;
             return result;
     }
@@ -279,11 +297,9 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
 
     // Build PTD
     isp_build_header(speed, token, device_address, parent_port, parent_address,
-            toggle, ep_type, ep, start_ptd, payload_address, 
+            *toggle, ep_type, ep, start_ptd, payload_address, 
             (direction == DIRECTION_OUT) ? (*length) : (max_length),
             max_packet_length);
-
-    printf("222\n");
 
     // Transfer, only loop if NAKed
     start_ticks = ticks_ms();
@@ -320,44 +336,44 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
                 // NACK, retry later
                 result = ISP_NACK_TIMEOUT;
                 retry = 1;
-                term_print("NACK");
+                debug_print("NACK");
                 delay_us(100);
             }
             // Check H bit
             else if (readback_ptd[3] & (1u << 30)) {
                 // halt, do not retry
                 result = ISP_TRANSFER_HALT;
-                term_print("HALT");
+                debug_print("HALT");
             }
             // Check B bit
             else if (readback_ptd[3] & (1u << 29)) {
                 result = ISP_BABBLE;
-                term_print("BABBLE");
+                debug_print("BABBLE");
             }
             // Check X bit
             else if (readback_ptd[3] & (1u << 28)) {
                 result = ISP_TRANSFER_ERROR;
-                term_print("ERR");
+                debug_print("ERR");
             }
             else if ((direction == DIRECTION_OUT) && 
                     (actual_transfer_length != *length)) {
                 result = ISP_WRONG_LENGTH;
-                term_print("WLEN");
+                debug_print("WLEN");
             }
             else {
+                *toggle = (readback_ptd[3] >> 25) & 0x1;
                 result = ISP_SUCCESS;
-                term_print("OK");
+                debug_print("OK");
             }
         }
         else {
+            debug_print("STO");
             result = ISP_SETUP_TIMEOUT;
         }
 
         // No matter what happens, end this PTD
         isp_write_dword(reg_ptd_skipmap, 0xffffffff);
     } while (retry && ((ticks_ms() - start_ticks) < NACK_TIMEOUT_MS));
-
-    printf("333\n");
 
     // If current direction is input, read payload back
     if (direction == DIRECTION_IN) {
@@ -374,6 +390,8 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
         }
     }
 
+    debug_print(".");
+
     return result;
 }
 
@@ -386,17 +404,34 @@ void isp_build_header(USB_SPEED speed, USB_TOKEN token, uint32_t device_address,
     uint32_t hub_address;
     uint32_t valid;
     uint32_t split;
+    uint32_t se;
     uint32_t start_complete;
     uint32_t error_counter;
     uint32_t micro_frame;
     uint32_t micro_sa;
     uint32_t micro_scs;
 
+    debug_print("D");
+    debug_print_hex(parent_address, 2);
+    debug_print(":");
+    debug_print_hex(parent_port, 2);
+    debug_print(":");
+    debug_print_hex(device_address, 2);
+    debug_print(" ");
+    debug_print((speed == SPEED_HIGH) ? "HS " : "FS ");
+    debug_print((token == TOKEN_IN) ? "TIN " : (token == TOKEN_OUT) ? "TOUT " : (token == TOKEN_SETUP) ? "TSETUP " : "TPING ");
+    debug_print((ep_type == EP_BULK) ? "EB" : (ep_type == EP_CONTROL) ? "EC" : "EI");
+    debug_print_hex(ep, 2);
+    debug_print(" L");
+    debug_print_hex(length, 4);
+    debug_print(" ");
+
     multiplier = (speed == SPEED_HIGH) ? (0x1) : (0x0);
     port_number = (speed == SPEED_HIGH) ? (0x0) : (parent_port);
     hub_address = (speed == SPEED_HIGH) ? (0x0) : (parent_address);
     valid = 0x01;
     split = (speed == SPEED_HIGH) ? (0x0) : (0x1);
+    se = (speed == SPEED_FULL) ? (0x0): (0x2);
     start_complete = 0x0;
     error_counter = 0x3;
     micro_frame = (ep_type == EP_INTERRUPT) ? 
@@ -404,7 +439,7 @@ void isp_build_header(USB_SPEED speed, USB_TOKEN token, uint32_t device_address,
     micro_sa = (ep_type == EP_INTERRUPT) ? 
             ((speed == SPEED_HIGH) ? (0xff) : (0x01)) : (0x00);
     micro_scs = (ep_type == EP_INTERRUPT) ? 
-            ((speed == SPEED_HIGH) ? (0x00) : (0xff)) : (0x00);
+            ((speed == SPEED_HIGH) ? (0x00) : (0xfe)) : (0x00);
 
     memset(ptd, 0, 32);
     ptd[0] = 
@@ -416,6 +451,7 @@ void isp_build_header(USB_SPEED speed, USB_TOKEN token, uint32_t device_address,
     ptd[1] =
         ((hub_address & 0x7F) << 25) |
         ((port_number & 0x7F) << 18) |
+        ((se & 0x3) << 16) |
         ((split & 0x1) << 14) |
         (((uint32_t)ep_type & 0x3) << 12) |
         (((uint32_t)token & 0x3) << 10) |
@@ -446,55 +482,51 @@ static int isp_submit_async(struct usb_device *dev, unsigned long pipe,
     uint32_t ep = usb_pipeendpoint(pipe);
     uint32_t max_packet_length = usb_maxpacket(dev, pipe);
     uint32_t toggle = usb_gettoggle(dev, ep, usb_pipeout(pipe));
+    uint32_t new_toggle;
     uint32_t address = usb_pipedevice(pipe);
-    uint32_t parent_address = dev->parent->devnum;
+    uint32_t parent_address = (dev->parent != NULL) ? dev->parent->devnum : 0;
     uint32_t parent_port = dev->portnr;
     USB_EP_TYPE ep_type = 
             (usb_pipetype(pipe) == PIPE_BULK) ? EP_BULK : EP_CONTROL;
+    uint32_t actual_length = length;
 
     if ((req != NULL) && (ep_type != EP_CONTROL)) {
         printf("Suspicious request! Non control transfer with request payload.\n");
     }
 
-    printf("1111\n");
     if (req != NULL) {
         // If control request is present, start SETUP transaction
         // CONTROL (ATL) OUT
-        printf("2222\n");
-        toggle = 0;
         uint32_t req_length = sizeof(*req);
         result = isp_transfer(TYPE_ATL, speed, DIRECTION_OUT, TOKEN_SETUP, 
-                address, parent_port, parent_address, max_packet_length, toggle, 
+                address, parent_port, parent_address, max_packet_length, &toggle, 
                 ep_type, ep, (uint8_t *)req, 0, &req_length);
         toggle = 1;
         delay_us(50);
     }
 
-    printf("3333\n");
     if ((length > 0 || req == NULL) && (result == ISP_SUCCESS)) {
         // If data payload provided or not a control request
         // Could be Bulk/Control IN/OUT
-        printf("4444\n");
         ISP_TRANSFER_DIRECTION direction = 
                 usb_pipein(pipe) ? DIRECTION_IN : DIRECTION_OUT;
         USB_TOKEN token = 
                 (direction == DIRECTION_IN) ? (TOKEN_IN) : (TOKEN_OUT);
+        new_toggle = toggle;
         result = isp_transfer(TYPE_ATL, speed, direction, token, address, 
-                parent_port, parent_address, max_packet_length, toggle, ep_type,
-                ep, buffer, (uint32_t)length, (uint32_t *)&length);
+                parent_port, parent_address, max_packet_length, &new_toggle, ep_type,
+                ep, buffer, (uint32_t)length, (uint32_t *)&actual_length);
     }
 
-    printf("5555\n");
     if ((req != NULL) && (result == ISP_SUCCESS)) {
         // Ack depending on previous direction
-        printf("6666\n");
         uint32_t ack_length = 0;
         ISP_TRANSFER_DIRECTION direction = 
                 usb_pipein(pipe) ? DIRECTION_OUT : DIRECTION_IN;
         USB_TOKEN token = 
-                (direction == DIRECTION_IN) ? (TOKEN_OUT) : (TOKEN_IN);
+                (direction == DIRECTION_IN) ? (TOKEN_IN) : (TOKEN_OUT);
         result = isp_transfer(TYPE_ATL, speed, direction, token, address, 
-                parent_port, parent_address, max_packet_length, toggle, ep_type,
+                parent_port, parent_address, max_packet_length, &toggle, ep_type,
                 ep, NULL, 0, &ack_length);
     }
 
@@ -502,8 +534,8 @@ static int isp_submit_async(struct usb_device *dev, unsigned long pipe,
     case ISP_SUCCESS:
         dev->status = 0;
         usb_settoggle(dev, usb_pipeendpoint(pipe),
-			    usb_pipeout(pipe), toggle);
-        dev->act_len = 0;
+			    usb_pipeout(pipe), new_toggle);
+        dev->act_len = actual_length;
         break;
     case ISP_TRANSFER_HALT:
         dev->status = USB_ST_STALLED;
@@ -512,21 +544,262 @@ static int isp_submit_async(struct usb_device *dev, unsigned long pipe,
         dev->status = USB_ST_BUF_ERR;
         break;
     case ISP_BABBLE:
-        dev->status = USB_ST_BUBBLE_DET;
+        dev->status = USB_ST_BABBLE_DET;
         break;
     default:
         dev->status = USB_ST_CRC_ERR;
         break;
     }
-    printf("dev=%u, usbsts=%04x, p[1]=%04x\n",
-            dev->devnum, isp_read_dword(ISP_USBSTS), isp_read_dword(ISP_PORTSC1));
+    debug_print("AL");
+    debug_print_hex(actual_length, 4);
+    debug_print("\n");
+    /*printf("dev=%u, usbsts=%04x, p[1]=%04x\n",
+            dev->devnum, isp_read_dword(ISP_USBSTS), isp_read_dword(ISP_PORTSC1));*/
+    
+    return (dev->status != USB_ST_NOT_PROC) ? 0 : -1;
 }
+
+#ifdef USE_ROOT_HUB
+// Root hub emulation
+int rootdev;
+static uint16_t portreset;
+
+static inline int min3(int a, int b, int c)Manufacturer 
+Product      Core (Plus) Wired Controller
+SerialNumber 
+{
+	if (b < a)
+		a = b;
+	if (c < a)
+		a = c;
+	return a;
+}
+
+int isp_submit_root(struct usb_device *dev, unsigned long pipe, void *buffer,
+		 int length, struct devrequest *req)
+{
+	uint8_t tmpbuf[4];
+	uint16_t typeReq;
+	void *srcptr = NULL;
+	int len, srclen;
+	uint32_t reg;
+	uint32_t status_reg;
+
+	if ((le16_to_cpu(req->index) - 1) >= CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS) {
+		printf("The request port(%d) is not configured\n",
+			le16_to_cpu(req->index) - 1);
+		return -1;
+	}
+	status_reg = ISP_PORTSC1;
+	srclen = 0;
+
+	debug_printf("req=%u (%#x), type=%u (%#x), value=%u, index=%u\n",
+	      req->request, req->request,
+	      req->requesttype, req->requesttype,
+	      le16_to_cpu(req->value), le16_to_cpu(req->index));
+
+	typeReq = req->request | req->requesttype << 8;
+
+	switch (typeReq) {
+	case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
+		switch (le16_to_cpu(req->value) >> 8) {
+		case USB_DT_DEVICE:
+			debug_printf("USB_DT_DEVICE request\n");
+			srcptr = &descriptor.device;
+			srclen = 0x12;
+			break;
+		case USB_DT_CONFIG:
+			debug_printf("USB_DT_CONFIG config\n");
+			srcptr = &descriptor.config;
+			srclen = 0x19;
+			break;
+		case USB_DT_STRING:
+			debug_printf("USB_DT_STRING config\n");
+			switch (le16_to_cpu(req->value) & 0xff) {
+			case 0:	/* Language */
+				srcptr = "\4\3\1\0";
+				srclen = 4;
+				break;
+			case 1:	/* Vendor */
+				srcptr = "\16\3u\0-\0b\0o\0o\0t\0";
+				srclen = 14;
+				break;
+			case 2:	/* Product */
+				srcptr = "\52\3E\0H\0C\0I\0 "
+					 "\0H\0o\0s\0t\0 "
+					 "\0C\0o\0n\0t\0r\0o\0l\0l\0e\0r\0";
+				srclen = 42;
+				break;
+			default:
+				debug_printf("unknown value DT_STRING %x\n",
+					le16_to_cpu(req->value));
+				goto unknown;
+			}
+			break;
+		default:
+			debug_printf("unknown value %x\n", le16_to_cpu(req->value));
+			goto unknown;
+		}
+		break;
+	case USB_REQ_GET_DESCRIPTOR | ((USB_DIR_IN | USB_RT_HUB) << 8):
+		switch (le16_to_cpu(req->value) >> 8) {
+		case USB_DT_HUB:
+			debug_printf("USB_DT_HUB config\n");
+			srcptr = &descriptor.hub;
+			srclen = 0x8;
+			break;
+		default:
+			debug_printf("unknown value %x\n", le16_to_cpu(req->value));
+			goto unknown;
+		}
+		break;
+	case USB_REQ_SET_ADDRESS | (USB_RECIP_DEVICE << 8):
+		debug_printf("USB_REQ_SET_ADDRESS\n");
+		rootdev = le16_to_cpu(req->value);
+		break;
+	case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
+		debug_printf("USB_REQ_SET_CONFIGURATION\n");
+		/* Nothing to do */
+		break;
+	case USB_REQ_GET_STATUS | ((USB_DIR_IN | USB_RT_HUB) << 8):
+		tmpbuf[0] = 1;	/* USB_STATUS_SELFPOWERED */
+		tmpbuf[1] = 0;
+		srcptr = tmpbuf;
+		srclen = 2;
+		break;
+	case USB_REQ_GET_STATUS | ((USB_RT_PORT | USB_DIR_IN) << 8):
+		memset(tmpbuf, 0, 4);
+		reg = isp_read_dword(status_reg);
+        debug_printf("USB_REQ_GET_STATUS, REG = %08x\n", reg);
+		if (reg & ISP_PORTSC1_ECCS)
+			tmpbuf[0] |= USB_PORT_STAT_CONNECTION;
+		if (reg & ISP_PORTSC1_PED)
+			tmpbuf[0] |= USB_PORT_STAT_ENABLE;
+		if (reg & ISP_PORTSC1_SUSP)
+			tmpbuf[0] |= USB_PORT_STAT_SUSPEND;
+		if (reg & ISP_PORTSC1_PR &&
+		    (portreset & (1 << le16_to_cpu(req->index)))) {
+			int ret;
+			/* force reset to complete */
+			//reg = reg & ~(ISP_PORTSC1_PR | ISP_PORTSC1_ECSC);
+			//isp_write_dword(status_reg, reg);
+			ret = isp_wait(status_reg, ISP_PORTSC1_PR, 0, 2 * 1000);
+			if (ret == ISP_SUCCESS)
+				tmpbuf[0] |= USB_PORT_STAT_RESET;
+			else
+				printf("port(%d) reset error\n",
+					le16_to_cpu(req->index) - 1);
+		}
+		if (reg & ISP_PORTSC1_PP)
+			tmpbuf[1] |= USB_PORT_STAT_POWER >> 8;
+
+		tmpbuf[1] |= USB_PORT_STAT_HIGH_SPEED >> 8;
+
+		if (reg & ISP_PORTSC1_ECSC)
+			tmpbuf[2] |= USB_PORT_STAT_C_CONNECTION;
+		if (portreset & (1 << le16_to_cpu(req->index)))
+			tmpbuf[2] |= USB_PORT_STAT_C_RESET;
+
+		srcptr = tmpbuf;
+		srclen = 4;
+		break;
+	case USB_REQ_SET_FEATURE | ((USB_DIR_OUT | USB_RT_PORT) << 8):
+		reg = isp_read_dword(status_reg);
+        debug_printf("USB_REQ_SET_FEATURE, REG = %08x\n", reg);
+		reg &= ~ISP_PORTSC1_ECSC;
+		switch (le16_to_cpu(req->value)) {
+		case USB_PORT_FEAT_ENABLE:
+			reg |= ISP_PORTSC1_PED;
+			isp_write_dword(status_reg, reg);
+			break;
+		case USB_PORT_FEAT_POWER:
+			reg |= ISP_PORTSC1_PP;
+			isp_write_dword(status_reg, reg);
+			break;
+		case USB_PORT_FEAT_RESET:
+            reg |= ISP_PORTSC1_PR;
+            reg &= ~ISP_PORTSC1_PED;
+            isp_write_dword(status_reg, reg);
+            /*
+                * caller must wait, then call GetPortStatus
+                * usb 2.0 specification say 50 ms resets on
+                * root
+                */
+            delay_ms(50);
+            portreset |= 1 << le16_to_cpu(req->index);
+            /* Clear reset */
+            isp_write_dword(ISP_PORTSC1, 
+                    isp_read_dword(ISP_PORTSC1) & ~(ISP_PORTSC1_PR));
+			break;
+		default:
+			debug_printf("unknown feature %x\n", le16_to_cpu(req->value));
+			goto unknown;
+		}
+		/* unblock posted writes */
+		(void) isp_read_dword(ISP_USBCMD);
+		break;
+	case USB_REQ_CLEAR_FEATURE | ((USB_DIR_OUT | USB_RT_PORT) << 8):
+		reg = isp_read_dword(status_reg);
+        debug_printf("USB_REQ_CLEAR_FEATURE, REG = %08x\n", reg);
+		switch (le16_to_cpu(req->value)) {
+		case USB_PORT_FEAT_ENABLE:
+			reg &= ~ISP_PORTSC1_PED;
+			break;
+		case USB_PORT_FEAT_C_ENABLE:
+			reg = (reg & ~ISP_PORTSC1_ECSC) | ISP_PORTSC1_PED;
+			break;
+		case USB_PORT_FEAT_POWER:
+			reg = reg & ~(ISP_PORTSC1_ECSC | ISP_PORTSC1_PP);
+            break;
+		case USB_PORT_FEAT_C_CONNECTION:
+			reg = reg | ISP_PORTSC1_ECSC;
+			break;
+		case USB_PORT_FEAT_C_RESET:
+			portreset &= ~(1 << le16_to_cpu(req->index));
+			break;
+		default:
+			debug_printf("unknown feature %x\n", le16_to_cpu(req->value));
+			goto unknown;
+		}
+		isp_write_dword(status_reg, reg);
+		/* unblock posted write */
+		(void) isp_read_dword(ISP_USBCMD);
+		break;
+	default:
+		debug_printf("Unknown request\n");
+		goto unknown;
+	}
+
+	delay_ms(1);
+	len = min3(srclen, le16_to_cpu(req->length), length);
+	if (srcptr != NULL && len > 0)
+		memcpy(buffer, srcptr, len);
+	else
+		debug_printf("Len is 0\n");
+
+	dev->act_len = len;
+	dev->status = 0;
+	return 0;
+
+unknown:
+	debug_printf("requesttype=%x, request=%x, value=%x, index=%x, length=%x\n",
+	      req->requesttype, req->request, le16_to_cpu(req->value),
+	      le16_to_cpu(req->index), le16_to_cpu(req->length));
+
+	dev->act_len = 0;
+	dev->status = USB_ST_STALLED;
+	return -1;
+}
+#endif
 
 // External APIs
 
 #if 1
 
 int usb_lowlevel_init(void) {
+#ifdef USE_ROOT_HUB
+    rootdev = 0;
+#endif
     return isp_init();
 }
 
@@ -537,7 +810,7 @@ int usb_lowlevel_stop(void) {
 int submit_bulk_msg(struct usb_device *dev, unsigned long pipe,
 		void *buffer, int transfer_len) {
     if (usb_pipetype(pipe) != PIPE_BULK) {
-		term_print("non-bulk pipe");
+		debug_print("non-bulk pipe");
 		return -1;
 	}
     return isp_submit_async(dev, pipe, buffer, transfer_len, NULL);
@@ -545,16 +818,18 @@ int submit_bulk_msg(struct usb_device *dev, unsigned long pipe,
 int submit_control_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 		int transfer_len, struct devrequest *setup) {
     if (usb_pipetype(pipe) != PIPE_CONTROL) {
-		term_print("non-control pipe");
+		debug_print("non-control pipe");
 		return -1;
 	}
 
-    // Why u-boot need to emulate a root device?
-	//if (usb_pipedevice(pipe) == rootdev) {
-	//	if (rootdev == 0)
-	//		dev->speed = USB_SPEED_HIGH;
-	//	return ehci_submit_root(dev, pipe, buffer, length, setup);
-	//}
+#ifdef USE_ROOT_HUB
+    // Emulate the root hub
+	if (usb_pipedevice(pipe) == rootdev) {
+		if (rootdev == 0)
+			dev->speed = USB_SPEED_HIGH;
+		return isp_submit_root(dev, pipe, buffer, transfer_len, setup);
+	}
+#endif
 
 	return isp_submit_async(dev, pipe, buffer, transfer_len, setup);
 }
@@ -562,7 +837,7 @@ int submit_int_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 		int transfer_len, int interval) {
     // u-boot's ehci-hcd driver didn't implement this
     // probably it is okay? 
-    term_print("int msg not supported.");
+    debug_print("int msg not supported.");
     return -1;
 }
 

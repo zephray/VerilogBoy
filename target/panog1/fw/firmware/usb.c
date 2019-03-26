@@ -53,10 +53,15 @@
 #include <ctype.h>
 #include "misc.h"
 #include "usb.h"
+#include "term.h"
 
 #define USB_DEBUG
+//#undef USB_DEBUG
+
+//#define printf(fmt, args...)		term_print(fmt , ##args)
 
 #ifdef	USB_DEBUG
+//#define	USB_PRINTF(fmt, args...)	term_print(fmt , ##args)
 #define	USB_PRINTF(fmt, args...)	printf(fmt , ##args)
 #else
 #define USB_PRINTF(fmt, args...)
@@ -186,8 +191,8 @@ int usb_control_msg(struct usb_device *dev, unsigned int pipe,
 	setup_packet.value = cpu_to_le16(value);
 	setup_packet.index = cpu_to_le16(index);
 	setup_packet.length = cpu_to_le16(size);
-	USB_PRINTF("usb_control_msg: request: 0x%X, requesttype: 0x%X, " \
-		   "value 0x%X index 0x%X length 0x%X\n",
+	USB_PRINTF("usb_control_msg: request: 0x%x, requesttype: 0x%x, " \
+		   "value 0x%x index 0x%x length 0x%x\n",
 		   request, requesttype, value, index, size);
 	dev->status = USB_ST_NOT_PROC; /*not yet processed */
 
@@ -374,7 +379,7 @@ int usb_parse_config(struct usb_device *dev, unsigned char *buffer, int cfgno)
 			{
 				ch = (unsigned char *)head;
 				for (i = 0; i < head->bLength; i++)
-					USB_PRINTF("%02X ", *ch++);
+					USB_PRINTF("%x ", *ch++);
 				USB_PRINTF("\n\n\n");
 			}
 			break;
@@ -445,14 +450,16 @@ int usb_get_configuration_no(struct usb_device *dev,
 	result = usb_get_descriptor(dev, USB_DT_CONFIG, cfgno, buffer, 9);
 	if (result < 9) {
 		if (result < 0)
-			printf("unable to get descriptor, error %lX\n",
+			printf("unable to get descriptor, error %d\n",
 				dev->status);
 		else
 			printf("config descriptor too short " \
-				"(expected %i, got %i)\n", 9, result);
+				"(expected %d, got %d)\n", 9, result);
 		return -1;
 	}
 	tmp = le16_to_cpu(config->wTotalLength);
+
+	USB_PRINTF("getting descriptor\n");
 
 	if (tmp > USB_BUFSIZ) {
 		USB_PRINTF("usb_get_configuration_no: failed to get " \
@@ -679,7 +686,7 @@ int usb_string(struct usb_device *dev, int index, char *buf, uint32_t size)
 		err = usb_string_sub(dev, 0, 0, tbuf);
 		if (err < 0) {
 			USB_PRINTF("error getting string descriptor 0 " \
-				   "(error=%lx)\n", dev->status);
+				   "(error=%d)\n", dev->status);
 			return -1;
 		} else if (tbuf[0] < 4) {
 			USB_PRINTF("string descriptor 0 too short\n");
@@ -748,6 +755,8 @@ struct usb_device *usb_alloc_new_device(void)
 	for (i = 0; i < USB_MAXCHILDREN; i++)
 		usb_dev[dev_index].children[i] = NULL;
 	usb_dev[dev_index].parent = NULL;
+	/* set default speed to be high speed */
+	usb_dev[dev_index].speed = USB_SPEED_HIGH;
 	dev_index++;
 	return &usb_dev[dev_index - 1];
 }
@@ -770,21 +779,59 @@ int usb_new_device(struct usb_device *dev)
 	addr = dev->devnum;
 	dev->devnum = 0;
 
-	/* this is the old and known way of initializing devices, it is
-	 * different than what Windows and Linux are doing. Windows and Linux
-	 * both retrieve 64 bytes while reading the device descriptor
-	 * Several USB stick devices report ERR: CTL_TIMEOUT, caused by an
-	 * invalid header while reading 8 bytes as device descriptor. */
-	dev->descriptor.bMaxPacketSize0 = 8;	    /* Start off at 8 bytes  */
-	dev->maxpacketsize = PACKET_SIZE_8;
-	dev->epmaxpacketin[0] = 8;
-	dev->epmaxpacketout[0] = 8;
+	/* This is a Windows scheme of initialization sequence, with double
+	 * reset of the device (Linux uses the same sequence)
+	 * Some equipment is said to work only with such init sequence; this
+	 * patch is based on the work by Alan Stern:
+	 * http://sourceforge.net/mailarchive/forum.php?
+	 * thread_id=5729457&forum_id=5398
+	 */
+	struct usb_device_descriptor *desc;
+	int port = -1;
+	struct usb_device *parent = dev->parent;
+	unsigned short portstatus;
 
-	err = usb_get_descriptor(dev, USB_DT_DEVICE, 0, &dev->descriptor, 8);
-	if (err < 8) {
-		printf("\n      USB device not responding, " \
-		       "giving up (status=%lX)\n", dev->status);
+	/* send 64-byte GET-DEVICE-DESCRIPTOR request.  Since the descriptor is
+	 * only 18 bytes long, this will terminate with a short packet.  But if
+	 * the maxpacket size is 8 or 16 the device may be waiting to transmit
+	 * some more, or keeps on retransmitting the 8 byte header. */
+
+	desc = (struct usb_device_descriptor *)tmpbuf;
+	dev->descriptor.bMaxPacketSize0 = 64;	    /* Start off at 64 bytes  */
+	/* Default to 64 byte max packet size */
+	dev->maxpacketsize = PACKET_SIZE_64;
+	dev->epmaxpacketin[0] = 64;
+	dev->epmaxpacketout[0] = 64;
+
+	err = usb_get_descriptor(dev, USB_DT_DEVICE, 0, desc, 64);
+	if (err < 0) {
+		USB_PRINTF("usb_new_device: usb_get_descriptor() failed\n");
 		return 1;
+	}
+
+	dev->descriptor.bMaxPacketSize0 = desc->bMaxPacketSize0;
+
+	/* find the port number we're at */
+	if (parent) {
+		int j;
+
+		for (j = 0; j < parent->maxchild; j++) {
+			if (parent->children[j] == dev) {
+				port = j;
+				break;
+			}
+		}
+		if (port < 0) {
+			printf("usb_new_device:cannot locate device's port.\n");
+			return 1;
+		}
+
+		/* reset the port for the second time */
+		err = hub_port_reset(dev->parent, port, &portstatus);
+		if (err < 0) {
+			printf("\n     Couldn't reset port %i\n", port);
+			return 1;
+		}
 	}
 
 	dev->epmaxpacketin[0] = dev->descriptor.bMaxPacketSize0;
@@ -809,7 +856,7 @@ int usb_new_device(struct usb_device *dev)
 
 	if (err < 0) {
 		printf("\n      USB device not accepting new address " \
-			"(error=%lX)\n", dev->status);
+			"(error=%d)\n", dev->status);
 		return 1;
 	}
 
@@ -825,7 +872,7 @@ int usb_new_device(struct usb_device *dev)
 			       err);
 		else
 			printf("USB device descriptor short read " \
-				"(expected %i, got %i)\n", tmp, err);
+				"(expected %d, got %d)\n", tmp, err);
 		return 1;
 	}
 	/* correct le values */
@@ -833,6 +880,9 @@ int usb_new_device(struct usb_device *dev)
 	le16_to_cpus(&dev->descriptor.idVendor);
 	le16_to_cpus(&dev->descriptor.idProduct);
 	le16_to_cpus(&dev->descriptor.bcdDevice);
+	printf("new device vid = %x pid = %x usb = %x class = %x\n",
+		   dev->descriptor.idVendor, dev->descriptor.idProduct,
+		   dev->descriptor.bcdUSB, dev->descriptor.bDeviceClass);
 	/* only support for one config for now */
 	usb_get_configuration_no(dev, &tmpbuf[0], 0);
 	usb_parse_config(dev, &tmpbuf[0], 0);
@@ -840,7 +890,7 @@ int usb_new_device(struct usb_device *dev)
 	/* we set the default configuration here */
 	if (usb_set_configuration(dev, dev->config.bConfigurationValue)) {
 		printf("failed to set default configuration " \
-			"len %d, status %lX\n", dev->act_len, dev->status);
+			"len %d, status %d\n", dev->act_len, dev->status);
 		return -1;
 	}
 	USB_PRINTF("new device strings: Mfr=%d, Product=%d, SerialNumber=%d\n",
@@ -899,6 +949,7 @@ void usb_scan_devices(void)
 #define	USB_HUB_DEBUG
 
 #ifdef	USB_HUB_DEBUG
+//#define	USB_HUB_PRINTF(fmt, args...)	term_print(fmt , ##args)
 #define	USB_HUB_PRINTF(fmt, args...)	printf(fmt , ##args)
 #else
 #define USB_HUB_PRINTF(fmt, args...)
@@ -962,7 +1013,7 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 	USB_HUB_PRINTF("enabling power on all ports\n");
 	for (i = 0; i < dev->maxchild; i++) {
 		usb_set_port_feature(dev, i + 1, USB_PORT_FEAT_POWER);
-		USB_HUB_PRINTF("port %d returns %lX\n", i + 1, dev->status);
+		USB_HUB_PRINTF("port %d returns %d\n", i + 1, dev->status);
 		wait_ms(hub->desc.bPwrOn2PwrGood * 2);
 	}
 }
@@ -1007,7 +1058,7 @@ static int hub_port_reset(struct usb_device *dev, int port,
 		wait_ms(200);
 
 		if (usb_get_port_status(dev, port + 1, &portsts) < 0) {
-			USB_HUB_PRINTF("get_port_status failed status %lX\n",
+			USB_HUB_PRINTF("get_port_status failed status %d\n",
 					dev->status);
 			return -1;
 		}
@@ -1035,7 +1086,7 @@ static int hub_port_reset(struct usb_device *dev, int port,
 	}
 
 	if (tries == MAX_TRIES) {
-		USB_HUB_PRINTF("Cannot enable port %i after %i retries, " \
+		USB_HUB_PRINTF("Cannot enable port %d after %d retries, " \
 				"disabling port.\n", port + 1, MAX_TRIES);
 		USB_HUB_PRINTF("Maybe the USB cable is bad?\n");
 		return -1;
@@ -1079,7 +1130,7 @@ void usb_hub_port_connect_change(struct usb_device *dev, int port)
 
 	/* Reset the port */
 	if (hub_port_reset(dev, port, &portstatus) < 0) {
-		printf("cannot reset port %i!?\n", port + 1);
+		printf("cannot reset port %d!?\n", port + 1);
 		return;
 	}
 
@@ -1094,6 +1145,8 @@ void usb_hub_port_connect_change(struct usb_device *dev, int port)
 		usb->speed = USB_SPEED_LOW;
 	else
 		usb->speed = USB_SPEED_FULL;
+
+	usb->portnr = port;
 
 	dev->children[port] = usb;
 	usb->parent = dev;
@@ -1122,7 +1175,7 @@ int usb_hub_configure(struct usb_device *dev)
 	/* Get the the hub descriptor */
 	if (usb_get_hub_descriptor(dev, buffer, 4) < 0) {
 		USB_HUB_PRINTF("usb_hub_configure: failed to get hub " \
-				   "descriptor, giving up %lX\n", dev->status);
+				   "descriptor, giving up %d\n", dev->status);
 		return -1;
 	}
 	descriptor = (struct usb_hub_descriptor *)buffer;
@@ -1138,7 +1191,7 @@ int usb_hub_configure(struct usb_device *dev)
 
 	if (usb_get_hub_descriptor(dev, buffer, descriptor->bLength) < 0) {
 		USB_HUB_PRINTF("usb_hub_configure: failed to get hub " \
-				"descriptor 2nd giving up %lX\n", dev->status);
+				"descriptor 2nd giving up %d\n", dev->status);
 		return -1;
 	}
 	memcpy((unsigned char *)&hub->desc, buffer, descriptor->bLength);
@@ -1209,13 +1262,13 @@ int usb_hub_configure(struct usb_device *dev)
 	}
 
 	if (usb_get_hub_status(dev, buffer) < 0) {
-		USB_HUB_PRINTF("usb_hub_configure: failed to get Status %lX\n",
+		USB_HUB_PRINTF("usb_hub_configure: failed to get Status %d\n",
 				dev->status);
 		return -1;
 	}
 
 	hubsts = (struct usb_hub_status *)buffer;
-	USB_HUB_PRINTF("get_hub_status returned status %X, change %X\n",
+	USB_HUB_PRINTF("get_hub_status returned status %x, change %x\n",
 			le16_to_cpu(hubsts->wHubStatus),
 			le16_to_cpu(hubsts->wHubChange));
 	USB_HUB_PRINTF("local power source is %s\n",
@@ -1237,7 +1290,7 @@ int usb_hub_configure(struct usb_device *dev)
 
 		portstatus = le16_to_cpu(portsts.wPortStatus);
 		portchange = le16_to_cpu(portsts.wPortChange);
-		USB_HUB_PRINTF("Port %d Status %X Change %X\n",
+		USB_HUB_PRINTF("Port %d Status %x Change %x\n",
 				i + 1, portstatus, portchange);
 
 		if (portchange & USB_PORT_STAT_C_CONNECTION) {

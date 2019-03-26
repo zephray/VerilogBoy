@@ -16,6 +16,7 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
+#include <stdarg.h>
 #include "term.h"
 #include "misc.h"
 
@@ -53,7 +54,7 @@ void term_clear() {
 
 void term_putchar(char c)
 {
-    //*uart_ptr = (uint32_t)c;
+    *uart_ptr = (uint32_t)c;
     if (c == '\n') {
         term_newline();
     }
@@ -70,9 +71,9 @@ void term_putchar(char c)
     //delay_us(200);
 }
 
-void term_print(const char *p)
+void term_print_string(const char *p)
 {
-    while (*p)
+    while ((*p) && (*p != 0xFF))
         term_putchar(*p++);
 }
 
@@ -85,4 +86,38 @@ void term_print_hex(uint32_t v, int digits)
         digits = i;
     }
 }
+
+int term_print(const char *format, ...)
+{
+	int i;
+	va_list ap;
+
+	va_start(ap, format);
+
+	for (i = 0; format[i]; i++)
+		if (format[i] == '%') {
+			while (format[++i]) {
+				if (format[i] == 'c') {
+					term_putchar(va_arg(ap,int));
+					break;
+				}
+				if (format[i] == 's') {
+					term_print_string(va_arg(ap,char*));
+					break;
+				}
+                if (format[i] == 'd') {
+					term_print_hex(va_arg(ap,int), 4);
+					break;
+				}
+				if (format[i] == 'x') {
+					term_print_hex(va_arg(ap,int), 4);
+					break;
+				}
+			}
+		} else
+			term_putchar(format[i]);
+
+	va_end(ap);
+}
+
 

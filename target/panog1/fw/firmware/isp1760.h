@@ -162,7 +162,7 @@ int isp_init();
 ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
         ISP_TRANSFER_DIRECTION direction, USB_TOKEN token, 
         uint32_t device_address, uint32_t parent_port, uint32_t parent_address, 
-        uint32_t max_packet_length, uint32_t toggle,  USB_EP_TYPE ep_type,
+        uint32_t max_packet_length, uint32_t *toggle,  USB_EP_TYPE ep_type,
         uint32_t ep, uint8_t *buffer, uint32_t max_length, uint32_t *length);
 void isp_build_header(USB_SPEED speed, USB_TOKEN token, uint32_t device_address,
         uint32_t parent_port, uint32_t parent_address, uint32_t toggle,
