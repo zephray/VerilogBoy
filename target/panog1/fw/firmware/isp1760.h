@@ -85,6 +85,14 @@
 #define ISP_PORTSC1_ECSC    (1u << 1)
 #define ISP_PORTSC1_ECCS    (1u << 0)
 
+#define ISP_INTERRUPT_ISO   (1u << 9)
+#define ISP_INTERRUPT_ATL   (1u << 8)
+#define ISP_INTERRUPT_INT   (1u << 7)
+#define ISP_INTERRUPT_CLKREADY   (1u << 6)
+#define ISP_INTERRUPT_HC_SUSP    (1u << 5)
+#define ISP_INTERRUPT_DMAEOTINT  (1u << 3)
+#define ISP_INTERRUPT_SOFITLINT  (1u << 1)
+
 // These are refering to the ISP1760 internal memory address
 #define MEM_ISO_BASE             0x0000
 #define MEM_INT_BASE             0x0080
@@ -103,12 +111,14 @@
 #define NACK_TIMEOUT_MS          (500)
 #define SETUP_TIMEOUT_MS         (500)
 
+#define MAX_REG_INT_TRANSFER_NUM (4)
+
 // This should match the define in u-boot
 typedef enum {
     SPEED_FULL = 0,
     SPEED_LOW = 1,
     SPEED_HIGH = 2
-} USB_SPEED;
+} usb_speed_t;
 
 // Endpoint Type used in PTD
 typedef enum {
@@ -116,7 +126,7 @@ typedef enum {
     EP_ISOCHRONOUS = 1,
     EP_BULK = 2,
     EP_INTERRUPT = 3
-} USB_EP_TYPE;
+} usb_ep_type_t;
 
 // Transaction PID Token used in PTD
 typedef enum {
@@ -124,20 +134,20 @@ typedef enum {
     TOKEN_IN = 1,
     TOKEN_SETUP = 2,
     TOKEN_PING = 3  // written by hw in HS only
-} USB_TOKEN;
+} usb_token_t;
 
 // Only used for API calls, not part of PTD
 typedef enum {
     DIRECTION_OUT = 0,
     DIRECTION_IN
-} ISP_TRANSFER_DIRECTION;
+} transfer_direction_t;
 
 // Only used for API calls, not part of PTD
 typedef enum {
     TYPE_ATL = 0,
     TYPE_INT,
     TYPE_ISO
-} ISP_PTD_TYPE;
+} ptd_type_t;
 
 typedef enum {
     ISP_SUCCESS = 0,
@@ -149,24 +159,34 @@ typedef enum {
     ISP_TRANSFER_HALT, // H bit being marked in the PTD
     ISP_BABBLE,        // B bit being marked in the PTD
     ISP_TRANSFER_ERROR,// X bit being marked in the PTD
-} ISP_RESULT;
+} isp_result_t;
 
-typedef struct USB_EP {
-    USB_EP_TYPE ep_type;
-    uint32_t max_packet_size;
-} USB_EP;
+typedef enum {
+    STATE_IDLE = 0,
+    STATE_SCHEDULED,
+    STATE_FINISHED
+} transfer_state_t;
+
+typedef struct interrupt_transfer {
+    struct usb_device *device;
+    unsigned long pipe;
+    void *buffer;
+    int length;
+    transfer_state_t state;
+} interrupt_transfer_t;
 
 int isp_init();
 
 // Internal Functions
-ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
-        ISP_TRANSFER_DIRECTION direction, USB_TOKEN token, 
+isp_result_t isp_transfer(ptd_type_t ptd_type, usb_speed_t speed,
+        transfer_direction_t direction, usb_token_t token, 
         uint32_t device_address, uint32_t parent_port, uint32_t parent_address, 
-        uint32_t max_packet_length, uint32_t *toggle,  USB_EP_TYPE ep_type,
-        uint32_t ep, uint8_t *buffer, uint32_t max_length, uint32_t *length);
-void isp_build_header(USB_SPEED speed, USB_TOKEN token, uint32_t device_address,
+        uint32_t max_packet_length, uint32_t *toggle,  usb_ep_type_t ep_type,
+        uint32_t ep, uint8_t *buffer, uint32_t max_length, uint32_t *length,
+        int need_setup);
+void isp_build_header(usb_speed_t speed, usb_token_t token, uint32_t device_address,
         uint32_t parent_port, uint32_t parent_address, uint32_t toggle,
-        USB_EP_TYPE ep_type, uint32_t ep, uint32_t *ptd, 
+        usb_ep_type_t ep_type, uint32_t ep, uint32_t *ptd, 
         uint32_t payload_address, uint32_t length, uint32_t max_packet_length);
 
 // External API is defined in usb.h

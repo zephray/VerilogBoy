@@ -27,7 +27,7 @@
 
 #undef USE_ROOT_HUB
 
-//#define ISP_DEBUG
+#undef ISP_DEBUG
 
 #ifdef ISP_DEBUG
 #define debug_print(x) term_print(x)
@@ -38,6 +38,11 @@
 #define debug_print_hex(x,d)
 #define	debug_printf(fmt, args...)
 #endif
+
+interrupt_transfer_t registered_transfers[USB_MAX_DEVICE];
+
+// Define the interrupts that the driver will handle
+#define ISP_INT_MASK  0x00000080
 
 uint32_t isp_read_word(uint32_t address) {
     return *((volatile uint32_t *)(ISP_BASE_ADDR | (address << 1)));
@@ -86,7 +91,7 @@ void isp_read_memory(uint32_t address, uint32_t *data, uint32_t length) {
     }
 }
 
-ISP_RESULT isp_wait(uint32_t address, uint32_t mask, uint32_t value, 
+isp_result_t isp_wait(uint32_t address, uint32_t mask, uint32_t value, 
         uint32_t timeout) {
     uint32_t start_ticks = ticks_ms();
     do {
@@ -172,9 +177,9 @@ int isp_init() {
     isp_write_dword(ISP_PORT_1_CONTROL, 0x00800018);
 
     // Configure interrupt here
-    isp_write_dword(ISP_INTERRUPT, 2);
+    isp_write_dword(ISP_INTERRUPT, ISP_INT_MASK);
 
-    isp_write_dword(ISP_INTERRUPT_ENABLE, 2);
+    isp_write_dword(ISP_INTERRUPT_ENABLE, ISP_INT_MASK);
 
     isp_write_dword(ISP_HW_MODE_CONTROL, 0x80000000);
     delay_ms(50);
@@ -183,7 +188,7 @@ int isp_init() {
     isp_write_dword(ISP_ATL_IRQ_MASK_AND, 0x00000000);
     isp_write_dword(ISP_ATL_IRQ_MASK_OR,  0x00000000);
     isp_write_dword(ISP_INT_IRQ_MASK_AND, 0x00000000);
-    isp_write_dword(ISP_INT_IRQ_MASK_OR,  0x00000000);
+    isp_write_dword(ISP_INT_IRQ_MASK_OR,  0x00000001);
     isp_write_dword(ISP_ISO_IRQ_MASK_AND, 0x00000000);
     isp_write_dword(ISP_ISO_IRQ_MASK_OR,  0xffffffff);
 
@@ -245,12 +250,13 @@ void isp_enable_irq(uint32_t enable) {
     isp_write_dword(ISP_INTERRUPT_ENABLE, enable);
 }
 
-ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
-        ISP_TRANSFER_DIRECTION direction, USB_TOKEN token, 
+isp_result_t isp_transfer(ptd_type_t ptd_type, usb_speed_t speed,
+        transfer_direction_t direction, usb_token_t token, 
         uint32_t device_address, uint32_t parent_port, uint32_t parent_address, 
-        uint32_t max_packet_length, uint32_t *toggle,  USB_EP_TYPE ep_type,
-        uint32_t ep, uint8_t *buffer, uint32_t max_length, uint32_t *length) {
-    ISP_RESULT result = ISP_SUCCESS;
+        uint32_t max_packet_length, uint32_t *toggle,  usb_ep_type_t ep_type,
+        uint32_t ep, uint8_t *buffer, uint32_t max_length, uint32_t *length,
+        int need_setup) {
+    isp_result_t result = ISP_SUCCESS;
     uint32_t payload_address;
     uint32_t ptd_address;
     uint32_t reg_ptd_donemap;
@@ -288,19 +294,22 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
             return result;
     }
 
-    // Disable all existing PTD entries
-    isp_write_dword(reg_ptd_skipmap, 0xffffffff);
+    if (need_setup) {
+        // Disable all existing PTD entries
+        isp_write_dword(reg_ptd_skipmap, 0xffffffff);
 
-    // If direction is output, write payload into ISP1760
-    if ((direction == DIRECTION_OUT) && (*length != 0))
-        isp_write_memory(payload_address, (uint32_t *)buffer, *length);
+        // If direction is output, write payload into ISP1760
+        if ((direction == DIRECTION_OUT) && (*length != 0))
+            isp_write_memory(payload_address, (uint32_t *)buffer, *length);
 
-    // Build PTD
-    isp_build_header(speed, token, device_address, parent_port, parent_address,
-            *toggle, ep_type, ep, start_ptd, payload_address, 
-            (direction == DIRECTION_OUT) ? (*length) : (max_length),
-            max_packet_length);
-
+        // Build PTD
+        isp_build_header(speed, token, device_address, parent_port, 
+                parent_address, *toggle, ep_type, ep, start_ptd, 
+                payload_address, 
+                (direction == DIRECTION_OUT) ? (*length) : (max_length),
+                max_packet_length);
+    }
+    
     // Transfer, only loop if NAKed
     start_ticks = ticks_ms();
     uint32_t retry;
@@ -308,16 +317,22 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
         // Only retry when NACK
         retry = 0;
 
-        // Write PTD
-        isp_write_memory(ptd_address, start_ptd, PTD_SIZE_BYTE);
+        if (need_setup) {
+            // Write PTD
+            isp_write_memory(ptd_address, start_ptd, PTD_SIZE_BYTE);
 
-        // Start process PTD
-        isp_write_dword(reg_ptd_skipmap, 0xfffffffe);
-        isp_write_dword(reg_ptd_lastptd, 0x00000001);
+            // Start process PTD
+            isp_write_dword(reg_ptd_skipmap, 0xfffffffe);
+            isp_write_dword(reg_ptd_lastptd, 0x00000001);
 
-        // Indicate ATL PTD is filled, start process
-        isp_write_dword(ISP_BUFFER_STATUS, buffer_status_filled);
+            // Indicate ATL PTD is filled, start process
+            isp_write_dword(ISP_BUFFER_STATUS, buffer_status_filled);
 
+            // If the transfer is a interrupt transfer, stop here.
+            if (ep_type == EP_INTERRUPT) 
+                return 0;
+        }
+        
         // Wait for the setup to be completed
         uint32_t donemap;
         uint32_t check_count = 0;
@@ -373,7 +388,9 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
 
         // No matter what happens, end this PTD
         isp_write_dword(reg_ptd_skipmap, 0xffffffff);
-    } while (retry && ((ticks_ms() - start_ticks) < NACK_TIMEOUT_MS));
+    // only retry if: NAKed, not timed out, setup is required in this call
+    } while (retry && ((ticks_ms() - start_ticks) < NACK_TIMEOUT_MS) && 
+            need_setup);
 
     // If current direction is input, read payload back
     if (direction == DIRECTION_IN) {
@@ -395,9 +412,9 @@ ISP_RESULT isp_transfer(ISP_PTD_TYPE ptd_type, USB_SPEED speed,
     return result;
 }
 
-void isp_build_header(USB_SPEED speed, USB_TOKEN token, uint32_t device_address,
+void isp_build_header(usb_speed_t speed, usb_token_t token, uint32_t device_address,
         uint32_t parent_port, uint32_t parent_address, uint32_t toggle,
-        USB_EP_TYPE ep_type, uint32_t ep, uint32_t *ptd, 
+        usb_ep_type_t ep_type, uint32_t ep, uint32_t *ptd, 
         uint32_t payload_address, uint32_t length, uint32_t max_packet_length) {
     uint32_t multiplier;
     uint32_t port_number;
@@ -434,7 +451,7 @@ void isp_build_header(USB_SPEED speed, USB_TOKEN token, uint32_t device_address,
     se = (speed == SPEED_FULL) ? (0x0): (0x2);
     start_complete = 0x0;
     error_counter = 0x3;
-    micro_frame = (ep_type == EP_INTERRUPT) ? 
+    micro_frame = (ep_type == EP_INTERRUPT) ? // Polling every 8 ms for FS/LS
             ((speed == SPEED_HIGH) ? (0xff) : (0x20)) : (0x00);
     micro_sa = (ep_type == EP_INTERRUPT) ? 
             ((speed == SPEED_HIGH) ? (0xff) : (0x01)) : (0x00);
@@ -475,10 +492,10 @@ void isp_build_header(USB_SPEED speed, USB_TOKEN token, uint32_t device_address,
 
 // Glue Layer
 
-static int isp_submit_async(struct usb_device *dev, unsigned long pipe, 
+static int isp_submit(struct usb_device *dev, unsigned long pipe, 
         void *buffer, int length, struct devrequest *req) {
-    ISP_RESULT result = ISP_SUCCESS;
-    USB_SPEED speed = (USB_SPEED)usb_pipespeed(pipe);
+    isp_result_t result = ISP_SUCCESS;
+    usb_speed_t speed = (usb_speed_t)usb_pipespeed(pipe);
     uint32_t ep = usb_pipeendpoint(pipe);
     uint32_t max_packet_length = usb_maxpacket(dev, pipe);
     uint32_t toggle = usb_gettoggle(dev, ep, usb_pipeout(pipe));
@@ -486,8 +503,11 @@ static int isp_submit_async(struct usb_device *dev, unsigned long pipe,
     uint32_t address = usb_pipedevice(pipe);
     uint32_t parent_address = (dev->parent != NULL) ? dev->parent->devnum : 0;
     uint32_t parent_port = dev->portnr;
-    USB_EP_TYPE ep_type = 
-            (usb_pipetype(pipe) == PIPE_BULK) ? EP_BULK : EP_CONTROL;
+    usb_ep_type_t ep_type = 
+            (usb_pipetype(pipe) == PIPE_BULK) ? EP_BULK : 
+            (usb_pipetype(pipe) == PIPE_INTERRUPT) ? EP_INTERRUPT: EP_CONTROL;
+    ptd_type_t ptd_type = 
+            (usb_pipetype(pipe) == PIPE_INTERRUPT) ? TYPE_INT : TYPE_ATL;
     uint32_t actual_length = length;
 
     if ((req != NULL) && (ep_type != EP_CONTROL)) {
@@ -498,9 +518,9 @@ static int isp_submit_async(struct usb_device *dev, unsigned long pipe,
         // If control request is present, start SETUP transaction
         // CONTROL (ATL) OUT
         uint32_t req_length = sizeof(*req);
-        result = isp_transfer(TYPE_ATL, speed, DIRECTION_OUT, TOKEN_SETUP, 
+        result = isp_transfer(ptd_type, speed, DIRECTION_OUT, TOKEN_SETUP, 
                 address, parent_port, parent_address, max_packet_length, &toggle, 
-                ep_type, ep, (uint8_t *)req, 0, &req_length);
+                ep_type, ep, (uint8_t *)req, 0, &req_length, true);
         toggle = 1;
         delay_us(50);
     }
@@ -508,26 +528,26 @@ static int isp_submit_async(struct usb_device *dev, unsigned long pipe,
     if ((length > 0 || req == NULL) && (result == ISP_SUCCESS)) {
         // If data payload provided or not a control request
         // Could be Bulk/Control IN/OUT
-        ISP_TRANSFER_DIRECTION direction = 
+        transfer_direction_t direction = 
                 usb_pipein(pipe) ? DIRECTION_IN : DIRECTION_OUT;
-        USB_TOKEN token = 
+        usb_token_t token = 
                 (direction == DIRECTION_IN) ? (TOKEN_IN) : (TOKEN_OUT);
         new_toggle = toggle;
-        result = isp_transfer(TYPE_ATL, speed, direction, token, address, 
+        result = isp_transfer(ptd_type, speed, direction, token, address, 
                 parent_port, parent_address, max_packet_length, &new_toggle, ep_type,
-                ep, buffer, (uint32_t)length, (uint32_t *)&actual_length);
+                ep, buffer, (uint32_t)length, (uint32_t *)&actual_length, true);
     }
 
     if ((req != NULL) && (result == ISP_SUCCESS)) {
         // Ack depending on previous direction
         uint32_t ack_length = 0;
-        ISP_TRANSFER_DIRECTION direction = 
+        transfer_direction_t direction = 
                 usb_pipein(pipe) ? DIRECTION_OUT : DIRECTION_IN;
-        USB_TOKEN token = 
+        usb_token_t token = 
                 (direction == DIRECTION_IN) ? (TOKEN_IN) : (TOKEN_OUT);
-        result = isp_transfer(TYPE_ATL, speed, direction, token, address, 
+        result = isp_transfer(ptd_type, speed, direction, token, address, 
                 parent_port, parent_address, max_packet_length, &toggle, ep_type,
-                ep, NULL, 0, &ack_length);
+                ep, NULL, 0, &ack_length, true);
     }
 
     switch(result) {
@@ -792,7 +812,115 @@ unknown:
 }
 #endif
 
+// Periodical interrupt transfer scheduling
+// -----------------------------------------------------------------------------
+
+void isp_register_transfer(struct usb_device *dev, unsigned long pipe, 
+        void *buffer, int transfer_len) {
+    // new transfer must come as scheduled
+    for (int i = 0; i < MAX_REG_INT_TRANSFER_NUM; i++) {
+        if (registered_transfers[i].device == NULL) {
+            registered_transfers[i].device = dev;
+            registered_transfers[i].pipe = pipe;
+            registered_transfers[i].buffer = buffer;
+            registered_transfers[i].length = transfer_len;
+            registered_transfers[i].state = STATE_SCHEDULED;
+            debug_print("New interrupt transfer registered.\n");
+            break;
+        }
+    }
+}
+
+void isp_deregister_transfer(struct usb_device *device) {
+    for (int i = 0; i < MAX_REG_INT_TRANSFER_NUM; i++) {
+        if (registered_transfers[i].device == device) {
+            registered_transfers[i].device = NULL;
+            break;
+        }
+    }
+}
+
+isp_result_t isp_finish_trasnfer(uint32_t id) {
+    struct usb_device *dev = registered_transfers[id].device;
+    unsigned long pipe = registered_transfers[id].pipe;
+    uint32_t length = registered_transfers[id].length;
+    uint8_t *buffer = registered_transfers[id].buffer;
+    usb_speed_t speed = (usb_speed_t)usb_pipespeed(pipe);
+    uint32_t ep = usb_pipeendpoint(pipe);
+    uint32_t max_packet_length = usb_maxpacket(dev, pipe);
+    uint32_t toggle = usb_gettoggle(dev, ep, usb_pipeout(pipe));
+    uint32_t address = usb_pipedevice(pipe);
+    uint32_t parent_address = (dev->parent != NULL) ? dev->parent->devnum : 0;
+    uint32_t parent_port = dev->portnr;
+    usb_ep_type_t ep_type = EP_INTERRUPT;
+    ptd_type_t ptd_type = TYPE_INT;
+    transfer_direction_t direction = DIRECTION_IN;
+    usb_token_t token = TOKEN_IN;
+    
+    debug_print("FI");
+    return isp_transfer(ptd_type, speed, direction, token, address, 
+            parent_port, parent_address, max_packet_length, &toggle, ep_type,
+            ep, buffer, (uint32_t)length, (uint32_t *)&length, false);
+}
+
+void isp_callback_irq(void) {
+    for (int i = 0; i < MAX_REG_INT_TRANSFER_NUM; i++) {
+        if (registered_transfers[i].device != NULL) {
+            if (registered_transfers[i].state == STATE_SCHEDULED) {
+                isp_result_t result = isp_finish_trasnfer(i);
+                if (result == ISP_SUCCESS)
+                    registered_transfers[i].device->irq_handle(
+                            registered_transfers[i].device);
+                registered_transfers[i].state = STATE_FINISHED;
+            }
+        }
+    }
+}
+
+void isp_schedule(uint32_t id) {
+    isp_submit(registered_transfers[id].device,
+            registered_transfers[id].pipe, 
+            registered_transfers[id].buffer, 
+            registered_transfers[id].length, NULL);
+    registered_transfers[id].state = STATE_SCHEDULED;
+}
+
+void isp_reschedule(void) {
+    // should only be called when no transfers are scheduled
+    for (int i = 0; i < MAX_REG_INT_TRANSFER_NUM; i++) {
+        if (registered_transfers[i].device != NULL) {
+            if (registered_transfers[i].state == STATE_IDLE) {
+                // schedule this
+                isp_schedule(i);
+                return;
+            }
+        }
+    }
+    // finished but nothing has been scheduled, probably all transfers are done
+    int scheduled = false;
+    for (int i = 0; i < MAX_REG_INT_TRANSFER_NUM; i++) {
+        registered_transfers[i].state = STATE_IDLE;
+        if ((registered_transfers[i].device != NULL) && !scheduled) {
+            isp_schedule(i);
+            scheduled = 1;
+        }
+    }
+}
+
+void isp_isr(void) {
+    uint32_t interrupts;
+    interrupts = isp_read_dword(ISP_INTERRUPT);
+    if (interrupts & ISP_INTERRUPT_INT) {
+        // An interrupt transfer has completed.
+        // Call the callback
+        debug_print("i");
+        isp_callback_irq();
+        isp_reschedule();
+    }
+}
+
 // External APIs
+// -----------------------------------------------------------------------------
 
 #if 1
 
@@ -800,6 +928,11 @@ int usb_lowlevel_init(void) {
 #ifdef USE_ROOT_HUB
     rootdev = 0;
 #endif
+
+    for (int i = 0; i < USB_MAX_DEVICE; i++) {
+    // be handled by the stack I guess...)
+        registered_transfers[i].device = NULL;
+    }
     return isp_init();
 }
 
@@ -813,7 +946,7 @@ int submit_bulk_msg(struct usb_device *dev, unsigned long pipe,
 		debug_print("non-bulk pipe");
 		return -1;
 	}
-    return isp_submit_async(dev, pipe, buffer, transfer_len, NULL);
+    return isp_submit(dev, pipe, buffer, transfer_len, NULL);
 }
 int submit_control_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 		int transfer_len, struct devrequest *setup) {
@@ -826,23 +959,35 @@ int submit_control_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
     // Emulate the root hub
 	if (usb_pipedevice(pipe) == rootdev) {
 		if (rootdev == 0)
-			dev->speed = USB_SPEED_HIGH;
+			dev->speed = usb_speed_t_HIGH;
 		return isp_submit_root(dev, pipe, buffer, transfer_len, setup);
 	}
 #endif
 
-	return isp_submit_async(dev, pipe, buffer, transfer_len, setup);
+	return isp_submit(dev, pipe, buffer, transfer_len, setup);
 }
+
 int submit_int_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
 		int transfer_len, int interval) {
-    // u-boot's ehci-hcd driver didn't implement this
-    // probably it is okay? 
-    debug_print("int msg not supported.");
-    return -1;
+    if (usb_pipetype(pipe) != PIPE_INTERRUPT) {
+		debug_print("non-interrupt pipe");
+		return -1;
+	}
+    // interrupt messages usually have a callback function.
+    // the callback need to be managed inside the driver
+    isp_register_transfer(dev, pipe, buffer, transfer_len);
+
+    // interval is not changeable
+    return isp_submit(dev, pipe, buffer, transfer_len, NULL);
 }
 
 void usb_event_poll(void) {
-    // ?
+    // Check if there is any interrupts, if so, call the interrupt handler
+    // This is used when there is no hardware IRQs in the system
+    if ((isp_read_dword(ISP_INTERRUPT) & ISP_INT_MASK) != 0) {
+        isp_isr();
+    }
+    isp_write_dword(ISP_INTERRUPT, ISP_INT_MASK); // Clear interrupts
 }
 
 #endif

@@ -27,7 +27,8 @@
 
 #define __LITTLE_ENDIAN
 /* Configuration for slave device support */
-#define CONFIG_USB_KEYBOARD
+#undef CONFIG_USB_KEYBOARD
+#define CONFIG_USB_GAMEPAD
 #undef CONFIG_USB_STORAGE
 
 #define cpu_to_le16(x) (x)
@@ -40,12 +41,12 @@
 #define USB_ALTSETTINGALLOC		4
 #define USB_MAXALTSETTING		128	/* Hard limit */
 
-#define USB_MAX_DEVICE			32
+#define USB_MAX_DEVICE			8
 #define USB_MAXCONFIG			8
 #define USB_MAXINTERFACES		8
 #define USB_MAXENDPOINTS		16
 #define USB_MAXCHILDREN			8	/* This is arbitrary */
-#define USB_MAX_HUB			16
+#define USB_MAX_HUB				4
 
 #define USB_CNTL_TIMEOUT 100 /* 100ms timeout */
 
@@ -136,6 +137,17 @@ struct usb_config_descriptor {
 	struct usb_interface_descriptor if_desc[USB_MAXINTERFACES];
 } __attribute__ ((packed));
 
+/* HID descriptor */
+struct usb_hid_descriptor {
+	unsigned char	bLength;
+	unsigned char	bDescriptorType;
+	unsigned short  bcdHID;
+	unsigned char   bCountryCode;
+	unsigned char	bNumDescriptors;
+	unsigned char   bReportDescriptorType;
+	unsigned short	wItemLength;
+} __attribute__ ((packed));
+
 enum {
 	/* Maximum packet size; encoded as 0,1,2,3 = 8,16,32,64 */
 	PACKET_SIZE_8   = 0,
@@ -172,6 +184,10 @@ struct usb_device {
 	unsigned long irq_status;
 	int irq_act_len;		/* transfered bytes */
 	void *privptr;
+
+	/* HID specific information */
+	struct usb_hid_descriptor hid_descriptor;
+
 	/*
 	 * Child devices -  if this is a hub device
 	 * Each instance needs its own set of data structures.
@@ -217,6 +233,14 @@ int drv_usb_kbd_init(void);
 int usb_kbd_deregister(void);
 
 #endif
+
+#ifdef CONFIG_USB_GAMEPAD
+
+int drv_usb_gp_init(void);
+int usb_gp_deregister(void);
+
+#endif
+
 /* routines */
 int usb_init(void); /* initialize the USB Controller */
 int usb_stop(void); /* stop the USB Controller */

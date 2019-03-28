@@ -369,6 +369,13 @@ int usb_parse_config(struct usb_device *dev, unsigned char *buffer, int cfgno)
 							       wMaxPacketSize));
 			USB_PRINTF("if %d, ep %d\n", ifno, epno);
 			break;
+		case USB_DT_HID:
+			memcpy(&dev->hid_descriptor,
+				&buffer[index], buffer[index]);
+			le16_to_cpus(&(dev->hid_descriptor.bcdHID));
+			le16_to_cpus(&(dev->hid_descriptor.wItemLength));
+			USB_PRINTF("HID report length %d\n", dev->hid_descriptor.wItemLength);
+			break;
 		default:
 			if (head->bLength == 0)
 				return 1;
@@ -936,7 +943,8 @@ void usb_scan_devices(void)
 		printf("%d USB Device(s) found\n", dev_index);
 	/* insert "driver" if possible */
 
-	drv_usb_kbd_init();
+	//drv_usb_kbd_init();
+	drv_usb_gp_init();
 	USB_PRINTF("scan end\n");
 }
 
@@ -1147,7 +1155,6 @@ void usb_hub_port_connect_change(struct usb_device *dev, int port)
 		usb->speed = USB_SPEED_FULL;
 
 	usb->portnr = port;
-
 	dev->children[port] = usb;
 	usb->parent = dev;
 	/* Run it through the hoops (find a driver, etc) */

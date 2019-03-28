@@ -16,23 +16,19 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
-#ifndef __MISC_H__
-#define __MISC_H__
+#ifndef __USB_GAMEPAD_H__
+#define __USB_GAMEPAD_H__
 
-#include <stdint.h>
+// Note: These setting may only affect the descriptor parser, 
+//       but not actual report formatter.
+#define MAX_DPAD    1
+#define MAX_BUTTON  16
+#define MAX_ANALOG  4
+#define MAX_BITS    64
 
-#define true 1
-#define false 0
-
-#define CYCLE_PER_US  100
-
-// ticks wraps around every 43s
-uint32_t time();
-uint32_t ticks_us();
-uint32_t ticks_ms();
-void delay_us(uint32_t us);
-void delay_ms(uint32_t ms);
-
-void * memscan(void * addr, int c, uint32_t size);
+extern uint32_t gp_num_buttons;
+extern uint32_t gp_buttons;
+extern uint32_t gp_num_analogs;
+extern uint8_t  gp_analog[MAX_ANALOG];
 
 #endif

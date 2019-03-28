@@ -25,6 +25,7 @@
 #include "misc.h"
 #include "term.h"
 #include "usb.h"
+#include "usb_gamepad.h"
 
 #define led_grn *((volatile uint32_t *)0x03000004)
 #define led_red *((volatile uint32_t *)0x03000008)
@@ -42,10 +43,14 @@ void main()
     printf("Pano Logic G1, PicoRV32 @ 100MHz, LPDDR @ 100MHz.\n");
     usb_init();
     led_grn = 1;
+    term_clear();
 	while (1) {
         led_grn = 1;
-        delay_ms(500);
+        delay_ms(10);
         led_grn = 0;
-        delay_ms(500);
+        delay_ms(10);
+        usb_event_poll();
+        term_goto(0,0);
+        printf("%04x, %d, %d, %d, %d\n", gp_buttons, gp_analog[0], gp_analog[1], gp_analog[2], gp_analog[3]);
     }
 }
