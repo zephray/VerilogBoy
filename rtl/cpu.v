@@ -35,6 +35,7 @@ module cpu(
     wire [2:0]  m_cycle;
     wire [1:0]  alu_src_a;
     wire [2:0]  alu_src_b;
+    wire        alu_src_xchg;
     wire [1:0]  alu_op_prefix;
     wire [1:0]  alu_op_src;
     wire [1:0]  alu_dst;
@@ -135,6 +136,7 @@ module cpu(
         .f_c(flags_rd[0]),
         .alu_src_a(alu_src_a_ex),
         .alu_src_b(alu_src_b_ex),
+        .alu_src_xchg(alu_src_xchg),
         .alu_op_prefix(alu_op_prefix_ex),
         .alu_op_src(alu_op_src_ex),
         .alu_op_signed(alu_op_signed_ex),
@@ -318,6 +320,8 @@ module cpu(
 
     // ALU
     wire [2:0] alu_op_mux;
+    wire [7:0] alu_a_pre;
+    wire [7:0] alu_b_pre;
 
     alu alu(
         .alu_a(alu_a),
@@ -329,13 +333,13 @@ module cpu(
         .alu_op(alu_op)
     );
 
-    assign alu_a = (
+    assign alu_a_pre = (
         (alu_src_a == 2'b00) ? (acc_rd) : (
         (alu_src_a == 2'b01) ? (pc_rd_b) : (
         (alu_src_a == 2'b10) ? (rf_rd) : (
         (alu_src_a == 2'b11) ? (db_rd) : (8'b0)))));
 
-    assign alu_b = (
+    assign alu_b_pre = (
         (alu_src_b == 3'b000) ? (acc_rd) : (
         (alu_src_b == 3'b001) ? ({7'b0, alu_carry_out}) : (
         (alu_src_b == 3'b010) ? (8'd0) : (
@@ -344,6 +348,9 @@ module cpu(
         (alu_src_b == 3'b101) ? (rf_l) : (
         (alu_src_b == 3'b110) ? (imm_abs) : (
         (alu_src_b == 3'b111) ? (imm_low) : (8'b0)))))))));
+
+    assign alu_a = (alu_src_xchg) ? (alu_b_pre) : (alu_a_pre);
+    assign alu_b = (alu_src_xchg) ? (alu_a_pre) : (alu_b_pre);
 
     assign alu_op_mux = (
         (alu_op_src == 2'b00) ? (current_opcode[5:3]) : (

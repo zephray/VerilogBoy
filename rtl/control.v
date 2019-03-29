@@ -25,6 +25,7 @@ module control(
     input        f_c,
     output reg [1:0] alu_src_a,
     output reg [2:0] alu_src_b,
+    output reg       alu_src_xchg,
     output reg [1:0] alu_op_prefix,
     output reg [1:0] alu_op_src,
     output reg       alu_op_signed,
@@ -97,6 +98,7 @@ module control(
         {alu_src_a, alu_src_b, alu_op_prefix, alu_op_src, 
         alu_dst, pc_we, rf_wr_sel, rf_rd_sel, bus_op, 
         db_src, ab_src, ct_op, flags_we, next} = decoding_output;
+        alu_src_xchg = 0;
         rf_rdw_sel = 2'b10; // Select HL
         pc_src = 2'b00;
         pc_b_sel = m_cycle[0];
@@ -194,6 +196,23 @@ module control(
                 else if (opcode == 8'hD9) begin
                     // RETI
                     ime_clear = 1'b1;
+                end
+                else if ((opcode == 8'h90) ||
+                        (opcode == 8'h91) ||
+                        (opcode == 8'h92) ||
+                        (opcode == 8'h93) ||
+                        (opcode == 8'h94) ||
+                        (opcode == 8'h95) ||
+                        (opcode == 8'h97) ||
+                        (opcode == 8'h98) ||
+                        (opcode == 8'h99) ||
+                        (opcode == 8'h9A) ||
+                        (opcode == 8'h9B) ||
+                        (opcode == 8'h9C) ||
+                        (opcode == 8'h9D) ||
+                        (opcode == 8'h9F)) begin
+                    // SUB
+                    alu_src_xchg = 1'b1;
                 end
                 else if ((opcode == 8'h86) ||
                         (opcode == 8'h96) ||
@@ -393,6 +412,10 @@ module control(
                         // LD SP, HL
                         rf_wr_sel = 3'b111;
                         rf_rd_sel = 3'b101;
+                    end
+                    else if ((opcode == 8'h96) || (opcode == 8'h9E) || (opcode == 8'hD6) || (opcode == 8'hDE)) begin
+                        // SUB [HL] or SUB n
+                        alu_src_xchg = 1;
                     end
                     else if (opcode == 8'hCB) begin
                         opcode_redir = 1'b1;
