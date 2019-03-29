@@ -28,11 +28,15 @@
 #include <unistd.h>
 #include <stdint.h>
 
+#include <SDL2/SDL.h>
+
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 #include "Vboy.h"
 
 #include "memsim.h"
+#include "dispsim.h"
+#include "mmrprobe.h"
 
 #define VVAR(A) boy__DOT_ ## A
 
@@ -43,6 +47,8 @@ class TESTBENCH {
 public:
     bool m_done;
     MEMSIM *m_bootrom;
+    DISPSIM *m_dispsim;
+    MMRPROBE *m_mmrprobe;
 
     TESTBENCH() {
         m_core = new Vboy;
@@ -51,12 +57,17 @@ public:
         m_done = false;
         m_bootrom = new MEMSIM(8192, 0);
         m_trace = NULL;
+
+        m_dispsim = new DISPSIM();
+
+        m_mmrprobe = new MMRPROBE();
     }
 
     ~TESTBENCH() {
         if (m_trace) m_trace -> close();
         delete m_core;
         m_core = NULL;
+        delete m_dispsim;
     }
 
     void opentrace(const char *vcdname) {
@@ -98,6 +109,19 @@ public:
             m_core -> rd,
             m_core -> din);
 
+        m_dispsim->operator()(
+            m_core -> pixel,
+            m_core -> hs,
+            m_core -> vs,
+            m_core -> valid);
+
+        m_mmrprobe->operator()(
+            m_core -> boy__DOT__cpu_dout,
+            m_core -> boy__DOT__cpu_a,
+            m_core -> boy__DOT__cpu_wr,
+            m_core -> boy__DOT__cpu_rd,
+            m_core -> boy__DOT__cpu_din);
+
         m_tickcount++;
 
         // Make sure we have our evaluations straight before the top
@@ -115,6 +139,11 @@ public:
         if (m_trace) m_trace->dump(10*m_tickcount+5);
 
         m_done = m_core -> done;
+
+        // Break point
+        /*if (m_core -> boy__DOT__cpu__DOT__pc == 0x008b) {
+            m_done = 1;
+        }*/
     }
 
     void reset(void) {
@@ -169,19 +198,32 @@ int main(int argc, char **argv) {
 
     tb = new TESTBENCH();
     tb -> load_bootrom(argv[1]);
-    tb -> opentrace(trace_file);
+    //tb -> opentrace(trace_file);
     tb -> reset();
 
     printf("Initialized\n");
 
     while (!tb->done()) {
-        tb -> tick();
+        for (int i = 0; i < 2048; i++) {
+            tb -> tick();
+        }
+
+        // Get the next event
+        SDL_Event event;
+        if (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT)
+            {
+                // Break out of the loop on quit
+                break;
+            }
+        }
     }
 
     printf("Execution end.\n");
     tb -> print_regs();
 
-    tb -> closetrace();
+    //tb -> closetrace();
 
     exit(EXIT_SUCCESS);
 }

@@ -83,9 +83,6 @@ void MEMSIM::apply(const DBUSW wr_data, const ABUSW address,
             address,
             last_data);
 #endif
-            if ((address >= 0xff00)&&(address <= 0xff7f)) {
-                printf("MMIO W[%04x] = %02x\n", address, last_data);
-            }
         } 
         else if (!last_rd && rd_enable) {
             rd_data = m_mem[address];

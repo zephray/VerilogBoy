@@ -36,7 +36,7 @@ GFXLIBS := `pkg-config sdl2 --cflags --libs`
 FLAGS	:= -Wall -Og -g -faligned-new
 VINCD   := $(VROOT)/include
 INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I$(VINCD) -I$(VINCD)/vltstd
-OBJS    := memsim.o
+OBJS    := memsim.o dispsim.o mmrprobe.o
 VOBJDR	:= $(RTLD)/obj_dir
 VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o
 PROGRAMS := vb_sim
@@ -64,4 +64,5 @@ clean:
 	rm -f *.vcd
 	rm -rf $(OBJDIR)/
 	rm -f $(PROGRAMS)
+	rm -f *.o
 
