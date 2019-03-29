@@ -23,9 +23,9 @@ VERILATOR := verilator
 else
 VERILATOR := $(VERILATOR_ROOT)/bin/verilator
 endif
-VFLAGS := -Wall -MMD --trace -cc 
+VFLAGS := -Wall -Wno-fatal -MMD --trace -cc 
 
-SRC := boy.v cpu.v control.v singlereg.v regfile.v alu.v
+SRC := boy.v cpu.v control.v singlereg.v regfile.v alu.v ppu.v
 
 $(VOBJ)/Vboy__ALL.a: $(VOBJ)/Vboy.cpp $(VOBJ)/Vboy.h
 $(VOBJ)/Vboy__ALL.a: $(VOBJ)/Vboy.mk

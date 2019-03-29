@@ -67,6 +67,7 @@ module boy(
         .int_en(cpu_int_en),
         .int_flags_in(cpu_int_flags_in),
         .int_flags_out(cpu_int_flags_out),
+        .key_in(key),
         .done(done));
         
     // High RAM
@@ -88,6 +89,17 @@ module boy(
     // When an interrupt is generated, the peripheral should send a pulse on
     // the int_req for exactly one clock (using 4MHz clock).
     wire [4:0] int_req;
+    
+    wire int_tim_req = 0;
+    wire int_tim_ack;
+    wire int_lcdc_req;
+    wire int_lcdc_ack;
+    wire int_vblank_req;
+    wire int_vblank_ack;
+
+    assign int_req[2] = int_tim_req;
+    assign int_req[1] = int_lcdc_req;
+    assign int_req[0] = int_vblank_req;
 
     /* -- DEBUG -- */
     assign int_req = 5'd0;
@@ -121,6 +133,32 @@ module boy(
     assign reg_if_dout = reg_if | int_req;
     assign cpu_int_flags_in = reg_if_dout;
 
+    assign int_tim_ack = reg_if[2];
+    assign int_lcdc_ack = reg_if[1];
+    assign int_vblank_ack = reg_if[0];
+
+    // PPU
+    wire [7:0] ppu_dout;
+
+    ppu ppu(
+        .clk(clk),
+        .rst(rst),
+        .a(cpu_a),
+        .dout(ppu_dout), // VRAM & OAM RW goes through PPU
+        .din(cpu_dout),
+        .rd(cpu_rd), 
+        .wr(cpu_wr),
+        .int_vblank_req(int_vblank_req),
+        .int_lcdc_req(int_lcdc_req),
+        .int_vblank_ack(int_vblank_ack),
+        .int_lcdc_ack(int_lcdc_ack),
+        .cpl(cpl), // Pixel clock
+        .pixel(pixel), // Pixel Data (2bpp)
+        .valid(valid),
+        .hs(hs), // Horizontal Sync, Low Active
+        .vs(vs)  // Vertical Sync, Low Active
+    );
+
     // Bus Multiplexing
     always @(*) begin
         wr = 1'b0;
@@ -128,6 +166,8 @@ module boy(
         a = cpu_a; // The address is always exposed
         dout = 8'h00; // But the data will be masked when accessing high page
         cpu_din = 8'hxx; // Should not happen
+        reg_ie_wr = 1'b0;
+        reg_ie_din = 5'hxx;
         high_ram_rd = 1'b0;
         high_ram_wr = 1'b0;
         high_ram_a = cpu_a[6:0];
@@ -149,6 +189,11 @@ module boy(
             high_ram_wr = cpu_wr;
             high_ram_din = cpu_dout;
             cpu_din = high_ram_dout;
+        end
+        if ((cpu_a >= 16'hff40 && cpu_a <= 16'hff4b && cpu_a != 16'hff46) ||
+            (cpu_a >= 16'h8000 && cpu_a <= 16'h9fff) ||
+            (cpu_a >= 16'hfe00 && cpu_a <= 16'hfe9f)) begin
+            cpu_din = ppu_dout;
         end
         else begin
             rd = cpu_rd;
