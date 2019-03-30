@@ -165,9 +165,9 @@ public:
         m_done = m_core -> done;
 
         // Break point
-        /*if (m_core -> boy__DOT__cpu__DOT__pc == 0x008b) {
+        if (m_core -> boy__DOT__cpu__DOT__pc == 0x005d) {
             m_done = 1;
-        }*/
+        }
     }
 
     void reset(void) {
@@ -269,13 +269,15 @@ int main(int argc, char **argv) {
 
     if (!quiet) printf("Initialized\n");
 
+    uint32_t ticks;
     while (!tb->done()) {
-        for (int i = 0; i < 2048; i++) {
-            tb -> tick();
-        }
+    //while (true) {
+        tb -> tick();
+
+        ticks++;
 
         // Get the next event
-        if (!quiet) {
+        if (!quiet & (ticks % 2048 == 0)) {
             SDL_Event event;
             if (SDL_PollEvent(&event))
             {
