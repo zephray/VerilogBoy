@@ -1,13 +1,13 @@
 /*
  *  VerilogBoy
- *  
+ *
  *  vb_sim.cpp: VerilogBoy main simulation unit
- * 
+ *
  *  Copyright (C) 2019  Wenting Zhang <zephray@outlook.com>
  *  Copyright (C) 2015,2017, Gisselquist Technology, LLC
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License as 
+ *  under the terms and conditions of the GNU General Public License as
  *  published by the Free Software Foundation, either version 3 of the license,
  *  or (at your option) any later version.
  *
@@ -40,6 +40,14 @@
 
 #define VVAR(A) boy__DOT_ ## A
 
+// this only applies to quiet mode.
+const int CYCLE_LIMIT = 32768;
+
+static bool quiet = false;
+static bool verbose = false;
+static bool trace = false;
+static char result_file[127];
+
 class TESTBENCH {
     Vboy *m_core;
     VerilatedVcdC* m_trace;
@@ -58,16 +66,24 @@ public:
         m_bootrom = new MEMSIM(8192, 0);
         m_trace = NULL;
 
-        m_dispsim = new DISPSIM();
-
-        m_mmrprobe = new MMRPROBE();
+        if (!quiet) {
+            m_dispsim = new DISPSIM();
+        }
+        if (verbose) {
+            m_mmrprobe = new MMRPROBE();
+        }
     }
 
     ~TESTBENCH() {
         if (m_trace) m_trace -> close();
         delete m_core;
         m_core = NULL;
-        delete m_dispsim;
+        if (!quiet) {
+            delete m_dispsim;
+        }
+        if (verbose) {
+            delete m_mmrprobe;
+        }
     }
 
     void opentrace(const char *vcdname) {
@@ -98,6 +114,10 @@ public:
     }
 
     bool done(void) {
+        if ((m_tickcount > CYCLE_LIMIT) && (quiet)) {
+                printf("Time Limit Exceeded\n");
+                return true;
+        }
         return m_done;
     }
 
@@ -109,18 +129,22 @@ public:
             m_core -> rd,
             m_core -> din);
 
-        m_dispsim->operator()(
-            m_core -> pixel,
-            m_core -> hs,
-            m_core -> vs,
-            m_core -> valid);
+        if (!quiet) {
+            m_dispsim->operator()(
+                m_core -> pixel,
+                m_core -> hs,
+                m_core -> vs,
+                m_core -> valid);
+        }
 
-        m_mmrprobe->operator()(
-            m_core -> boy__DOT__cpu_dout,
-            m_core -> boy__DOT__cpu_a,
-            m_core -> boy__DOT__cpu_wr,
-            m_core -> boy__DOT__cpu_rd,
-            m_core -> boy__DOT__cpu_din);
+        if (verbose) {
+            m_mmrprobe->operator()(
+                m_core -> boy__DOT__cpu_dout,
+                m_core -> boy__DOT__cpu_a,
+                m_core -> boy__DOT__cpu_wr,
+                m_core -> boy__DOT__cpu_rd,
+                m_core -> boy__DOT__cpu_din);
+        }
 
         m_tickcount++;
 
@@ -130,13 +154,13 @@ public:
         // logic depends.  This forces that logic to be recalculated
         // before the top of the clock.
         eval();
-        if (m_trace) m_trace->dump(10*m_tickcount-2);
+        if (m_trace && trace) m_trace->dump(10*m_tickcount-2);
         m_core -> clk = 1;
         eval();
-        if (m_trace) m_trace->dump(10*m_tickcount);
+        if (m_trace && trace) m_trace->dump(10*m_tickcount);
         m_core -> clk = 0;
         eval();
-        if (m_trace) m_trace->dump(10*m_tickcount+5);
+        if (m_trace && trace) m_trace->dump(10*m_tickcount+5);
 
         m_done = m_core -> done;
 
@@ -153,22 +177,49 @@ public:
     }
 
     void print_regs(void) {
-        printf("PC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
-            m_core -> boy__DOT__cpu__DOT__pc,
-            ((m_core -> boy__DOT__cpu__DOT__flags__DOT__data) & 0x8) ? 'Z' : '-',
-            ((m_core -> boy__DOT__cpu__DOT__flags__DOT__data) & 0x4) ? 'N' : '-',
-            ((m_core -> boy__DOT__cpu__DOT__flags__DOT__data) & 0x2) ? 'H' : '-',
-            ((m_core -> boy__DOT__cpu__DOT__flags__DOT__data) & 0x1) ? 'C' : '-',
-            m_core -> boy__DOT__cpu__DOT__acc__DOT__data,
-            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[6],
-            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[7],
-            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[0],
-            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[1],
-            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[2],
-            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[3],
-            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[4],
-            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[5]
-        );
+        if (quiet) {
+            // output result to file
+            FILE *result;
+            result = fopen(result_file, "w+");
+            if (result == NULL) return;
+            fprintf(result, "AF %02x%02x\r\n",
+                    m_core -> boy__DOT__cpu__DOT__acc__DOT__data,
+                    m_core -> boy__DOT__cpu__DOT__flags << 4);
+            fprintf(result, "BC %02x%02x\r\n",
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[0],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[1]);
+            fprintf(result, "DE %02x%02x\r\n",
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[2],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[3]);
+            fprintf(result, "HL %02x%02x\r\n",
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[4],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[5]);
+            fprintf(result, "SP %02x%02x\r\n",
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[6],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[7]);
+            fprintf(result, "PC %04x\r\n",
+                    m_core -> boy__DOT__cpu__DOT__pc);
+            //fclose(result);
+        }
+        if (verbose) {
+            // print on screen
+            printf("PC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
+                m_core -> boy__DOT__cpu__DOT__pc,
+                ((m_core -> boy__DOT__cpu__DOT__flags) & 0x8) ? 'Z' : '-',
+                ((m_core -> boy__DOT__cpu__DOT__flags) & 0x4) ? 'N' : '-',
+                ((m_core -> boy__DOT__cpu__DOT__flags) & 0x2) ? 'H' : '-',
+                ((m_core -> boy__DOT__cpu__DOT__flags) & 0x1) ? 'C' : '-',
+                m_core -> boy__DOT__cpu__DOT__acc__DOT__data,
+                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[6],
+                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[7],
+                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[0],
+                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[1],
+                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[2],
+                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[3],
+                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[4],
+                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[5]
+            );
+        }
     }
 };
 
@@ -181,27 +232,42 @@ void vb_kill(int v) {
 }
 
 void usage(void) {
-    puts("USAGE: vb_sim <rom_file> (verilator paramters...)\n");
+    puts("USAGE: vb_sim <rom_file> [--quiet] (verilator paramters...)\n");
 }
 
 int main(int argc, char **argv) {
     const char *trace_file = "trace.vcd";
-
-    printf("VerilogBoy Simulator\n");
 
     if (argc < 2) {
         usage();
         exit(EXIT_FAILURE);
     }
 
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--quiet") == 0) {
+            quiet = true;
+            strcpy(result_file, argv[1]);
+            char *location = strstr(result_file, ".");
+            if (location == NULL)
+                location = result_file + strlen(result_file);
+            strcpy(location, ".actual");
+        }
+        if (strcmp(argv[i], "--verbose") == 0) {
+            verbose = true;
+        }
+        if (strcmp(argv[i], "--trace") == 0) {
+            trace = true;
+        }
+    }
+
     Verilated::commandArgs(argc, argv);
 
     tb = new TESTBENCH();
     tb -> load_bootrom(argv[1]);
-    //tb -> opentrace(trace_file);
+    tb -> opentrace(trace_file);
     tb -> reset();
 
-    printf("Initialized\n");
+    if (!quiet) printf("Initialized\n");
 
     while (!tb->done()) {
         for (int i = 0; i < 2048; i++) {
@@ -209,21 +275,22 @@ int main(int argc, char **argv) {
         }
 
         // Get the next event
-        SDL_Event event;
-        if (SDL_PollEvent(&event))
-        {
-            if (event.type == SDL_QUIT)
+        if (!quiet) {
+            SDL_Event event;
+            if (SDL_PollEvent(&event))
             {
-                // Break out of the loop on quit
-                break;
+                if (event.type == SDL_QUIT)
+                {
+                    // Break out of the loop on quit
+                    break;
+                }
             }
         }
     }
 
-    printf("Execution end.\n");
+    if (!quiet) printf("Execution end.\n");
     tb -> print_regs();
-
-    //tb -> closetrace();
+    tb -> closetrace();
 
     exit(EXIT_SUCCESS);
 }

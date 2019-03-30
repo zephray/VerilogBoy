@@ -1,13 +1,13 @@
 /*
  *  VerilogBoy
- *  
+ *
  *  memsim.cpp: A memory simulation model with simple delay control
- * 
+ *
  *  Copyright (C) 2019  Wenting Zhang <zephray@outlook.com>
  *  Copyright (C) 2015,2017, Gisselquist Technology, LLC
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License as 
+ *  under the terms and conditions of the GNU General Public License as
  *  published by the Free Software Foundation, either version 3 of the license,
  *  or (at your option) any later version.
  *
@@ -43,7 +43,7 @@ void MEMSIM::load(const char *fname) {
     FILE *fp;
     unsigned int nr;
 
-    printf("Loading %s\n", fname);
+    //printf("Loading %s\n", fname);
 
     fp = fopen(fname, "rb");
     if (!fp) {

@@ -1,12 +1,12 @@
 /*
  *  VerilogBoy
- *  
+ *
  *  mmrprobe.cpp: A probe that prints out MMR access logs
- * 
+ *
  *  Copyright (C) 2019  Wenting Zhang <zephray@outlook.com>
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License as 
+ *  under the terms and conditions of the GNU General Public License as
  *  published by the Free Software Foundation, either version 3 of the license,
  *  or (at your option) any later version.
  *
@@ -31,21 +31,21 @@ MMRPROBE::MMRPROBE() {
 }
 
 MMRPROBE::~MMRPROBE(void) {
-    
+
 }
 
-void MMRPROBE::apply(const DBUSW wr_data, const ABUSW address, 
+void MMRPROBE::apply(const DBUSW wr_data, const ABUSW address,
     const uchar wr_enable, const uchar rd_enable, DBUSW &rd_data) {
 
     if (last_wr && !wr_enable) {
-        if ((address >= 0xff00)&&(address <= 0xff7f)) {
-            printf("MMIO W[%04x] = %02x\n", address, last_data);
-        }
-    } 
+        //if ((address >= 0xff00)&&(address <= 0xff7f)) {
+            printf("BUS W[%04x] = %02x\n", address, last_data);
+        //}
+    }
     else if (!last_rd && rd_enable) {
-        if ((address >= 0xff00)&&(address <= 0xff7f)&&(address != 0xff44)) {
-            printf("MMIO R[%04x] = %02x\n", address, rd_data);
-        }
+        //if ((address >= 0xff00)&&(address <= 0xff7f)&&(address != 0xff44)) {
+            printf("BUS R[%04x] = %02x\n", address, rd_data);
+        //}
         /*if ((address == 0xff44) && (rd_data == 0x99)) {
             printf("VSYNC\n");
         }*/

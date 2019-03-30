@@ -1,13 +1,13 @@
 /*
  *  VerilogBoy
- *  
+ *
  *  memsim.cpp: A memory simulation model with simple delay control
- * 
+ *
  *  Copyright (C) 2019  Wenting Zhang <zephray@outlook.com>
  *  Copyright (C) 2015,2017, Gisselquist Technology, LLC
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License as 
+ *  under the terms and conditions of the GNU General Public License as
  *  published by the Free Software Foundation, either version 3 of the license,
  *  or (at your option) any later version.
  *
@@ -23,7 +23,7 @@
 #define MEMSIM_H
 
 class MEMSIM {
-public: 
+public:
     typedef unsigned char DBUSW;
     typedef unsigned short ABUSW;
     typedef unsigned char uchar;
@@ -35,14 +35,14 @@ public:
     uchar last_wr;
     uchar last_rd;
     DBUSW last_data;
-    
+
     MEMSIM(const unsigned int nwords, const unsigned int delay=27);
     ~MEMSIM(void);
     void load(const char *fname);
     void load(const unsigned int addr, const char *buf,const size_t len);
-    void apply(const DBUSW wr_data, const ABUSW address, const uchar wr_enable, 
+    void apply(const DBUSW wr_data, const ABUSW address, const uchar wr_enable,
         const uchar rd_enable, DBUSW &rd_data);
-    void operator()(const DBUSW wr_data, const ABUSW address, 
+    void operator()(const DBUSW wr_data, const ABUSW address,
         const uchar wr_enable, const uchar rd_enable, DBUSW &rd_data) {
         apply(wr_data, address, wr_enable, rd_enable, rd_data);
     }
