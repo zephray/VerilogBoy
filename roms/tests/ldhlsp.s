@@ -4,13 +4,13 @@ SECTION "rom", ROM0[$0000]
 
 main:
     ld SP, $dfe2
-    ldhl SP, #14
+    ld hl, SP+14
     ld b, h
     ld c, l
     push af
     pop de
     
     ld SP, $0100
-    ldhl SP, #-7
+    ld hl, SP-7
 
     halt

@@ -5,7 +5,7 @@
 SECTION "rom", ROM0[$0000]
 
 main:
-    ldhl SP, -128
+    ld hl, SP-128
     ld SP, HL
     ld [$c010], SP
     ld A, [$c010]
@@ -13,10 +13,10 @@ main:
     ld A, [$c011]
     ld B, A
     
-    ldhl SP, 127
+    ld hl, SP+127
     ld D, H
     ld E, L
     inc hl
     ld SP, HL
-    ldhl SP, 127
+    ld hl, SP+127
     halt

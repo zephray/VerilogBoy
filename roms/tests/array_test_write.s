@@ -42,18 +42,18 @@ code_area:
     ld L, $00
     ld H, $C0
     ld [hl], B
-    dec HL
+    inc HL
     ld [hl], C
-    dec HL
+    inc HL
     ld [hl], D
-    dec HL
+    inc HL
     ld [hl], E
     ld B, [hl]
-    inc HL
+    dec HL
     ld C, [hl]
-    inc HL
+    dec HL
     ld D, [hl]
-    inc HL
+    dec HL
     ld E, [hl]
     halt
     

@@ -8,7 +8,7 @@ SECTION "rom", ROM0[$0000]
     LD A, $01
 Loop1:
     LD [HL-], A
-    BIT #1, L
+    BIT 1, L
     JR NZ, Loop1
     
     INC HL

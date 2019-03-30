@@ -20,6 +20,6 @@ main:
     ld A, $00
     and A
     
-    jp [hl]
+    jp hl
     
     halt

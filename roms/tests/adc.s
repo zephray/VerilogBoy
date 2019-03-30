@@ -5,7 +5,7 @@
 ;;
 ;; ZNHC
 
-SECTION "rom", ROM0[$0100]
+SECTION "rom", ROM0[$0000]
 main:
     ; Setup SP
     ld SP, $c040
