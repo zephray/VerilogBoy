@@ -23,3 +23,10 @@ main:
     jp hl
     
     halt
+
+SECTION "stepping", ROM0[$24D0]
+    jr z, $2509
+    halt
+
+SECTION "final", ROM0[$2509]
+    halt

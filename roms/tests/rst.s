@@ -13,8 +13,8 @@ Addr_00:
     nop
     
 Addr_08:
-    ld HL, $0020 ; rst10
-    jp [hl]
+    ld HL, $0010 ; rst10
+    jp hl
     ld D, $03
     nop
     nop
