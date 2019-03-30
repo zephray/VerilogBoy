@@ -139,6 +139,7 @@ module boy(
 
     // PPU
     wire [7:0] ppu_dout;
+    wire ppu_wr;
 
     ppu ppu(
         .clk(clk),
@@ -147,7 +148,7 @@ module boy(
         .dout(ppu_dout), // VRAM & OAM RW goes through PPU
         .din(cpu_dout),
         .rd(cpu_rd), 
-        .wr(cpu_wr),
+        .wr(ppu_wr),
         .int_vblank_req(int_vblank_req),
         .int_lcdc_req(int_lcdc_req),
         .int_vblank_ack(int_vblank_ack),
@@ -158,6 +159,19 @@ module boy(
         .hs(hs), // Horizontal Sync, Low Active
         .vs(vs)  // Vertical Sync, Low Active
     );
+
+    // Work RAM
+    wire [7:0] wram_dout;
+    wire wram_wr;
+
+    singleport_ram #(
+        .WORDS(8192)
+    ) br_wram (
+        .clka(clk),
+        .wea(wram_wr),
+        .addra(cpu_a[12:0]),
+        .dina(cpu_dout),
+        .douta(wram_dout));
 
     // Bus Multiplexing
     always @(*) begin
@@ -172,6 +186,8 @@ module boy(
         high_ram_wr = 1'b0;
         high_ram_a = cpu_a[6:0];
         high_ram_din = 8'hxx;
+        ppu_wr = 1'b0;
+        wram_wr = 1'b0;
         if (cpu_a == 16'hffff) begin  // 0xFFFF - IE
             //reg_ie_rd = cpu_rd;
             reg_ie_wr = cpu_wr;
@@ -184,16 +200,25 @@ module boy(
             reg_if_din = cpu_dout[4:0];
             cpu_din = {3'b0, reg_if_dout};
         end
-        if (cpu_a >= 16'hff80) begin
+        else if (cpu_a >= 16'hff80) begin
             high_ram_rd = cpu_rd;
             high_ram_wr = cpu_wr;
             high_ram_din = cpu_dout;
             cpu_din = high_ram_dout;
         end
-        if ((cpu_a >= 16'hff40 && cpu_a <= 16'hff4b && cpu_a != 16'hff46) ||
+        else if ((cpu_a >= 16'hff40 && cpu_a <= 16'hff4b && cpu_a != 16'hff46) ||
             (cpu_a >= 16'h8000 && cpu_a <= 16'h9fff) ||
             (cpu_a >= 16'hfe00 && cpu_a <= 16'hfe9f)) begin
             cpu_din = ppu_dout;
+            ppu_wr = cpu_wr;
+        end
+        else if ((cpu_a >= 16'hff00) && (cpu_a <= 16'hff7f)) begin
+            // any unmapped mmio
+            cpu_din = 8'hff;
+        end
+        else if ((cpu_a >= 16'hc000 && cpu_a <= 16'hdfff)) begin
+            cpu_din = wram_dout;
+            wram_wr = cpu_wr;
         end
         else begin
             rd = cpu_rd;

@@ -32,6 +32,7 @@ module cpu(
     );
 
     reg  [7:0]  opcode;
+    reg  [7:0]  cb;
     wire [2:0]  m_cycle;
     wire [1:0]  alu_src_a;
     wire [2:0]  alu_src_b;
@@ -49,6 +50,7 @@ module cpu(
     wire [1:0]  ab_src;
     wire [1:0]  ct_op;
     wire        flags_we;
+    wire [1:0]  flags_pattern;
     wire        high_mask;
     wire        next;
     wire        stop;
@@ -74,6 +76,7 @@ module cpu(
     wire [7:0]  alu_a;
     wire [7:0]  alu_b;
     wire [7:0]  alu_result;
+    reg  [7:0]  alu_result_buffer;
     wire [3:0]  alu_flags_in;
     wire [3:0]  alu_flags_out;
     wire [4:0]  alu_op;
@@ -98,14 +101,14 @@ module cpu(
 
     wire [3:0]  flags_rd;
     wire [3:0]  flags_wr;
-    //wire        flags_we;
-    
+        
     wire [7:0]  db_wr; // Data into buffer
     wire [7:0]  db_rd; // Data out from buffer
     wire        db_we;
 
     wire [7:0]  imm_abs;
     wire [7:0]  imm_low;
+    wire [7:0]  imm_ext;
 
     reg  [1:0]  ct_state;
 
@@ -120,7 +123,7 @@ module cpu(
     wire [1:0] alu_dst_ex;
     wire [2:0] rf_wr_sel_ex;
     wire [2:0] rf_rd_sel_ex;
-    wire       flags_we_ex;
+    wire [1:0] flags_we_ex;
     wire       pc_b_sel_ex;
     wire       pc_jr;
     wire       pc_we_ex;
@@ -130,6 +133,7 @@ module cpu(
     control control(
         .clk(clk),
         .opcode_early(opcode),
+        .cb(cb),
         .imm(imm_low),
         .m_cycle(m_cycle),
         .f_z(flags_rd[3]),
@@ -155,6 +159,7 @@ module cpu(
         .ab_src(ab_src),
         .ct_op(ct_op),
         .flags_we(flags_we_ex),
+        .flags_pattern(flags_pattern),
         .high_mask(high_mask),
         .int_master_en(int_master_en),
         .int_dispatch(int_dispatch),
@@ -199,7 +204,7 @@ module cpu(
     assign db_rd = db_rd_buffer;
     assign db_wr = (
         (db_src == 2'b00) ? (acc_rd) : (
-        (db_src == 2'b01) ? (alu_result) : (
+        (db_src == 2'b01) ? (alu_result_buffer) : (
         (db_src == 2'b10) ? (rf_rd_ex) : (
         (db_src == 2'b11) ? (db_wr_buffer) : (8'b0)))));
     assign db_we = (alu_dst == 2'b11);
@@ -308,13 +313,28 @@ module cpu(
     end
 
     // Register F
-    singlereg #(4) flags(
+    /*singlereg #(4) flags(
         .clk(clk),
         .rst(rst),
         .wr(flags_wr),
-        .we(flags_we),
+        .we((flags_we != 2'b00) ? 1'b1 : 1'b0),
         .rd(flags_rd)
-    );
+    );*/
+    reg [3:0] flags;
+    always @(posedge clk, posedge rst) begin
+        if (rst)
+            flags <= 4'b0;
+        else if (flags_we)
+            if (flags_pattern == 2'b00)
+                flags[3:0] <= flags_wr[3:0];
+            else if (flags_pattern == 2'b01)
+                flags[2:0] <= {1'b0, flags_wr[1:0]};
+            else if (flags_pattern == 2'b10)
+                flags[3:0] <= {2'b0, flags_wr[1:0]};
+            else if (flags_pattern == 2'b11)
+                flags[3:1] <= flags_wr[3:1];
+    end
+    assign flags_rd = flags;
     assign flags_wr = alu_flags_out;
     
 
@@ -347,7 +367,7 @@ module cpu(
         (alu_src_b == 3'b100) ? (rf_h) : (
         (alu_src_b == 3'b101) ? (rf_l) : (
         (alu_src_b == 3'b110) ? (imm_abs) : (
-        (alu_src_b == 3'b111) ? (imm_low) : (8'b0)))))))));
+        (alu_src_b == 3'b111) ? ((pc_b_sel) ? (imm_low) : (imm_ext)) : (8'b0))))))))); // cursed
 
     assign alu_a = (alu_src_xchg) ? (alu_b_pre) : (alu_a_pre);
     assign alu_b = (alu_src_xchg) ? (alu_a_pre) : (alu_b_pre);
@@ -377,6 +397,7 @@ module cpu(
     reg [15:0] imm_reg;
     assign temp_rd = imm_reg;
     assign imm_low = imm_reg[7:0];
+    assign imm_ext = {8{imm_reg[7]}};
     assign imm_abs = (imm_reg[7]) ? (~imm_reg[7:0] + 1'b1) : (imm_reg[7:0]);
 
     // CT - FSM / Bus Operation 
@@ -391,6 +412,7 @@ module cpu(
             db_rd_buffer <= 8'b0;
             dout <= 8'b0;
             int_dispatch <= 1'b0;
+            alu_result_buffer <= 8'b0;
         end
         else begin
             if ((alu_dst == 2'b10) && temp_redir && !(ct_state == 2'b10 && bus_op == 2'b11))
@@ -404,6 +426,8 @@ module cpu(
                 rd <= ((bus_op == 2'b01)||(bus_op == 2'b11)) ? (1'b1) : (1'b0);
                 wr <= 0;
                 phi <= 1;
+                // Backup ALU results
+                alu_result_buffer <= alu_result;
             end
             2'b01: begin
                 // Read in progress
@@ -432,6 +456,7 @@ module cpu(
                     // Data Read cycle
                     wr <= 0;
                     db_rd_buffer <= din;
+                    if ((opcode == 8'hCB) && (m_cycle == 0)) cb <= din[7:0];
                     // mcycle is slower
                     if (m_cycle == 3'd0) imm_reg[7:0] <= din;
                     else if (m_cycle == 3'd1) imm_reg[15:8] <= din; 
@@ -560,7 +585,7 @@ module cpu(
     assign alu_dst = (ct_state == 2'b00) ? (alu_dst_ex) : (alu_dst_ct);
     assign rf_wr_sel = (ct_state == 2'b00) ? (rf_wr_sel_ex) : (rf_wr_sel_ct);
     assign rf_rd_sel = (ct_state == 2'b00) ? (rf_rd_sel_ex) : (rf_rd_sel_ct);
-    assign flags_we = (ct_state == 2'b00) ? (flags_we_ex) : (1'b0);
+    assign flags_we = (ct_state == 2'b00) ? (flags_we_ex) : (2'b00);
     assign pc_b_sel = (ct_state == 2'b00) ? (pc_b_sel_ex) : (pc_b_sel_ct);
     assign pc_we = (ct_state == 2'b00) ? (pc_we_ex) : (1'b0);
     assign alu_carry_out = (ct_state == 2'b00) ? (alu_carry_out_ex) : (alu_carry_out_ct);

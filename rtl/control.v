@@ -20,6 +20,7 @@ module control(
     /* verilator lint_off UNUSED */
     input  [7:0] imm,
     /* verilator lint_on UNUSED */
+    input  [7:0] cb,
     input  [2:0] m_cycle,
     input        f_z,
     input        f_c,
@@ -44,6 +45,7 @@ module control(
     output reg [1:0] ab_src,
     output reg [1:0] ct_op,
     output reg       flags_we,
+    output reg [1:0] flags_pattern,
     output reg       high_mask,
     output           int_master_en,
     input            int_dispatch,
@@ -113,6 +115,7 @@ module control(
         ime_set = 1'b0;
         ime_clear = 1'b0;
         int_ack = 1'b0;
+        flags_pattern = 2'b00;
         // Though the idea behind the original GB is that when in halt or stop
         // mode, the clock can be stopped, thus lower the power consumption and
         // save the battery. On FPGA, this is hard to achieve since clocking in
@@ -196,6 +199,22 @@ module control(
                 else if (opcode == 8'hD9) begin
                     // RETI
                     ime_clear = 1'b1;
+                end
+                else if ((opcode == 8'h04) ||
+                        (opcode == 8'h14) ||
+                        (opcode == 8'h24) ||
+                        (opcode == 8'h05) ||
+                        (opcode == 8'h15) ||
+                        (opcode == 8'h25) ||
+                        (opcode == 8'h0C) ||
+                        (opcode == 8'h1C) ||
+                        (opcode == 8'h2C) ||
+                        (opcode == 8'h3C) ||
+                        (opcode == 8'h0D) ||
+                        (opcode == 8'h1D) ||
+                        (opcode == 8'h2D) ||
+                        (opcode == 8'h3D)) begin
+                    flags_pattern = 2'b11;
                 end
                 else if ((opcode == 8'h90) ||
                         (opcode == 8'h91) ||
@@ -312,6 +331,7 @@ module control(
                 else if ((opcode == 8'h34) || (opcode == 8'h35)) begin
                     // INC (HL) / DEC (HL)
                     bus_op = 2'b10;
+                    flags_pattern = 2'b11;
                     next = 1'b1;
                 end
                 else if ((opcode == 8'h36)) begin
@@ -360,19 +380,21 @@ module control(
                 end
                 else if (opcode == 8'hE8) begin
                     // ADD SP, e8
-                    alu_src_b = 3'b110;
-                    alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                    alu_src_b = 3'b111;
+                    // Always add
                     bus_op = 2'b00;
                     ct_op = 2'b00;
+                    flags_pattern = 2'b10;
                     next = 1'b1;
                 end
                 else if (opcode == 8'hF8) begin
                     // LD HL, SP+e8
-                    alu_src_b = 3'b110;
-                    alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
+                    alu_src_b = 3'b111;
+                    // Always add
                     rf_wr_sel = 3'b101;
                     bus_op = 2'b00;
                     ct_op = 2'b00;
+                    flags_pattern = 2'b10;
                     next = 1'b1;
                 end
                 else if ((opcode == 8'h08) || (opcode == 8'hEA) || (opcode == 8'hFA)) begin
@@ -407,6 +429,7 @@ module control(
                         rf_wr_sel = 3'b100; // Select H
                         rf_rd_sel = {opcode[5:4], 1'b0};
                         alu_op_signed = 1'b1;
+                        flags_pattern = 2'b01;
                     end
                     else if (opcode == 8'hF9) begin
                         // LD SP, HL
@@ -419,22 +442,25 @@ module control(
                     end
                     else if (opcode == 8'hCB) begin
                         opcode_redir = 1'b1;
-                        if (imm[2:0] == 3'b110) begin
+                        if (cb[2:0] == 3'b110) begin
                             alu_src_a = 2'b11;
                             alu_dst = 2'b11;
+                            ct_op = 2'b00;
+                            ab_src = 2'b10;
+                            bus_op = 2'b11;
                             next = 1'b1;
                         end
-                        else if (imm[2:0] == 3'b111) begin
+                        else if (cb[2:0] == 3'b111) begin
                             alu_src_a = 2'b00;
                             alu_dst = 2'b00;
                         end
                         else begin
                             alu_src_a = 2'b10;
                             alu_dst = 2'b10;
-                            rf_rd_sel = imm[2:0];
-                            rf_wr_sel = imm[2:0];
+                            rf_rd_sel = cb[2:0];
+                            rf_wr_sel = cb[2:0];
                         end
-                        if (imm[7:6] == 2'b00) begin
+                        if (cb[7:6] == 2'b00) begin
                             alu_op_prefix = 2'b01;
                             alu_op_src = 2'b00;
                         end
@@ -442,7 +468,11 @@ module control(
                             alu_op_prefix = 2'b11;
                             alu_op_src = 2'b01;
                         end
-                        flags_we = !imm[7];
+                        if (cb[7:6] == 2'b01) begin
+                            // test only, no wb
+                            alu_dst = 2'b11;
+                        end
+                        flags_we = !cb[7];
                     end
                 end
             end
@@ -508,7 +538,7 @@ module control(
                     bus_op = 2'b10;
                     next = 1'b1;
                 end
-                else if (((opcode == 8'hC4) && (!f_z)) ||     // CALL NZ
+                else if (((opcode == 8'hC4) && (!f_z)) ||    // CALL NZ
                         ((opcode == 8'hD4) && (!f_c)) ||     // CALL NC
                         ((opcode == 8'hCD)) ||               // CALL
                         ((opcode == 8'hCC) && (f_z)) ||      // CALL Z
@@ -527,7 +557,7 @@ module control(
                     ct_op = 2'b00;
                     next = 1'b1;
                 end
-                else if ((opcode == 8'hC0) ||     // RET NZ
+                else if ((opcode == 8'hC0) ||    // RET NZ
                         (opcode == 8'hD0) ||     // RET NC
                         (opcode == 8'hC8) ||     // RET Z
                         (opcode == 8'hD8)) begin // RET C
@@ -541,12 +571,14 @@ module control(
                 end
                 else if (opcode == 8'hE8) begin
                     // ADD SP, e8
-                    alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
-                    alu_src_b = 3'b001;
+                    // It should always be add
+                    alu_src_b = 3'b111;
+                    alu_op_signed = 1'b1;
                     rf_rd_sel = 3'b110;
                     rf_wr_sel = 3'b110;
                     bus_op = 2'b00;
                     ct_op = 2'b00;
+                    flags_we = 1'b0;
                     next = 1'b1;
                 end
                 else if (opcode == 8'h08) begin
@@ -595,12 +627,40 @@ module control(
                         alu_src_b = 3'b000;    // Acc to Input B
                         flags_we = 1'b1;
                     end
+                    else if ((opcode == 8'h34) || (opcode == 8'h35)) begin
+                        // INC/DEC [HL]
+                        flags_we = 1'b0;
+                    end
                     else if (opcode == 8'hF8) begin
                         // LD HL, SP+e8
-                        alu_op_src = (imm[7]) ? (2'b11) : (2'b10); // Sub if neg, add if pos
-                        alu_src_b = 3'b001;
+                        // Always add
+                        alu_op_signed = 1'b1;
+                        alu_src_b = 3'b111;
                         rf_rd_sel = 3'b110;
                         rf_wr_sel = 3'b100;
+                        flags_we = 1'b0;
+                    end
+                    else if (opcode == 8'hCB) begin
+                        opcode_redir = 1'b1;
+                        alu_src_a = 2'b11;
+                        alu_dst = 2'b11;
+                        if (cb[7:6] == 2'b00) begin
+                            alu_op_prefix = 2'b01;
+                            alu_op_src = 2'b00;
+                        end
+                        else begin
+                            alu_op_prefix = 2'b11;
+                            alu_op_src = 2'b01;
+                        end
+                        if (cb[7:6] != 2'b01) begin
+                            // Write-back cycle required.
+                            bus_op = 2'b10;
+                            db_src = 2'b01;
+                            ab_src = 2'b10;
+                            ct_op = 2'b00;
+                            next = 1'b1;
+                        end
+                        flags_we = !cb[7];
                     end
                 end
             end
@@ -652,6 +712,10 @@ module control(
                     else if (opcode == 8'hFA) begin
                         // LD A, (nn)
                         alu_src_a = 2'b11;
+                    end
+                    else if (opcode == 8'hE8) begin
+                        // ADD SP, r8
+                        flags_we = 1'b0;
                     end
                 end
             end

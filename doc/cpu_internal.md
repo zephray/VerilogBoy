@@ -137,6 +137,16 @@ Redirect opcode read to temp register (for 0xCB)
 
 Will the flag being written to F register?
 
+0 - No
+1 - Yes
+
+## flags_pattern
+
+00 - Z N H C
+01 - - 0 H C
+10 - 0 0 H C
+11 - Z N H -
+
 ## next
 
 Does this instruction end at this cycle
