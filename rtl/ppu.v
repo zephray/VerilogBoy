@@ -330,7 +330,7 @@ module ppu(
     // Data that will be pushed into pixel FIFO
     // Organized in pixels
     reg [31:0] current_fetch_result;
-    always@(current_tile_data_1, current_tile_data_0) begin
+    always@(*) begin
         for (i = 0; i < 8; i = i + 1) begin
             current_fetch_result[i*4+3] = current_tile_data_1[i];
             current_fetch_result[i*4+2] = current_tile_data_0[i];
@@ -359,7 +359,7 @@ module ppu(
     // Cascade mux used to implement the searching of next id would be triggered
     reg [3:0] obj_trigger_id_from[0:10];
     reg [3:0] obj_trigger_id_next;
-    always@(h_pix_obj, obj_trigger_id) begin
+    always@(*) begin
         obj_trigger_id_from[10] = OBJ_TRIGGER_NOT_FOUND; // There is no more after the 10th
         for (i = 9; i >= 0; i = i - 1) begin
             obj_trigger_id_from[i] = 
@@ -553,7 +553,7 @@ module ppu(
     end
     
     reg [31:0] half_merge_result;
-    always @(current_fetch_result, pf_data) begin
+    always @(*) begin
         for (i = 0; i < 8; i = i + 1) begin
             if ((pf_data[32+i*4+1] == PPU_PAL_BG[1])&&(pf_data[32+i*4+0] == PPU_PAL_BG[0])) begin
                 half_merge_result[i*4+3] = current_fetch_result[i*4+3];

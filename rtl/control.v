@@ -200,6 +200,22 @@ module control(
                     // RETI
                     ime_clear = 1'b1;
                 end
+                else if ((opcode == 8'h07) || 
+                        (opcode == 8'h17) || 
+                        (opcode == 8'h0F) || 
+                        (opcode == 8'h1F)) begin
+                    flags_pattern = 2'b10;
+                end
+                else if ((opcode == 8'hC7) ||
+                        (opcode == 8'hD7) ||
+                        (opcode == 8'hE7) ||
+                        (opcode == 8'hF7) ||
+                        (opcode == 8'hCF) ||
+                        (opcode == 8'hEF) ||
+                        (opcode == 8'hDF) ||
+                        (opcode == 8'hFF)) begin
+                    //bus_op = 2'b10;
+                end
                 else if ((opcode == 8'h04) ||
                         (opcode == 8'h14) ||
                         (opcode == 8'h24) ||
@@ -229,8 +245,15 @@ module control(
                         (opcode == 8'h9B) ||
                         (opcode == 8'h9C) ||
                         (opcode == 8'h9D) ||
-                        (opcode == 8'h9F)) begin
-                    // SUB
+                        (opcode == 8'h9F) ||
+                        (opcode == 8'hB8) ||
+                        (opcode == 8'hB9) ||
+                        (opcode == 8'hBA) ||
+                        (opcode == 8'hBB) ||
+                        (opcode == 8'hBC) ||
+                        (opcode == 8'hBD) ||
+                        (opcode == 8'hBF)) begin
+                    // SUB, CP
                     alu_src_xchg = 1'b1;
                 end
                 else if ((opcode == 8'h86) ||
@@ -436,8 +459,8 @@ module control(
                         rf_wr_sel = 3'b111;
                         rf_rd_sel = 3'b101;
                     end
-                    else if ((opcode == 8'h96) || (opcode == 8'h9E) || (opcode == 8'hD6) || (opcode == 8'hDE)) begin
-                        // SUB [HL] or SUB n
+                    else if ((opcode == 8'h96) || (opcode == 8'h9E) || (opcode == 8'hD6) || (opcode == 8'hDE) || (opcode == 8'hBE) || (opcode == 8'hFE)) begin
+                        // SUB [HL], SUB n, CP [HL], CP n
                         alu_src_xchg = 1;
                     end
                     else if (opcode == 8'hCB) begin
@@ -536,6 +559,7 @@ module control(
                     pc_src = 2'b01;
                     pc_we = 1'b1;
                     bus_op = 2'b10;
+                    ct_op = 2'b00;
                     next = 1'b1;
                 end
                 else if (((opcode == 8'hC4) && (!f_z)) ||    // CALL NZ

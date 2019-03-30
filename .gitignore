@@ -61,6 +61,11 @@ impact*
 *.asc
 *.onl
 
+# Test
+*.vcd
+*.actual
+*.expected
+
 # binary files
 *.gb
 
