@@ -166,14 +166,16 @@ module alu(
                 alu_result = ~alu_a;
             end
             OP_CCF: begin
+                alu_flags_out[F_Z] = alu_flags_in[F_Z];
                 alu_flags_out[F_N] = 1'b0;
-                alu_flags_out[F_Z] = 1'b0;
+                alu_flags_out[F_H] = 1'b0;
                 alu_flags_out[F_C] = ~alu_flags_in[F_C];
                 alu_result = alu_b;
             end
             OP_SCF: begin
+                alu_flags_out[F_Z] = alu_flags_in[F_Z];
                 alu_flags_out[F_N] = 1'b0;
-                alu_flags_out[F_Z] = 1'b0;
+                alu_flags_out[F_H] = 1'b0;
                 alu_flags_out[F_C] = 1'b1;
                 alu_result = alu_b;
             end
@@ -238,7 +240,7 @@ module alu(
                 alu_result[bit_index] = 1'b0;
             end
             OP_SWAP: begin
-                alu_flags_out[F_Z] = (alu_result == 8'd0) ? 1'd1: 1'd0;
+                alu_flags_out[F_Z] = (alu_a == 8'd0) ? 1'd1: 1'd0;
                 alu_flags_out[F_H] = 1'b0;
                 alu_flags_out[F_C] = 1'b0;
                 alu_flags_out[F_N] = 1'b0;

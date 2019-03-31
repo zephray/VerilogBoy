@@ -35,6 +35,7 @@ module control(
     output reg       pc_we,
     output reg       pc_b_sel,
     output reg       pc_jr,
+    output reg       pc_revert,
     output reg [2:0] rf_wr_sel,
     output reg [2:0] rf_rd_sel,
     output reg [1:0] rf_rdw_sel,
@@ -83,6 +84,7 @@ module control(
     always @(posedge clk) begin
         int_dispatch_deffered <= int_dispatch;
     end
+    //wire int_dispatch_deffered = int_dispatch;
 
     reg halt_last;
     reg stop_last;
@@ -105,6 +107,7 @@ module control(
         pc_src = 2'b00;
         pc_b_sel = m_cycle[0];
         pc_jr = 1'b0;
+        pc_revert = 1'b0;
         stop = 1'b0;
         halt = 1'b0;
         fault = 1'b0;
@@ -161,8 +164,9 @@ module control(
                     alu_op_prefix = 2'b00;
                     alu_op_src = 2'b10;
                     alu_dst = 2'b00;
-                    // Disable PC we
                     pc_we = 1'b0;
+                    // Revert PC
+                    pc_revert = 1'b1;
                     // Doesn't matter what RF rd/wr is
                     flags_we = 1'b0;
                     next = 1'b1;
@@ -196,9 +200,17 @@ module control(
                     rf_rdw_sel = 2'b00; // Select BC
                     high_mask = 1'b1; // Select C only
                 end
+                else if ((opcode == 8'h09) || (opcode == 8'h19) || (opcode == 8'h29) || (opcode == 8'h39)) begin
+                    // ADD HL, r16
+                    flags_pattern = 2'b01;
+                end
                 else if (opcode == 8'hD9) begin
                     // RETI
                     ime_set = 1'b1;
+                end
+                else if ((opcode == 8'h34) || 
+                        (opcode == 8'h35)) begin
+                    flags_we = 1'b0;
                 end
                 else if ((opcode == 8'h07) || 
                         (opcode == 8'h17) || 
@@ -277,6 +289,7 @@ module control(
                     // ADD/SUB/AND/OR n
                     // ADC/SBC/XOR/CP n
                     alu_dst = 2'b11; // Don't WB in the first cycle
+                    flags_we = 1'b0; // Don't update flags in the first cycle
                 end
                 else if ((opcode == 8'hD3) || 
                         (opcode == 8'hD3) ||
@@ -453,6 +466,7 @@ module control(
                         rf_rd_sel = {opcode[5:4], 1'b0};
                         alu_op_signed = 1'b1;
                         flags_pattern = 2'b01;
+                        flags_we = 1'b1;
                     end
                     else if (opcode == 8'hF9) begin
                         // LD SP, HL
@@ -471,17 +485,20 @@ module control(
                             ct_op = 2'b00;
                             ab_src = 2'b10;
                             bus_op = 2'b11;
+                            flags_we = 1'b0;
                             next = 1'b1;
                         end
                         else if (cb[2:0] == 3'b111) begin
                             alu_src_a = 2'b00;
                             alu_dst = 2'b00;
+                            flags_we = !cb[7];
                         end
                         else begin
                             alu_src_a = 2'b10;
                             alu_dst = 2'b10;
                             rf_rd_sel = cb[2:0];
                             rf_wr_sel = cb[2:0];
+                            flags_we = !cb[7];
                         end
                         if (cb[7:6] == 2'b00) begin
                             alu_op_prefix = 2'b01;
@@ -495,7 +512,7 @@ module control(
                             // test only, no wb
                             alu_dst = 2'b11;
                         end
-                        flags_we = !cb[7];
+                        
                     end
                 end
             end
@@ -739,6 +756,10 @@ module control(
                     end
                     else if (opcode == 8'hE8) begin
                         // ADD SP, r8
+                        flags_we = 1'b0;
+                    end
+                    else if (opcode == 8'hCB) begin
+                        // CB prefix
                         flags_we = 1'b0;
                     end
                 end

@@ -127,6 +127,7 @@ module cpu(
     wire       pc_b_sel_ex;
     wire       pc_jr;
     wire       pc_we_ex;
+    wire       pc_revert;
     wire       temp_redir; // redirect regfile operation to temp register
     wire       opcode_redir;
 
@@ -149,6 +150,7 @@ module cpu(
         .pc_we(pc_we_ex),
         .pc_b_sel(pc_b_sel_ex),
         .pc_jr(pc_jr),
+        .pc_revert(pc_revert),
         .rf_wr_sel(rf_wr_sel_ex),
         .rf_rd_sel(rf_rd_sel_ex),
         .rf_rdw_sel(rf_rdw_sel),
@@ -274,6 +276,7 @@ module cpu(
     
     // Register PC
     reg [15:0] pc;
+    reg [15:0] last_pc;
     assign pc_rd = pc;
     assign pc_rd_b = (pc_b_sel == 1'b0) ? (pc[7:0]) : (pc[15:8]);
     assign pc_wr_b = alu_result;
@@ -299,16 +302,24 @@ module cpu(
         if (rst)
             pc <= 16'b0;
         else begin
-            if (pc_we_l)
+            if (pc_we_l) begin
                 pc[7:0] <= pc_wr_b;
-            else if (pc_we_h)
+                last_pc[7:0] <= pc[7:0];
+            end
+            else if (pc_we_h) begin
                 pc[15:8] <= pc_wr_b;
+                last_pc[15:8] <= pc[15:8];
+            end
+            else if (pc_revert)
+                pc <= last_pc;
             else if (pc_we)
                 if (int_dispatch)
                     // this might need to be deffered
                     pc <= pc_int;
-                else
+                else begin
                     pc <= pc_wr;
+                    last_pc <= pc;
+                end
         end
     end
 

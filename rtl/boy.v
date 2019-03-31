@@ -286,7 +286,7 @@ module boy(
             // any unmapped mmio
             bus_din = 8'hff;
         end
-        else if ((bus_a >= 16'hc000 && bus_a <= 16'hdfff)) begin
+        else if ((bus_a >= 16'hc000 && bus_a <= 16'hdfff)) begin // WRAM
             bus_din = wram_dout;
             wram_wr = bus_wr;
         end
