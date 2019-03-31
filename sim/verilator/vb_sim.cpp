@@ -47,6 +47,7 @@ static bool quiet = false;
 static bool verbose = false;
 static bool trace = false;
 static bool noboot = false;
+static bool nostop = false;
 static unsigned short breakpoint = 0xff7f;
 static char result_file[127];
 
@@ -56,6 +57,7 @@ class TESTBENCH {
     unsigned long  m_tickcount;
 public:
     bool m_done;
+    bool m_fault;
     MEMSIM *m_bootrom;
     DISPSIM *m_dispsim;
     MMRPROBE *m_mmrprobe;
@@ -117,11 +119,13 @@ public:
     }
 
     bool done(void) {
-        if ((m_tickcount > CYCLE_LIMIT) && (quiet)) {
+        if ((m_tickcount > CYCLE_LIMIT) && (quiet) && (!nostop)) {
                 printf("Time Limit Exceeded\n");
                 return true;
         }
-        return m_done;
+        if (m_fault)
+            return true;
+        return m_done && !nostop;
     }
 
     void set_title(char *title) {
@@ -171,6 +175,7 @@ public:
         if (m_trace && trace) m_trace->dump(10*m_tickcount+5);
 
         m_done = m_core -> done;
+        m_fault = m_core -> fault;
 
         // Break point
         if (m_core -> boy__DOT__cpu__DOT__pc == breakpoint) {
@@ -242,7 +247,7 @@ void vb_kill(int v) {
 
 void usage(void) {
     puts("USAGE: vb_sim <rom.gb> [--testmode] [--verbose] [--trace] [--noboot]"
-            " (verilator paramters...)\n");
+            "[--nostop] (verilator paramters...)\n");
 }
 
 int main(int argc, char **argv) {
@@ -272,6 +277,9 @@ int main(int argc, char **argv) {
         }
         if (strcmp(argv[i], "--trace") == 0) {
             trace = true;
+        }
+        if (strcmp(argv[i], "--nostop") == 0) {
+            nostop = true;
         }
     }
 

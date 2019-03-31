@@ -5,7 +5,7 @@ RGBLINK:= rgblink
 all: bootrom.mif
 
 bootrom.mif: bootrom.gb
-	$(BIN2MIF) bootrom.gb bootrom.mif 128 8
+	$(BIN2MIF) bootrom.gb bootrom.mif 256 8
 
 bootrom.gb: bootrom.obj
 	$(RGBLINK) -mbootrom.map -nbootrom.sym -obootrom.gb bootrom.obj
