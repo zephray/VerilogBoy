@@ -179,7 +179,7 @@ module ppu(
     singleport_ram #(
         .WORDS(8192)
     ) br_vram (
-        .clka(clk),
+        .clka(~clk),
         .wea(vram_we),
         .addra(vram_addr[12:0]),
         .dina(vram_data_in),

@@ -198,7 +198,7 @@ module control(
                 end
                 else if (opcode == 8'hD9) begin
                     // RETI
-                    ime_clear = 1'b1;
+                    ime_set = 1'b1;
                 end
                 else if ((opcode == 8'h07) || 
                         (opcode == 8'h17) || 

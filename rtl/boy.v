@@ -84,6 +84,40 @@ module boy(
             high_ram_dout <= (high_ram_rd) ? high_ram[high_ram_a] : 8'bx;
     end
 
+    //DMA
+    wire dma_rd; // DMA Memory Write Enable
+    wire dma_wr; // DMA Memory Read Enable
+    wire [15:0] dma_a; // Main Address Bus
+    wire [7:0]  dma_din; // Main Data Bus
+    wire [7:0]  dma_dout;
+    wire [7:0]  dma_mmio_dout;
+    wire dma_mmio_wr;
+    wire cpu_mem_disable;
+    dma dma(
+        .clk(clk),
+        .rst(rst),
+        .dma_rd(dma_rd),
+        .dma_wr(dma_wr),
+        .dma_a(dma_a),
+        .dma_din(dma_din),
+        .dma_dout(dma_dout),
+        .mmio_wr(dma_mmio_wr),
+        .mmio_din(cpu_dout),
+        .mmio_dout(dma_mmio_dout),
+        .cpu_mem_disable(cpu_mem_disable)
+    );
+
+    wire bus_wr; //Bus Master Memory Write Enable
+    wire bus_rd; //Bus Master Memory Read Enable
+    wire [15:0] bus_a; // Main Address Bus
+    wire [7:0]  bus_din; // Main Data Bus
+    wire [7:0]  bus_dout;
+    assign bus_wr = (cpu_mem_disable) ? (dma_wr) : (cpu_wr);
+    assign bus_rd = (cpu_mem_disable) ? (dma_rd) : (cpu_rd);
+    assign bus_a = (cpu_mem_disable) ? (dma_a) : (cpu_a);
+    assign dma_din = bus_din;
+    assign bus_dout = (cpu_mem_disable) ? (dma_dout) : (cpu_dout);
+
     // Interrupt
     // int_req is the request signal from peripherals.
     // When an interrupt is generated, the peripheral should send a pulse on
@@ -102,7 +136,9 @@ module boy(
     assign int_req[0] = int_vblank_req;
 
     /* -- DEBUG -- */
-    assign int_req = 5'd0;
+    //assign int_req = 5'd0;
+    assign int_req[4] = 1'b0;
+    assign int_req[3] = 1'b0;
 
     //reg reg_ie_rd;
     reg reg_ie_wr;
@@ -160,6 +196,23 @@ module boy(
         .vs(vs)  // Vertical Sync, Low Active
     );
 
+    // Boot ROM Enable Register
+    reg brom_disable;
+    wire brom_disable_wr;
+    always @(posedge clk, posedge rst) begin
+        if (rst)
+            brom_disable <= 1'b0;
+        else
+            if (brom_disable_wr && (!brom_disable))
+                brom_disable <= cpu_dout[0];
+    end
+
+    wire [7:0] brom_dout;
+    brom brom(
+        .a(cpu_a[7:0]),
+        .d(brom_dout)
+    );
+
     // Work RAM
     wire [7:0] wram_dout;
     wire wram_wr;
@@ -171,60 +224,80 @@ module boy(
         .wea(wram_wr),
         .addra(cpu_a[12:0]),
         .dina(cpu_dout),
-        .douta(wram_dout));
+        .douta(wram_dout)
+    );
 
     // Bus Multiplexing
     always @(*) begin
-        wr = 1'b0;
-        rd = 1'b0;
-        a = cpu_a; // The address is always exposed
-        dout = 8'h00; // But the data will be masked when accessing high page
-        cpu_din = 8'hxx; // Should not happen
-        reg_ie_wr = 1'b0;
-        reg_ie_din = 5'hxx;
-        high_ram_rd = 1'b0;
-        high_ram_wr = 1'b0;
+        // High RAM is always accessible from CPU
         high_ram_a = cpu_a[6:0];
-        high_ram_din = 8'hxx;
-        ppu_wr = 1'b0;
-        wram_wr = 1'b0;
-        if (cpu_a == 16'hffff) begin  // 0xFFFF - IE
-            //reg_ie_rd = cpu_rd;
-            reg_ie_wr = cpu_wr;
-            reg_ie_din = cpu_dout[4:0];
-            cpu_din = {3'b0, reg_ie_dout};
-        end
-        else if (cpu_a == 16'hff0f) begin // 0xFF0F - IF
-            //reg_if_rd = cpu_rd;
-            reg_if_wr = cpu_wr;
-            reg_if_din = cpu_dout[4:0];
-            cpu_din = {3'b0, reg_if_dout};
-        end
-        else if (cpu_a >= 16'hff80) begin
+        if (cpu_a >= 16'hff80) begin
             high_ram_rd = cpu_rd;
             high_ram_wr = cpu_wr;
             high_ram_din = cpu_dout;
             cpu_din = high_ram_dout;
         end
-        else if ((cpu_a >= 16'hff40 && cpu_a <= 16'hff4b && cpu_a != 16'hff46) ||
-            (cpu_a >= 16'h8000 && cpu_a <= 16'h9fff) ||
-            (cpu_a >= 16'hfe00 && cpu_a <= 16'hfe9f)) begin
-            cpu_din = ppu_dout;
-            ppu_wr = cpu_wr;
+        else begin
+            high_ram_rd = 1'b0;
+            high_ram_wr = 1'b0;
+            high_ram_din = 8'hxx;
+            cpu_din = bus_din;
         end
-        else if ((cpu_a >= 16'hff00) && (cpu_a <= 16'hff7f)) begin
+    end
+
+    always @(*) begin
+        wr = 1'b0;
+        rd = 1'b0;
+        a = bus_a; // The address is always exposed
+        dout = 8'h00; // But the data will be masked when accessing high page
+        bus_din = 8'hxx; // Should not happen
+        reg_ie_wr = 1'b0;
+        reg_ie_din = 5'hxx;
+        
+        ppu_wr = 1'b0;
+        wram_wr = 1'b0;
+        if (bus_a == 16'hffff) begin  // 0xFFFF - IE
+            //reg_ie_rd = bus_rd;
+            reg_ie_wr = bus_wr;
+            reg_ie_din = bus_dout[4:0];
+            bus_din = {3'b0, reg_ie_dout};
+        end
+        else if (bus_a == 16'hff0f) begin // 0xFF0F - IF
+            //reg_if_rd = bus_rd;
+            reg_if_wr = bus_wr;
+            reg_if_din = bus_dout[4:0];
+            bus_din = {3'b0, reg_if_dout};
+        end
+        else if (bus_a == 16'hff46) begin // 0xFF46 - DMA
+            dma_mmio_wr = bus_wr;
+            bus_din = dma_mmio_dout;
+        end
+        else if (bus_a == 16'hff50) begin // 0xFF50 - BROM DISABLE
+            brom_disable_wr = bus_wr;
+            bus_din = {7'b0, brom_disable};
+        end
+        else if ((bus_a >= 16'hff40 && bus_a <= 16'hff4b && bus_a != 16'hff46) ||
+            (bus_a >= 16'h8000 && bus_a <= 16'h9fff) ||
+            (bus_a >= 16'hfe00 && bus_a <= 16'hfe9f)) begin
+            bus_din = ppu_dout;
+            ppu_wr = bus_wr;
+        end
+        else if ((bus_a >= 16'hff00) && (bus_a <= 16'hff7f)) begin
             // any unmapped mmio
-            cpu_din = 8'hff;
+            bus_din = 8'hff;
         end
-        else if ((cpu_a >= 16'hc000 && cpu_a <= 16'hdfff)) begin
-            cpu_din = wram_dout;
-            wram_wr = cpu_wr;
+        else if ((bus_a >= 16'hc000 && bus_a <= 16'hdfff)) begin
+            bus_din = wram_dout;
+            wram_wr = bus_wr;
+        end
+        else if ((!brom_disable && bus_a <= 16'h00ff)) begin
+            bus_din = brom_dout;
         end
         else begin
-            rd = cpu_rd;
-            wr = cpu_wr;
-            dout = cpu_dout;
-            cpu_din = din;
+            rd = bus_rd;
+            wr = bus_wr;
+            dout = bus_dout;
+            bus_din = din;
         end
         cs = wr | rd;
     end
