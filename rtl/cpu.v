@@ -28,7 +28,8 @@ module cpu(
     input [4:0] int_flags_in,
     output wire [4:0] int_flags_out,
     input [7:0] key_in,
-    output reg done
+    output reg done,
+    output wire fault
     );
 
     reg  [7:0]  opcode;
@@ -56,7 +57,7 @@ module cpu(
     wire        stop;
     wire        halt;
     reg         wake;
-    wire        fault;
+    //wire        fault;
     reg         int_dispatch;
     wire        int_master_en;
     wire        int_ack;
@@ -123,7 +124,7 @@ module cpu(
     wire [1:0] alu_dst_ex;
     wire [2:0] rf_wr_sel_ex;
     wire [2:0] rf_rd_sel_ex;
-    wire [1:0] flags_we_ex;
+    wire       flags_we_ex;
     wire       pc_b_sel_ex;
     wire       pc_jr;
     wire       pc_we_ex;
@@ -596,7 +597,7 @@ module cpu(
     assign alu_dst = (ct_state == 2'b00) ? (alu_dst_ex) : (alu_dst_ct);
     assign rf_wr_sel = (ct_state == 2'b00) ? (rf_wr_sel_ex) : (rf_wr_sel_ct);
     assign rf_rd_sel = (ct_state == 2'b00) ? (rf_rd_sel_ex) : (rf_rd_sel_ct);
-    assign flags_we = (ct_state == 2'b00) ? (flags_we_ex) : (2'b00);
+    assign flags_we = (ct_state == 2'b00) ? (flags_we_ex) : (1'b0);
     assign pc_b_sel = (ct_state == 2'b00) ? (pc_b_sel_ex) : (pc_b_sel_ct);
     assign pc_we = (ct_state == 2'b00) ? (pc_we_ex) : (1'b0);
     assign alu_carry_out = (ct_state == 2'b00) ? (alu_carry_out_ex) : (alu_carry_out_ct);

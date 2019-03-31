@@ -42,7 +42,8 @@ module boy(
     output [15:0] left,
     output [15:0] right,
     // Debug interface
-    output done
+    output done,
+    output fault
     );
     
     // CPU
@@ -68,7 +69,8 @@ module boy(
         .int_flags_in(cpu_int_flags_in),
         .int_flags_out(cpu_int_flags_out),
         .key_in(key),
-        .done(done));
+        .done(done),
+        .fault(fault));
         
     // High RAM
     reg [7:0] high_ram [0:127];
@@ -124,7 +126,7 @@ module boy(
     // the int_req for exactly one clock (using 4MHz clock).
     wire [4:0] int_req;
     
-    wire int_tim_req = 0;
+    wire int_tim_req;
     wire int_tim_ack;
     wire int_lcdc_req;
     wire int_lcdc_ack;
@@ -180,10 +182,10 @@ module boy(
     ppu ppu(
         .clk(clk),
         .rst(rst),
-        .a(cpu_a),
+        .a(bus_a),
         .dout(ppu_dout), // VRAM & OAM RW goes through PPU
-        .din(cpu_dout),
-        .rd(cpu_rd), 
+        .din(bus_dout),
+        .rd(bus_rd), 
         .wr(ppu_wr),
         .int_vblank_req(int_vblank_req),
         .int_lcdc_req(int_lcdc_req),
@@ -194,6 +196,22 @@ module boy(
         .valid(valid),
         .hs(hs), // Horizontal Sync, Low Active
         .vs(vs)  // Vertical Sync, Low Active
+    );
+
+    // Timer
+    wire [7:0] timer_dout;
+    wire timer_wr;
+
+    timer timer(
+        .clk(clk),
+        .rst(rst),
+        .a(bus_a),
+        .dout(timer_dout),
+        .din(bus_dout),
+        .rd(bus_rd),
+        .wr(timer_wr),
+        .int_tim_req(int_tim_req),
+        .int_tim_ack(int_tim_ack)
     );
 
     // Boot ROM Enable Register
@@ -209,7 +227,7 @@ module boy(
 
     wire [7:0] brom_dout;
     brom brom(
-        .a(cpu_a[7:0]),
+        .a(bus_a[7:0]),
         .d(brom_dout)
     );
 
@@ -222,8 +240,8 @@ module boy(
     ) br_wram (
         .clka(clk),
         .wea(wram_wr),
-        .addra(cpu_a[12:0]),
-        .dina(cpu_dout),
+        .addra(bus_a[12:0]),
+        .dina(bus_dout),
         .douta(wram_dout)
     );
 
@@ -267,6 +285,11 @@ module boy(
             reg_if_wr = bus_wr;
             reg_if_din = bus_dout[4:0];
             bus_din = {3'b0, reg_if_dout};
+        end
+        else if ((bus_a == 16'hff04) || (bus_a == 16'hff05) ||  // Timer
+                (bus_a == 16'hff06) || (bus_a == 16'hff07)) begin
+            timer_wr = bus_wr;
+            bus_din = timer_dout;
         end
         else if (bus_a == 16'hff46) begin // 0xFF46 - DMA
             dma_mmio_wr = bus_wr;
