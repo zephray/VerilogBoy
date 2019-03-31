@@ -26,8 +26,9 @@ main:
     push AF
     pop DE
     
-    ; Z flag set
+    ; Z flag set, No Carry, Clear N flag
     ld A, $ff
+    sub a, $00
     ld HL, $c062
     ld [hl], A
     inc [hl]
