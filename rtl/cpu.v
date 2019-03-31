@@ -547,7 +547,7 @@ module cpu(
                 pc_b_sel_ct = 1'b1;
                 alu_src_a_ct = 2'b01;  // From PC byte
                 alu_src_b_ct = 3'b001; // Carry
-                alu_op_src_ct = 2'b10; // Ad
+                alu_op_src_ct = (pc_jr) ? (imm_low[7] ? 2'b11 : 2'b10) : 2'b10; // Add
                 alu_dst_ct = 2'b01;    // To PC byte
             end
             2'b10: begin
