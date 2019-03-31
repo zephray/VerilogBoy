@@ -112,6 +112,10 @@ void DISPSIM::apply(const unsigned char lcd_data, const unsigned char lcd_hs,
     }
 }
 
+void DISPSIM::set_title(char *title) {
+    SDL_SetWindowTitle(window, title);
+}
+
 void DISPSIM::renderCopy(void) {
 	void *texturePixels;
 	int texturePitch;

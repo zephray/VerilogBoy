@@ -46,6 +46,8 @@ const int CYCLE_LIMIT = 32768;
 static bool quiet = false;
 static bool verbose = false;
 static bool trace = false;
+static bool noboot = false;
+static unsigned short breakpoint = 0xff7f;
 static char result_file[127];
 
 class TESTBENCH {
@@ -63,7 +65,7 @@ public:
         Verilated::traceEverOn(true);
 
         m_done = false;
-        m_bootrom = new MEMSIM(8192, 0);
+        m_bootrom = new MEMSIM(32768, 0);
         m_trace = NULL;
 
         if (!quiet) {
@@ -84,6 +86,7 @@ public:
         if (verbose) {
             delete m_mmrprobe;
         }
+
     }
 
     void opentrace(const char *vcdname) {
@@ -121,6 +124,10 @@ public:
         return m_done;
     }
 
+    void set_title(char *title) {
+        m_dispsim -> set_title(title);
+    }
+
     virtual void tick(void) {
         m_bootrom->operator()(
             m_core -> dout,
@@ -143,7 +150,8 @@ public:
                 m_core -> boy__DOT__cpu_a,
                 m_core -> boy__DOT__cpu_wr,
                 m_core -> boy__DOT__cpu_rd,
-                m_core -> boy__DOT__cpu_din);
+                m_core -> boy__DOT__cpu_din,
+                m_core -> boy__DOT__cpu__DOT__pc);
         }
 
         m_tickcount++;
@@ -165,7 +173,7 @@ public:
         m_done = m_core -> done;
 
         // Break point
-        if (m_core -> boy__DOT__cpu__DOT__pc == 0x005d) {
+        if (m_core -> boy__DOT__cpu__DOT__pc == breakpoint) {
             m_done = 1;
         }
     }
@@ -174,6 +182,9 @@ public:
         m_core -> rst = 1;
         tick();
         m_core -> rst = 0;
+        if (noboot) {
+            m_core -> boy__DOT__brom_disable = 1; // Disable internal bootROM
+        }
     }
 
     void print_regs(void) {
@@ -201,25 +212,23 @@ public:
                     m_core -> boy__DOT__cpu__DOT__pc);
             //fclose(result);
         }
-        if (verbose) {
-            // print on screen
-            printf("PC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
-                m_core -> boy__DOT__cpu__DOT__pc,
-                ((m_core -> boy__DOT__cpu__DOT__flags) & 0x8) ? 'Z' : '-',
-                ((m_core -> boy__DOT__cpu__DOT__flags) & 0x4) ? 'N' : '-',
-                ((m_core -> boy__DOT__cpu__DOT__flags) & 0x2) ? 'H' : '-',
-                ((m_core -> boy__DOT__cpu__DOT__flags) & 0x1) ? 'C' : '-',
-                m_core -> boy__DOT__cpu__DOT__acc__DOT__data,
-                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[6],
-                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[7],
-                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[0],
-                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[1],
-                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[2],
-                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[3],
-                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[4],
-                m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[5]
-            );
-        }
+        // print on screen
+        printf("PC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
+            m_core -> boy__DOT__cpu__DOT__pc,
+            ((m_core -> boy__DOT__cpu__DOT__flags) & 0x8) ? 'Z' : '-',
+            ((m_core -> boy__DOT__cpu__DOT__flags) & 0x4) ? 'N' : '-',
+            ((m_core -> boy__DOT__cpu__DOT__flags) & 0x2) ? 'H' : '-',
+            ((m_core -> boy__DOT__cpu__DOT__flags) & 0x1) ? 'C' : '-',
+            m_core -> boy__DOT__cpu__DOT__acc__DOT__data,
+            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[6],
+            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[7],
+            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[0],
+            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[1],
+            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[2],
+            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[3],
+            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[4],
+            m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[5]
+        );
     }
 };
 
@@ -232,11 +241,13 @@ void vb_kill(int v) {
 }
 
 void usage(void) {
-    puts("USAGE: vb_sim <rom_file> [--quiet] (verilator paramters...)\n");
+    puts("USAGE: vb_sim <rom.gb> [--testmode] [--verbose] [--trace] [--noboot]"
+            " (verilator paramters...)\n");
 }
 
 int main(int argc, char **argv) {
     const char *trace_file = "trace.vcd";
+    char window_title[63];
 
     if (argc < 2) {
         usage();
@@ -244,13 +255,17 @@ int main(int argc, char **argv) {
     }
 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--quiet") == 0) {
+        if (strcmp(argv[i], "--testmode") == 0) {
             quiet = true;
             strcpy(result_file, argv[1]);
             char *location = strstr(result_file, ".");
             if (location == NULL)
                 location = result_file + strlen(result_file);
             strcpy(location, ".actual");
+            noboot = true;
+        }
+        if (strcmp(argv[i], "--noboot") == 0) {
+            noboot = true;
         }
         if (strcmp(argv[i], "--verbose") == 0) {
             verbose = true;
@@ -269,15 +284,16 @@ int main(int argc, char **argv) {
 
     if (!quiet) printf("Initialized\n");
 
-    uint32_t ticks;
+    uint32_t sim_tick = 0;
+    uint32_t ms_tick = SDL_GetTicks();
     while (!tb->done()) {
     //while (true) {
         tb -> tick();
 
-        ticks++;
+        sim_tick++;
 
         // Get the next event
-        if (!quiet & (ticks % 2048 == 0)) {
+        if (!quiet & (sim_tick % 32768 == 0)) {
             SDL_Event event;
             if (SDL_PollEvent(&event))
             {
@@ -287,6 +303,12 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
+            uint32_t ms_delta = SDL_GetTicks() - ms_tick;
+            int sim_freq = sim_tick / ms_delta;
+            sim_tick = 0;
+            sprintf(window_title, "VerilogBoy Sim (%d kHz)", sim_freq);
+            tb -> set_title(window_title);
+            ms_tick = SDL_GetTicks();
         }
     }
 

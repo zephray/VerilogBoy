@@ -52,6 +52,7 @@ public:
             const unsigned char lcd_vs, const unsigned char lcd_enable) {
         apply(lcd_data, lcd_hs, lcd_vs, lcd_enable);
     }
+    void set_title(char *title);
 };
 
 #endif

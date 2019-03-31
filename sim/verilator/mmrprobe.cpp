@@ -35,17 +35,17 @@ MMRPROBE::~MMRPROBE(void) {
 }
 
 void MMRPROBE::apply(const DBUSW wr_data, const ABUSW address,
-    const uchar wr_enable, const uchar rd_enable, DBUSW &rd_data) {
+    const uchar wr_enable, const uchar rd_enable, DBUSW &rd_data, ABUSW pc) {
 
     // Ignore ROM and HRAM RW
     if (last_wr && !wr_enable) {
         if ((address >= 0x8000)&&(address <= 0xff7f)) {
-            printf("BUS W[%04x] = %02x\n", address, last_data);
+            printf("PC %04x: BUS W[%04x] = %02x\n", pc, address, last_data);
         }
     }
     else if (last_rd && !rd_enable) {
         if ((address >= 0x8000)&&(address <= 0xff7f)&&(address != 0xff44)) {
-            printf("BUS R[%04x] = %02x\n", address, rd_data);
+            printf("PC %04x: BUS R[%04x] = %02x\n", pc, address, rd_data);
         }
         /*if ((address == 0xff44) && (rd_data == 0x99)) {
             printf("VSYNC\n");

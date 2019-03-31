@@ -12,3 +12,4 @@ for test in *.actual; do
 	fi
 done
 echo "Passed $PASS tests, failed $FAIL tests."
+exit $FAIL

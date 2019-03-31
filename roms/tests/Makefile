@@ -12,7 +12,7 @@ ACTUALS = $(SRCS:.s=.actual)
 all: $(ROMS) $(EXPECTS) $(ACTUALS)
 
 %.actual: %.gb
-	$(VBSIM) $< --quiet
+	$(VBSIM) $< --testmode
 
 %.expected: %.gb
 	$(WINE) $(DMGEMU)  $@ $<

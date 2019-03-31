@@ -34,10 +34,10 @@ public:
     MMRPROBE(void);
     ~MMRPROBE(void);
     void apply(const DBUSW wr_data, const ABUSW address, const uchar wr_enable, 
-        const uchar rd_enable, DBUSW &rd_data);
+        const uchar rd_enable, DBUSW &rd_data, ABUSW pc);
     void operator()(const DBUSW wr_data, const ABUSW address, 
-        const uchar wr_enable, const uchar rd_enable, DBUSW &rd_data) {
-        apply(wr_data, address, wr_enable, rd_enable, rd_data);
+        const uchar wr_enable, const uchar rd_enable, DBUSW &rd_data, ABUSW pc) {
+        apply(wr_data, address, wr_enable, rd_enable, rd_data, pc);
     }
 };
 

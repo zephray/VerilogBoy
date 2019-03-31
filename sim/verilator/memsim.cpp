@@ -50,8 +50,8 @@ void MEMSIM::load(const char *fname) {
         fprintf(stderr, "Could not open/load file \'%s\'\n",
             fname);
         perror("O/S Err:");
-        fprintf(stderr, "\tInitializing memory with zero instead.\n");
-        nr = 0;
+        fprintf(stderr, "\tInitializing memory with ff instead.\n");
+        nr = 0xff;
     } else {
         nr = fread(m_mem, sizeof(DBUSW), m_len, fp);
         fclose(fp);
@@ -59,12 +59,12 @@ void MEMSIM::load(const char *fname) {
         if (nr != m_len) {
             fprintf(stderr, "Only read %d of %d words\n",
                 nr, m_len);
-            fprintf(stderr, "\tFilling the rest with zero.\n");
+            fprintf(stderr, "\tFilling the rest with ff.\n");
         }
     }
 
     for(; nr<m_len; nr++)
-        m_mem[nr] = 0;
+        m_mem[nr] = 0xff;
 }
 
 void MEMSIM::load(const unsigned int addr, const char *buf, const size_t len) {
