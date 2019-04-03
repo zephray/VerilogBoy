@@ -21,13 +21,14 @@
 #include <string.h>
 #include "misc.h"
 #include "term.h"
+#include "part.h"
 #include "usb.h"
 #include "isp1760.h"
 #include "isp_roothub.h"
 
 #undef USE_ROOT_HUB
 
-#undef ISP_DEBUG
+#define ISP_DEBUG
 
 #ifdef ISP_DEBUG
 #define debug_print(x) term_print(x)
@@ -269,6 +270,8 @@ isp_result_t isp_transfer(ptd_type_t ptd_type, usb_speed_t speed,
 
     payload_address = MEM_PAYLOAD_BASE;
 
+    //if (max_packet_length > 64) max_packet_length = 64;
+
     switch(ptd_type) {
         case TYPE_ATL:
             debug_print("A");
@@ -442,13 +445,16 @@ void isp_build_header(usb_speed_t speed, usb_token_t token, uint32_t device_addr
     debug_print(" L");
     debug_print_hex(length, 4);
     debug_print(" ");
+    debug_print("M");
+    debug_print_hex(max_packet_length, 4);
+    debug_print(" ");
 
     multiplier = (speed == SPEED_HIGH) ? (0x1) : (0x0);
     port_number = (speed == SPEED_HIGH) ? (0x0) : (parent_port);
     hub_address = (speed == SPEED_HIGH) ? (0x0) : (parent_address);
     valid = 0x01;
     split = (speed == SPEED_HIGH) ? (0x0) : (0x1);
-    se = (speed == SPEED_FULL) ? (0x0): (0x2);
+    se = (speed == SPEED_HIGH) ? (0x0) : (speed == SPEED_FULL) ? (0x0): (0x2);
     start_complete = 0x0;
     error_counter = 0x3;
     micro_frame = (ep_type == EP_INTERRUPT) ? // Polling every 8 ms for FS/LS

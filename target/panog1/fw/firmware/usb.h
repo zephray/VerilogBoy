@@ -29,11 +29,16 @@
 /* Configuration for slave device support */
 #undef CONFIG_USB_KEYBOARD
 #define CONFIG_USB_GAMEPAD
-#undef CONFIG_USB_STORAGE
+#define CONFIG_USB_STORAGE
 
 #define cpu_to_le16(x) (x)
 #define le16_to_cpu(x) (x)
+#define cpu_to_le32(x) (x)
+#define le32_to_cpu(x) (x)
 #define le16_to_cpus(x)
+
+#define cpu_to_be32(x) (((x & 0xff000000) >> 16) | ((x & 0xff0000) >> 8) | \
+							((x & 0xff00) << 8) | ((x & 0xff) << 24))
 
 #include "usb_defs.h"
 

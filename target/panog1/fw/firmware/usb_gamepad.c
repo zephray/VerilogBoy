@@ -21,6 +21,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "misc.h"
+#include "part.h"
 #include "usb.h"
 #include "usb_gamepad.h"
 
