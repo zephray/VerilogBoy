@@ -1,4 +1,4 @@
-OBJS = firmware.o syscalls.o term.o isp1760.o misc.o usb.o usb_gamepad.o usb_storage.o
+OBJS = firmware.o syscalls.o term.o isp1760.o misc.o ff.o ffsystem.o ffunicode.o diskio.o usb.o usb_gamepad.o usb_storage.o
 CFLAGS = -MD -O1 -march=rv32i -Wl,--no-relax -fdata-sections -ffunction-sections
 TOOLCHAIN_PREFIX = riscv32-unknown-elf-
 

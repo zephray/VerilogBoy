@@ -28,7 +28,7 @@
 
 #undef USE_ROOT_HUB
 
-#define ISP_DEBUG
+#undef ISP_DEBUG
 
 #ifdef ISP_DEBUG
 #define debug_print(x) term_print(x)
