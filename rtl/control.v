@@ -16,6 +16,7 @@
 
 module control(
     input        clk,
+    input        rst,
     input  [7:0] opcode_early,
     /* verilator lint_off UNUSED */
     input  [7:0] imm,
@@ -73,8 +74,10 @@ module control(
     reg ime;
     assign int_master_en = ime;
 
-    always @(posedge clk) begin
-        if (ime_clear)
+    always @(posedge clk, posedge rst) begin
+        if (rst)
+            ime <= 1'b0;
+        else if (ime_clear)
             ime <= 1'b0;
         else if (ime_set)
             ime <= 1'b1;
@@ -89,10 +92,17 @@ module control(
     reg halt_last;
     reg stop_last;
     reg fault_last;
-    always @(posedge clk) begin
-        halt_last <= halt;
-        stop_last <= stop;
-        fault_last <= fault;
+    always @(posedge clk, posedge rst) begin
+        if (rst) begin
+            halt_last <= 1'b0;
+            stop_last <= 1'b0;
+            fault_last <= 1'b0;
+        end
+        else begin
+            halt_last <= halt;
+            stop_last <= stop;
+            fault_last <= fault;
+        end
     end
 
     // All these nonsense will be replaced by a vector decoding ROM... 

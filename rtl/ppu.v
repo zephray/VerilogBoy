@@ -66,7 +66,11 @@ module ppu(
     output reg [1:0] pixel, // Pixel Output
     output reg valid, // Pixel Valid
     output reg hs, // Horizontal Sync, High Valid
-    output reg vs  // Vertical Sync, High Valid
+    output reg vs, // Vertical Sync, High Valid
+    //Debug output
+    output [7:0] scx,
+    output [7:0] scy,
+    output [4:0] state
     );
     
     // Global Wires ?
@@ -330,7 +334,7 @@ module ppu(
     // Data that will be pushed into pixel FIFO
     // Organized in pixels
     reg [31:0] current_fetch_result;
-    always@(*) begin
+    always@(current_tile_data_1, current_tile_data_0) begin
         for (i = 0; i < 8; i = i + 1) begin
             current_fetch_result[i*4+3] = current_tile_data_1[i];
             current_fetch_result[i*4+2] = current_tile_data_0[i];
@@ -359,11 +363,11 @@ module ppu(
     // Cascade mux used to implement the searching of next id would be triggered
     reg [3:0] obj_trigger_id_from[0:10];
     reg [3:0] obj_trigger_id_next;
-    always@(*) begin
+    always@(h_pix_obj, obj_trigger_id) begin
         obj_trigger_id_from[10] = OBJ_TRIGGER_NOT_FOUND; // There is no more after the 10th
         for (i = 9; i >= 0; i = i - 1) begin
             obj_trigger_id_from[i] = 
-                ((h_pix_obj == obj_trigger_list[i])&&(obj_valid_list[i])) ? (i[3:0]) : (obj_trigger_id_from[i+1]);
+                ((h_pix_obj == obj_trigger_list[i])&&(obj_valid_list[i])) ? (i) : (obj_trigger_id_from[i+1]);
                 // See if this one match, if not, cascade down.
         end
         if (obj_trigger_id == OBJ_TRIGGER_NOT_FOUND) // currently not triggered yet
@@ -553,7 +557,7 @@ module ppu(
     end
     
     reg [31:0] half_merge_result;
-    always @(*) begin
+    always @(current_fetch_result, pf_data) begin
         for (i = 0; i < 8; i = i + 1) begin
             if ((pf_data[32+i*4+1] == PPU_PAL_BG[1])&&(pf_data[32+i*4+0] == PPU_PAL_BG[0])) begin
                 half_merge_result[i*4+3] = current_fetch_result[i*4+3];
@@ -741,7 +745,7 @@ module ppu(
         else
             // TODO: what's the timing for this?
             reg_stat[2] <= (reg_ly == reg_lyc) ? 1 : 0;
-
+            
     always @(posedge clk, posedge rst)
     begin
         if (rst) begin
@@ -845,4 +849,9 @@ module ppu(
         end
     end
     
+    // Debug Outputs
+    assign scx = reg_scx;
+    assign scy = reg_scy;
+    assign state = r_state;
+
 endmodule

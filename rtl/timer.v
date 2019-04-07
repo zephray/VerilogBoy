@@ -14,15 +14,15 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module timer(
-    input clk,
-    input rst,
-    input [15:0] a,
+    input wire clk,
+    input wire rst,
+    input wire [15:0] a,
     output reg [7:0] dout,
-    input [7:0] din,
-    input rd,
-    input wr,
+    input wire [7:0] din,
+    input wire rd,
+    input wire wr,
     output reg int_tim_req,
-    input int_tim_ack
+    input wire int_tim_ack
     );
     
     wire [7:0] reg_div; // Divider Register
@@ -57,7 +57,7 @@ module timer(
     
     // Bus RW
     // Bus RW - Combinational Read
-    always @(a)
+    always @(*)
     begin
         dout = 8'hFF;
         if (a == 16'hFF04) dout = reg_div; else
@@ -70,6 +70,10 @@ module timer(
     always @(posedge clk)
     begin
         last_clk_tim <= clk_tim;
+    end
+    
+    always @(posedge clk, posedge rst)
+    begin
         if (rst) begin
             //reg_div <= 0;
             reg_tima <= 0;

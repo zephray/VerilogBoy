@@ -134,6 +134,7 @@ module cpu(
 
     control control(
         .clk(clk),
+        .rst(rst),
         .opcode_early(opcode),
         .cb(cb),
         .imm(imm_low),
@@ -189,7 +190,8 @@ module cpu(
         (stop) ? (((int_flags_in & int_en) != 0) || (key_in != 0)) : 
         (1'b0));
     always @(posedge clk) begin
-        wake <= wake_comb;
+        if (ct_state == 2'b10)
+            wake <= wake_comb;
     end
 
     wire [7:3] current_opcode;
@@ -223,7 +225,7 @@ module cpu(
     // Interrupt
     wire [4:0] int_flags_masked = int_flags_in & int_en & {5{int_master_en}};
     wire [4:0] int_flags_out_cleared = 
-        (int_flags_masked[0]) ? (int_flags_in & 5'h11110) : (
+        (int_flags_masked[0]) ? (int_flags_in & 5'b11110) : (
         (int_flags_masked[1]) ? (int_flags_in & 5'b11101) : (
         (int_flags_masked[2]) ? (int_flags_in & 5'b11011) : (
         (int_flags_masked[3]) ? (int_flags_in & 5'b10111) : (
@@ -265,6 +267,7 @@ module cpu(
     end
 
     // Register A
+    reg [15:0] imm_reg;
     singlereg #(8) acc(
         .clk(clk),
         .rst(rst),
@@ -406,7 +409,7 @@ module cpu(
             ct_state <= ct_next_state;
     end
 
-    reg [15:0] imm_reg;
+    //reg [15:0] imm_reg; decleared before
     assign temp_rd = imm_reg;
     assign imm_low = imm_reg[7:0];
     assign imm_ext = {8{imm_reg[7]}};

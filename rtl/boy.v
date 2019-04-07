@@ -93,7 +93,7 @@ module boy(
     wire [7:0]  dma_din; // Main Data Bus
     wire [7:0]  dma_dout;
     wire [7:0]  dma_mmio_dout;
-    wire dma_mmio_wr;
+    reg dma_mmio_wr; // actually wire
     wire cpu_mem_disable;
     dma dma(
         .clk(clk),
@@ -112,7 +112,7 @@ module boy(
     wire bus_wr; //Bus Master Memory Write Enable
     wire bus_rd; //Bus Master Memory Read Enable
     wire [15:0] bus_a; // Main Address Bus
-    wire [7:0]  bus_din; // Main Data Bus
+    reg  [7:0]  bus_din; // Main Data Bus, acutally wire
     wire [7:0]  bus_dout;
     assign bus_wr = (cpu_mem_disable) ? (dma_wr) : (cpu_wr);
     assign bus_rd = (cpu_mem_disable) ? (dma_rd) : (cpu_rd);
@@ -125,7 +125,8 @@ module boy(
     // When an interrupt is generated, the peripheral should send a pulse on
     // the int_req for exactly one clock (using 4MHz clock).
     wire [4:0] int_req;
-    
+
+    wire int_key_req;  
     wire int_tim_req;
     wire int_tim_ack;
     wire int_lcdc_req;
@@ -133,13 +134,14 @@ module boy(
     wire int_vblank_req;
     wire int_vblank_ack;
 
+    assign int_req[4] = int_key_req;
     assign int_req[2] = int_tim_req;
     assign int_req[1] = int_lcdc_req;
     assign int_req[0] = int_vblank_req;
 
     /* -- DEBUG -- */
     //assign int_req = 5'd0;
-    assign int_req[4] = 1'b0;
+    //assign int_req[4] = 1'b0;
     assign int_req[3] = 1'b0;
 
     //reg reg_ie_rd;
@@ -171,13 +173,14 @@ module boy(
     assign reg_if_dout = reg_if | int_req;
     assign cpu_int_flags_in = reg_if_dout;
 
+    //assign int_key_ack = reg_if[3];
     assign int_tim_ack = reg_if[2];
     assign int_lcdc_ack = reg_if[1];
     assign int_vblank_ack = reg_if[0];
 
     // PPU
     wire [7:0] ppu_dout;
-    wire ppu_wr;
+    reg ppu_wr; // actually wire
 
     ppu ppu(
         .clk(clk),
@@ -200,7 +203,7 @@ module boy(
 
     // Timer
     wire [7:0] timer_dout;
-    wire timer_wr;
+    reg timer_wr; // actually wire
 
     timer timer(
         .clk(clk),
@@ -216,7 +219,7 @@ module boy(
 
     // Boot ROM Enable Register
     reg brom_disable;
-    wire brom_disable_wr;
+    reg brom_disable_wr; // actually wire
     always @(posedge clk, posedge rst) begin
         if (rst)
             brom_disable <= 1'b0;
@@ -233,7 +236,7 @@ module boy(
 
     // Work RAM
     wire [7:0] wram_dout;
-    wire wram_wr;
+    reg wram_wr; // actually wire
 
     singleport_ram #(
         .WORDS(8192)
@@ -244,6 +247,24 @@ module boy(
         .dina(bus_dout),
         .douta(wram_dout)
     );
+
+    // Keypad
+    wire [7:0] keypad_reg;
+    reg keypad_reg_wr; // actually wire
+    reg [1:0] keypad_high;
+    always @(posedge clk, posedge rst) begin
+        if (rst)
+            keypad_high <= 2'b11;
+        else
+            if (keypad_reg_wr)
+                keypad_high <= bus_dout[5:4];
+    end
+    assign keypad_reg[7:6] = 2'b11;
+    assign keypad_reg[5:4] = keypad_high[1:0];
+    assign keypad_reg[3:0] = 
+        ~(((keypad_high[1] == 1'b1) ? (key[7:4]) : 4'h0) | 
+          ((keypad_high[0] == 1'b1) ? (key[3:0]) : 4'h0)); 
+    assign int_key_req = (keypad_reg[3:0] != 4'hf) ? (1'b1) : (1'b0);
 
     // Bus Multiplexing
     always @(*) begin
@@ -271,9 +292,15 @@ module boy(
         bus_din = 8'hxx; // Should not happen
         reg_ie_wr = 1'b0;
         reg_ie_din = 5'hxx;
-        
+        reg_if_wr = 1'b0;
+        reg_if_din = 5'hxx;
+        keypad_reg_wr = 1'b0;
+        timer_wr = 1'b0;
+        dma_mmio_wr = 1'b0;
+        brom_disable_wr = 1'b0;
         ppu_wr = 1'b0;
         wram_wr = 1'b0;
+        
         if (bus_a == 16'hffff) begin  // 0xFFFF - IE
             //reg_ie_rd = bus_rd;
             reg_ie_wr = bus_wr;
@@ -285,6 +312,10 @@ module boy(
             reg_if_wr = bus_wr;
             reg_if_din = bus_dout[4:0];
             bus_din = {3'b0, reg_if_dout};
+        end
+        else if (bus_a == 16'hff00) begin
+            keypad_reg_wr = bus_wr;
+            bus_din = keypad_reg;
         end
         else if ((bus_a == 16'hff04) || (bus_a == 16'hff05) ||  // Timer
                 (bus_a == 16'hff06) || (bus_a == 16'hff07)) begin
@@ -305,10 +336,6 @@ module boy(
             bus_din = ppu_dout;
             ppu_wr = bus_wr;
         end
-        else if ((bus_a >= 16'hff00) && (bus_a <= 16'hff7f)) begin
-            // any unmapped mmio
-            bus_din = 8'hff;
-        end
         else if ((bus_a >= 16'hc000 && bus_a <= 16'hdfff)) begin // WRAM
             bus_din = wram_dout;
             wram_wr = bus_wr;
@@ -316,21 +343,21 @@ module boy(
         else if ((!brom_disable && bus_a <= 16'h00ff)) begin
             bus_din = brom_dout;
         end
-        else begin
+        else if (bus_a <= 16'h7fff) begin
+            // cartridge, need add CRAM later
             rd = bus_rd;
             wr = bus_wr;
             dout = bus_dout;
             bus_din = din;
         end
+        else begin
+            // read to unmapped area returns ff
+            bus_din = 8'hff;
+        end
         cs = wr | rd;
     end
 
     // Disable unused signals
-    assign hs = 0;
-    assign vs = 0;
-    assign cpl = 0;
-    assign pixel = 0;
-    assign valid = 0;
     assign left = 0;
     assign right = 0;
 
