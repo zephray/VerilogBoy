@@ -26,22 +26,18 @@ Working in Progress
 
 ### LPDDR controller
 
-Based on Xilinx MIG, LPDDR-200 @ 32-bits.
+Based on Xilinx MIG, LPDDR-200 @ 16-bits.
 
 Details available at hackaday: [A detour to the Pano Logic G1 (1) - LPDDR](https://hackaday.io/project/57660/log/159790-a-detour-to-the-pano-logic-g1-1-lpddr)
 
-### Memory cache
-
-Connected between PicoRV32 and LPDDR controller, 8 KB 2-way set-associative. All transactions are cached, write-back. R/W time is 2 cycles when hit, 4/5 cycles + memory latency when miss. 3 cycle implementation is optional to allow better timing.
-
-Details available at hackaday: [A detour to the Pano Logic G1 (2) - Cache](https://hackaday.io/project/57660/log/160053-a-detour-to-the-pano-logic-g1-2-cache)
+Used to be a memory cache between PicoRV32 and LPDDR, now as code is XIP from Flash, cache is move to flash. All access to LPDDR is non cached.
 
 ### PicoRV32 soft-processor
 
 PicoRV32 is a RISC-V compatible soft-processor written by Clifford Wolf: https://github.com/cliffordwolf/picorv32.
 
-Configured as RV32I, running at 100MHz.
+Configured as RV32IC, running at 25MHz.
 
-When code is being executed inside LPDDR, the performance is around 0.247 DMIPS/MHz using 2 cycle cache, and 0.208 DMIPS/MHz using 3 cycle cache. 
+Currently, code is XIP from SPI Flash. SPI Flash also runs at 25MHz (Maximum frequency of M25P80 is 75MHz), 1 bit mode. A 4KB 2-way set associative cache is added between the PicoRV32 and SPI IF. Expect very poor performance.
 
-Currently, a bootloader would copy last 256 KB of the SPI Flash into LPDDR and jump to the LPDDR.
+The PicoRV32 uses in total 8 BRAM18K for memories, 4 as scratchpad memory (8KB), 2 as I-cache (4KB), 2 as video RAM (4KB).

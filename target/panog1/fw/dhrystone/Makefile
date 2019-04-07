@@ -1,5 +1,5 @@
 OBJS = start.o dhry_1.o dhry_2.o stdlib.o
-CFLAGS = -MD -O3 -march=rv32i -DTIME -DRISCV -DUSE_MYSTDLIB -ffreestanding -nostdlib -Wl,--no-relax
+CFLAGS = -MD -O3 -march=rv32ic -DTIME -DRISCV -DUSE_MYSTDLIB -ffreestanding -nostdlib -Wl,--no-relax
 TOOLCHAIN_PREFIX = riscv32-unknown-elf-
 
 dhry.bin: dhry.elf

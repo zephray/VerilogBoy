@@ -3,8 +3,9 @@
 
 .section .text
 
-boot:
-j start
+start:
+
+j boot
 nop
 nop
 nop
@@ -14,7 +15,7 @@ irq:
 addi a0, gp, 0
 call irq_handler
 
-start:
+boot:
 # zero-initialize register file
 addi x1, zero, 0
 # x2 (sp) is initialized by reset
@@ -53,6 +54,19 @@ addi x31, zero, 0
 # li a1, 1
 # sw a1, 0(a0)
 
+# copy data section
+la a0, _sidata
+la a1, _sdata
+la a2, _edata
+bge a1, a2, end_init_data
+loop_init_data:
+lw a3, 0(a0)
+sw a3, 0(a1)
+addi a0, a0, 4
+addi a1, a1, 4
+blt a1, a2, loop_init_data
+end_init_data:
+
 # zero-init bss section
 la a0, _sbss
 la a1, _ebss
@@ -66,7 +80,3 @@ end_init_bss:
 # call main
 call main
 
-# set the sp to be top of the DDR
-# li sp, 0x0cfffffc
-li a0, 0x0c000000
-jr a0, 0

@@ -26,16 +26,11 @@ module testbench;
 
     // Inputs
     reg CLK_OSC;
-    reg IDT_CLK1;
     reg PB;
-    reg SPI_MISO;
+    wire SPI_MISO;
     reg USB_IRQ;
 
     // Outputs
-    wire IDT_ICLK;
-    wire IDT_SCLK;
-    wire IDT_STROBE;
-    wire IDT_DATA;
     wire LED_RED;
     wire LED_GREEN;
     wire LED_BLUE;
@@ -75,11 +70,6 @@ module testbench;
     // Instantiate the Unit Under Test (UUT)
     pano_top uut (
         .CLK_OSC(CLK_OSC), 
-        .IDT_ICLK(IDT_ICLK), 
-        .IDT_CLK1(CLK_OSC), 
-        .IDT_SCLK(IDT_SCLK), 
-        .IDT_STROBE(IDT_STROBE), 
-        .IDT_DATA(IDT_DATA), 
         .LED_RED(LED_RED), 
         .LED_GREEN(LED_GREEN), 
         .LED_BLUE(LED_BLUE), 
@@ -134,12 +124,19 @@ module testbench;
         .Dm    (LPDDR_DM)
     );
 
+    spiflash spiflash (
+        .csb(SPI_CS_B),
+        .clk(SPI_SCK),
+        .io0(SPI_MOSI), // MOSI
+        .io1(SPI_MISO), // MISO
+        .io2(),
+        .io3()
+    );
+
     initial begin
         // Initialize Inputs
         CLK_OSC = 0;
-        IDT_CLK1 = 0;
         PB = 1;
-        SPI_MISO = 1;
         USB_IRQ = 0;
 
         // Wait 100 ns for global reset to finish
@@ -149,7 +146,8 @@ module testbench;
         PB = 0;
     end
     
-    always
+    always begin
         #5 CLK_OSC = !CLK_OSC;
+    end
 endmodule
 
