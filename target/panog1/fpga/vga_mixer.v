@@ -23,6 +23,8 @@ module vga_mixer(
     input wire clk,
     input wire rst,
     // GameBoy Image Input
+    // Its clock need to be phase aligned, integer dividable by VGA clock
+    // No clock domain crossing sync has been implemented here.
     input wire gb_hs,
     input wire gb_vs,
     input wire gb_pclk,
@@ -198,7 +200,7 @@ module vga_mixer(
       .rst(rst),
       .hs(vga_hs),
       .vs(vga_vs),
-      .vsi(gb_vs),
+      .vsi(1'b0),
       .x(vga_x),
       .y(vga_y),
       .gb_x(gb_x),

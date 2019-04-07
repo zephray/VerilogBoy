@@ -11,7 +11,10 @@ module simple_uart(
     //localparam UART_DIV = 10'd867;
     
     // 100MHz 230400 / 50MHz 115200: 434 - 1
-    localparam UART_DIV = 10'd433;
+    //localparam UART_DIV = 10'd433;
+
+    // 50MHz 230400 / 25MHz 115200: 217 - 1
+    localparam UART_DIV = 10'd216;
 
     reg [9:0] counter;
     reg [3:0] tx_count;

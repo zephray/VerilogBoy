@@ -60,6 +60,9 @@ module ddr_cache(
     
     `define USE_3_CYCLE_CACHE 1
     
+    // If RV is running at lower speed than the cache, longer SYS_READY pulse would be required
+    `define USE_LONGER_PULSE 1
+    
     // Parameters are for descriptive purposes, they are non-adjustable.
     localparam CACHE_WAY = 2; 
     localparam CACHE_WAY_BITS = 1;
@@ -261,6 +264,7 @@ module ddr_cache(
                     addr_line_sel <= 1'b0;
                     cache_way_we_0 <= 1'b0;
                     cache_way_we_1 <= 1'b0;
+                    sys_ready <= 1'b0;
                     if (sys_valid) begin
                     `ifdef USE_3_CYCLE_CACHE
                         cache_state <= STATE_RW_COMPARE;
@@ -390,7 +394,11 @@ module ddr_cache(
                     cache_way_we_0 <= 1'b0;
                     cache_way_we_1 <= 1'b0;
                     mem_valid <= 1'b0;
+                    `ifdef USE_LONGER_PULSE
+                    sys_ready <= 1'b1;
+                    `else
                     sys_ready <= 1'b0;
+                    `endif
                     if (!sys_valid) begin
                         cache_state <= STATE_IDLE;
                     end

@@ -58,9 +58,9 @@
 // Please do not change any of the other parameters directly by editing the RTL. 
 // All other changes should be done through the GUI.
 
-`define   DATA_WIDTH                               32
-`define   DATA_STROBE_WIDTH                        4
-`define   DATA_MASK_WIDTH                          4
+`define   DATA_WIDTH                               16
+`define   DATA_STROBE_WIDTH                        2
+`define   DATA_MASK_WIDTH                          2
 `define   CLK_WIDTH                                1
 `define   FIFO_16                                  1
 `define   READENABLE                               1
@@ -80,8 +80,8 @@
 `define   BANK_ADDRESS                             2
 `define   DEBUG_EN                                 0
 `define   CLK_TYPE                                 "SINGLE_ENDED"
-//`define   LOAD_MODE_REGISTER                       12'b000000110001  // BL=2
-`define   LOAD_MODE_REGISTER                       12'b000000110010  // BL=4
+`define   LOAD_MODE_REGISTER                       12'b000000110001  // BL=2
+//`define   LOAD_MODE_REGISTER                       12'b000000110010  // BL=4
 `define   EXT_LOAD_MODE_REGISTER                   12'b000000000000
 `define   RESET_ACTIVE_LOW                         1'b1
 `define   RAS_COUNT_VALUE                          4'b0011

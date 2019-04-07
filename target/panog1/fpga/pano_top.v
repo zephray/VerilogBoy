@@ -6,25 +6,26 @@
 // 
 // Create Date:    21:43:15 11/21/2018 
 // Design Name: 
-// Module Name:    vbh_top 
+// Module Name:    pano_top 
 // Project Name:   VerilogBoy
 // Description: 
 //   Top level file for Pano Logic G1
 // Dependencies: 
 // 
 // Additional Comments: 
-//   See doc/vbh_ref_man.md for descriptions
+//   
 ////////////////////////////////////////////////////////////////////////////////
 module pano_top(
     // Global Clock Input
     input wire CLK_OSC,
     
     // IDT Clock Generator
-    output wire IDT_ICLK,
+    // Not used, DCM is used to generate the clock
+    /*output wire IDT_ICLK,
     input  wire IDT_CLK1,
     output wire IDT_SCLK,
     output wire IDT_STROBE,
-    output wire IDT_DATA,
+    output wire IDT_DATA,*/
 
     // Power LED
     output wire LED_RED,
@@ -41,14 +42,14 @@ module pano_top(
     input  wire SPI_MISO,
 
     // WM8750 Codec
-    /*output wire AUDIO_MCLK,
-    output wire AUDIO_BCLK,
+    output wire AUDIO_MCLK,
+    input  wire AUDIO_BCLK,
     output wire AUDIO_DACDATA,
-    output wire AUDIO_DACLRCK,
-    input  wire AUDIO_ADCDATA,
-    output wire AUDIO_ADCLRCK,
+    input  wire AUDIO_DACLRCK,
+    //input  wire AUDIO_ADCDATA,
+    //output wire AUDIO_ADCLRCK,
     output wire AUDIO_SCL,
-    inout  wire AUDIO_SDA,*/
+    inout  wire AUDIO_SDA,
 
     // LPDDR SDRAM
     output wire [11:0] LPDDR_A,
@@ -91,31 +92,27 @@ module pano_top(
     
     // ----------------------------------------------------------------------
     // Clocking
-    wire clk_100_in;
-    reg clk_12_raw;
+    wire clk_100_in;       // On-board 100M clock source 
+    reg clk_4_raw;        // 4.196MHz for VerilogBoy Core
+    wire clk_4;
+    reg clk_12_raw;        // 12MHz for USB controller and codec
     wire clk_12;
-    wire clk_24_raw;
+    wire clk_24_raw;       // 24MHz for on-board USB hub
     wire clk_24;
-    wire clk_100_raw;
+    wire clk_100_raw;      // 100MHz for PicoRV32 and LPDDR controller
     wire clk_100;
     wire clk_100_90_raw;
     wire clk_100_90;
     wire clk_100_180_raw;
     wire clk_100_180;
-    //wire clk_50_raw;
-    //wire clk_50;
-    wire clk_vga_in;
-    wire clk_vga_raw;
-    wire clk_vga;
-    //wire clk_vga_2x_raw;
-    //wire clk_vga_2x;
-    wire clk_vga_90_raw;
-    wire clk_vga_90;
-    wire clk_rv = clk_100;
+    wire clk_25_in;        // 25MHz clock divided from 100MHz, for VGA and RV
+    wire clk_25_raw;
+    wire clk_25;
+    wire clk_rv = clk_25;
+    wire clk_vga = clk_25;
     wire dcm_locked_12;
-    wire dcm_locked;
     wire rst_12 = !dcm_locked_12;
-    wire rst = !dcm_locked;
+    wire rst = !dcm_locked_12;
     reg rst_rv;
     
     IBUFG ibufg_clk_100 (
@@ -133,7 +130,7 @@ module pano_top(
         .CLKIN_PERIOD(10.0),                  // 100MHz input
         .CLK_FEEDBACK("1X"),
         .CLKOUT_PHASE_SHIFT("NONE"),
-        .CLKDV_DIVIDE(2.0),
+        .CLKDV_DIVIDE(4.0),
         .DESKEW_ADJUST("SYSTEM_SYNCHRONOUS"), // SOURCE_SYNCHRONOUS, SYSTEM_SYNCHRONOUS or an integer from 0 to 15
         .DLL_FREQUENCY_MODE("LOW"),           // HIGH or LOW frequency mode for DLL
         .DUTY_CYCLE_CORRECTION("TRUE"),       // Duty cycle correction, TRUE or FALSE
@@ -145,7 +142,7 @@ module pano_top(
         .CLK90(clk_100_90_raw),
         .CLK180(clk_100_180_raw),
         .CLKFX(clk_24_raw),                   // DCM CLK synthesis out (M/D)
-        //.CLKDV(clk_50_raw),
+        .CLKDV(clk_25_raw),
         .CLKFB(clk_100),                      // DCM clock feedback
         .PSCLK(1'b0),                         // Dynamic phase adjust clock input
         .PSEN(1'b0),                          // Dynamic phase adjust enable input
@@ -154,10 +151,7 @@ module pano_top(
         .LOCKED(dcm_locked_12)
     );
     
-    BUFG bufg_clk_24 (
-        .O(clk_24),
-        .I(clk_24_raw)
-    );
+    assign clk_24 = clk_24_raw;
     
     always@(posedge clk_24) begin
         if (!dcm_locked_12)
@@ -166,15 +160,7 @@ module pano_top(
             clk_12_raw <= !clk_12_raw;
     end
     
-    BUFG bufg_clk_12 (
-        .O(clk_12),
-        .I(clk_12_raw)
-    );
-    
-    /*BUFG bufg_clk_50 (
-        .O(clk_50),
-        .I(clk_50_raw)
-    );*/
+    assign clk_12 = clk_12_raw;
     
     BUFG bufg_clk_100 (
         .O(clk_100),
@@ -190,83 +176,44 @@ module pano_top(
         .O(clk_100_180),
         .I(clk_100_180_raw)
     );
-    
-    // IDT Clock Synthesizer for VGA Clock
-    wire idt_ready;
-    idt_clkgen idt_clkgen(
-        .clk            (clk_12),
-        .rst            (rst_12),
-
-        .idt_iclk       (IDT_ICLK),
-
-        .idt_sclk       (IDT_SCLK),     
-        .idt_data       (IDT_DATA),     
-        .idt_strobe     (IDT_STROBE),
-
-        .idt_ready      (idt_ready)
+ 
+    BUFG bufg_clk_25 (
+        .O(clk_25),
+        .I(clk_25_raw)
     );
     
-    IBUFG ibufg_clk_vga_in (
-        .O(clk_vga_in),
-        .I(IDT_CLK1)
-    );
+    reg [1:0] vb_divider;
+    always @(posedge clk_25, posedge rst) begin
+        if (rst) begin
+            vb_divider <= 0;
+            clk_4_raw <= 0;
+        end
+        else 
+            if (vb_divider == 0) begin
+                vb_divider <= 2'd2;
+                clk_4_raw <= ~clk_4_raw;
+            end
+            else
+                vb_divider <= vb_divider - 1;
+    end
     
-    DCM_SP #(
-        // 25.175MHz * 2 / 12 = 4.196MHz
-        .CLKIN_DIVIDE_BY_2("FALSE"),
-        .CLKIN_PERIOD(39.722),
-        .CLK_FEEDBACK("1X"),
-        .CLKOUT_PHASE_SHIFT("NONE"),      
-        .CLKDV_DIVIDE(6.0),
-        .CLKFX_DIVIDE(1),
-        .CLKFX_MULTIPLY(4),
-        .DESKEW_ADJUST("SYSTEM_SYNCHRONOUS"),
-        .DFS_FREQUENCY_MODE("LOW"),
-        .DLL_FREQUENCY_MODE("LOW"),
-        .DUTY_CYCLE_CORRECTION("TRUE"),
-        .FACTORY_JF(16'hC080),
-        .PHASE_SHIFT(0),
-        .STARTUP_WAIT("FALSE")
-    ) dcm_gb (
-        .CLKIN(clk_vga_in),                   // Clock input (from IBUFG, BUFG or DCM)
-        .CLK0(clk_vga_raw),
-        //.CLK2X(clk_vga_2x_raw),
-        .CLK90(clk_vga_90_raw),
-        .CLKFB(clk_vga),
-        .RST(!idt_ready),
-        .LOCKED(dcm_locked),
-        .DSSEN(1'b0),
-        .PSCLK(1'b0),
-        .PSEN(1'b0),
-        .PSINCDEC(1'b0)
+    BUFG bufg_clk_4 (
+        .O(clk_4),
+        .I(clk_4_raw)
     );
-    
-    BUFG bufg_clk_vga (
-        .O(clk_vga),
-        .I(clk_vga_raw)
-    );
-    
-    BUFG bufg_clk_vga_90 (
-        .O(clk_vga_90),
-        .I(clk_vga_90_raw)
-    );
-    
-    //BUFG bufg_clk_vga_2x (
-    //    .O(clk_vga_2x),
-    //    .I(clk_vga_2x_raw)
-    //);
     
     // ----------------------------------------------------------------------
     // VerilogBoy core
     
-    /*wire        vb_phi;
+    reg         vb_rst;
+    wire        vb_phi;
     wire [15:0] vb_a;
     wire [7:0]  vb_dout;
     wire [7:0]  vb_din;
     wire        vb_wr;
     wire        vb_rd;
     wire        vb_cs;
-    wire [7:0]  vb_key;
+    reg  [7:0]  vb_key;
     wire        vb_hs;
     wire        vb_vs;
     wire        vb_cpl;
@@ -274,10 +221,11 @@ module pano_top(
     wire        vb_valid;
     wire [15:0] vb_left;
     wire [15:0] vb_right;
+    wire        vb_fault;
 
     boy boy(
-        .rst(rst),
-        .clk(clk_core),
+        .rst(vb_rst),
+        .clk(clk_4),
         .phi(),
         .a(vb_a),
         .dout(vb_dout),
@@ -293,118 +241,46 @@ module pano_top(
         .valid(vb_valid),
         .left(vb_left),
         .right(vb_right),
-        .done(done)
-    );*/
-	 
-    // ----------------------------------------------------------------------
-    // Memory Controller
-    
-    // The memory controller receives address from the VerilogBoy Core and 
-    // map it either into RAM bank, BootROM, or peripheral register address.
-    
-    // VB Core Memory Map: (16-bit address, 64KiB)
-    // 0000 - 3EFF Cartridge Bank 0 (PSRAM) / BootROM (BRAM)
-    // 4000 - 7FFF Cartridge Bank X (PSRAM)
-    // 8000 - 9FFF Blank (Mapped inside the VB Core)
-    // A000 - BFFF CRAM (PSRAM)
-    // C000 - DFFF WRAM (PSRAM)
-    // E000 - EFFF Echo WRAM (PSRAM)
-    // F000 - FDFF Echo WRAM (PSRAM)
-    // FE00 - FF00 Blank
-	 // FF00 - FF7F Blank / Peripherals (Wishbone)
-    // FF80 - FFFF Blank
-	 
-    // Physical RAM Memory Map: (23-bit address, 8MiB)
-    // 000000 - 3FFFFF Cartridge ROM (4MB)
-    // 400000 - 41FFFF Cartridge RAM (128KB)
-    // 420000 - 427FFF Work RAM (32KB)
-    // 428000 - 43FFFF Extended Work RAM (96KB)
-    // 440000 - 7FFFFF Unused
-    
-    /*wire        vb_brom_en = 1'b1; // Fixed to enable for now
-    wire [4:0]  vb_wram_bank = 5'd0; // Fixed to bank 0 for now
-    wire [7:0]  wb_a;
-    wire [7:0]  wb_din; // Master to Slave
-    wire [7:0]  wb_dout;// Slave to Master
-    wire        wb_cyc;
-    wire        wb_stb;
-    wire        wb_we;
-    wire        wb_ack;
-    wire        wb_stall;
-    wire [22:0] rom_a; // Up to 8MB (hardware limit to 4MB)
-    wire [7:0]  rom_d;
-    wire        rom_rd;
-    wire [17:0] ram_a; // Up to 256KB
-    wire [7:0]  ram_din;
-    wire [7:0]  ram_dout;
-    wire        ram_wr;
-    wire        ram_rd;
-    wire [13:0] brom_a; // Up to 16KB
-    wire [7:0]  brom_d;
-    wire        brom_rd;
-    
-    mc mc(
-        .vb_clk(clk_core),
-        .vb_rst(rst),
-        .vb_din(vb_din),
-        .vb_dout(vb_dout),
-        .vb_a(vb_a),
-        .vb_wr(vb_wr),
-        .vb_rd(vb_rd),
-        .vb_brom_en(vb_brom_en),
-        .vb_wram_bank(vb_wram_bank),
-        .wb_a(wb_a),
-        .wb_din(wb_din),
-        .wb_dout(wb_dout),
-        .wb_cyc(wb_cyc),
-        .wb_stb(wb_stb),
-        .wb_we(wb_we),
-        .wb_ack(wb_ack),
-        .wb_stall(wb_stall),
-        .rom_a(rom_a),
-        .rom_d(rom_d),
-        .rom_rd(rom_rd),
-        .ram_a(ram_a),
-        .ram_din(ram_din),
-        .ram_dout(ram_dout),
-        .ram_wr(ram_wr),
-        .ram_rd(ram_rd),
-        .brom_a(brom_a),
-        .brom_d(brom_d),
-        .brom_rd(brom_rd)
+        .done(),
+        .fault(vb_fault)
     );
     
-    // Map addresses into PSRAM
-    wire psram_rd = ram_rd || rom_rd;
-    wire psram_wr = ram_wr;
-    wire [21:0] psram_a = (ram_rd || ram_wr) ? ({5'b10000, ram_a[17:1]}) : {1'b1, rom_a[21:1]};
-    wire psram_ub = (ram_rd || ram_wr) ? (ram_a[0]) : (rom_a[0]);
-    wire psram_lb = !psram_ub;
-    wire [15:0] psram_din = (psram_ub) ? ({ram_din[7:0], 8'b0}) : ({8'b0, ram_din[7:0]});
-    wire [15:0] psram_dout;
-    assign rom_d = (psram_ub) ? (psram_dout[15:8]) : (psram_dout[7:0]);
-    assign ram_dout = (psram_ub) ? (psram_dout[15:8]) : (psram_dout[7:0]);
+    // ----------------------------------------------------------------------
+    // Audio
     
-    assign RAM_WE_N = !psram_wr;
-    assign RAM_OE_N = !psram_rd;
-    assign RAM_CE_N = !(psram_wr || psram_rd);
-    assign RAM_A[21:0] = psram_a;
-    assign RAM_LB_N = !psram_lb;
-    assign RAM_UB_N = !psram_ub;
-    assign RAM_ZZ_N = 1'b1;
-    assign RAM_DQ[15:0] = (psram_wr) ? (psram_din) : (16'hzz);
-    assign psram_dout[15:0] = RAM_DQ[15:0];
-	 
-    // Boot ROM (8KB for now)
-    brom brom(
-        .clk(clk_core),
-        .a(brom_a[12:0]),
-        .d(brom_d)
-    );*/
+    // TODO: Implement an ASRC ?
+    wire a_bclk;
+    reg [15:0] a_sr;
+    wire a_lrck;
+    reg a_last_lrck;
+    wire a_dat;
+    
+    always @(negedge a_bclk) begin
+        a_last_lrck <= a_lrck;
+        if (a_lrck && !a_last_lrck) begin
+            // LRCK rising edge, start of right channel
+            a_sr <= vb_right;
+        end
+        else if (!a_lrck && a_last_lrck) begin
+            // LRCK falling edge, start of left channel
+            a_sr <= vb_left;
+        end
+        else begin
+            a_sr <= {a_sr[14:0], 1'b0};
+        end
+    end
+    
+    assign a_dat = a_sr[15];
+    
+    assign AUDIO_MCLK = clk_24;
+    assign a_bclk = AUDIO_BCLK;
+    assign AUDIO_DACDATA = a_dat;
+    assign a_lrck = AUDIO_DACLRCK;
     
     // ----------------------------------------------------------------------
     // MIG
     
+    // Access from/ to MIG is non-cached.
     wire       wait_200us;
     wire       sys_rst;
     wire       sys_rst90;
@@ -426,7 +302,23 @@ module pano_top(
     
     wire rst_dqs_div_in;
     
-    wire [24:0] ddr_addr;
+    // Bus master signal from RV
+    wire [23:0] rv_ddr_addr;
+    wire [31:0] rv_ddr_wdata;
+    wire [31:0] rv_ddr_rdata;
+    wire [3:0] rv_ddr_wstrb;
+    wire rv_ddr_valid;
+    wire rv_ddr_ready;
+    
+    reg [31:0] rv_ddr_rdata_buf;
+    reg rv_ddr_ready_buf;
+    always @(posedge clk_rv) begin
+        rv_ddr_rdata_buf <= rv_ddr_rdata;
+        rv_ddr_ready_buf <= rv_ddr_ready;
+    end
+    
+    // Bus master signal after arbitrator
+    wire [23:0] ddr_addr;
     wire [31:0] ddr_wdata;
     wire [31:0] ddr_rdata;
     wire [3:0] ddr_wstrb;
@@ -434,13 +326,13 @@ module pano_top(
     wire ddr_ready;
     
     wire auto_ref_req;
-    wire [63:0] user_input_data;
-    wire [63:0] user_output_data;
+    wire [31:0] user_input_data;
+    wire [31:0] user_output_data;
     wire user_data_valid;
     wire [22:0] user_input_address;
     wire [2:0] user_command_register;
     wire user_cmd_ack;
-    wire [7:0] user_data_mask;
+    wire [3:0] user_data_mask;
     wire burst_done;
     wire init_done;
     wire ar_done;
@@ -460,8 +352,8 @@ module pano_top(
         .burst_done            (burst_done),
         .init_val              (init_done),
         .ar_done               (ar_done),
-        .ddr_dqs               (LPDDR_DQS),
-        .ddr_dq                (LPDDR_DQ),
+        .ddr_dqs               (LPDDR_DQS[1:0]),
+        .ddr_dq                (LPDDR_DQ[15:0]),
         .ddr_cke               (LPDDR_CKE),
         .ddr_cs_n              (),
         .ddr_ras_n             (LPDDR_RAS_B),
@@ -469,7 +361,7 @@ module pano_top(
         .ddr_we_n              (LPDDR_WE_B),
         .ddr_ba                (LPDDR_BA),
         .ddr_a                 (LPDDR_A),
-        //.ddr_dm                (LPDDR_DM),
+        .ddr_dm                (LPDDR_DM[1:0]),
 /*        .ddr_ck                (),
         .ddr_ck_n              (),*/
 
@@ -480,9 +372,35 @@ module pano_top(
         .sys_rst90_val         (sys_rst90),
         .sys_rst180_val        (sys_rst180)
     );
+
+    // upper 16bits are unused
+    assign LPDDR_DM[3:2] = 2'b11;
+    assign LPDDR_DQS[3:2] = 2'b00;
+    assign LPDDR_DQ[31:16] = 16'bz;
     
-    // always valid... due to restriction of IO CLK routing capability of S3E
-    assign LPDDR_DM[3:0] = 4'b0;
+    // Memory arbiter
+    rv_vbc_ddr_arbitrator rv_vbc_ddr_arbitrator(
+        .rst(rst),
+        .clkrv(clk_100),
+        .clkgb(clk_4),
+        .rv_addr(rv_ddr_addr),
+        .rv_wdata(rv_ddr_wdata),
+        .rv_rdata(rv_ddr_rdata),
+        .rv_wstrb(rv_ddr_wstrb),
+        .rv_valid(rv_ddr_valid),
+        .rv_ready(rv_ddr_ready),
+        .ddr_addr(ddr_addr),
+        .ddr_wdata(ddr_wdata),
+        .ddr_rdata(ddr_rdata),
+        .ddr_wstrb(ddr_wstrb),
+        .ddr_valid(ddr_valid),
+        .ddr_ready(ddr_ready),
+        .vb_a({8'b0, vb_a[14:0]}),
+        .vb_din(vb_din),
+        .vb_dout(vb_dout),
+        .vb_rd(vb_rd),
+        .vb_wr(1'b0)
+    );
     
     mig_picorv_bridge mig_picorv_bridge(
         .clk0(clk_100),
@@ -550,6 +468,65 @@ module pano_top(
     assign USB_D = (bus_dir) ? (16'bz) : (usb_dout);
     assign usb_din = USB_D;
     
+    // SPI Flash
+    // ----------------------------------------------------------------------
+    
+    // Wires to PicoRV
+    wire [16:0] spi_addr;
+    wire spi_ready;
+    wire [31:0] spi_rdata;
+    wire spi_valid;
+    
+    // Wires to spimemio
+    wire [16:0] spimem_addr;
+    wire spimem_ready;
+    wire [31:0] spimem_rdata;
+    wire spimem_valid;
+    
+    cache cache(
+        .clk(clk_rv),
+        .rst(rst),
+        .sys_addr(spi_addr), 
+        .sys_rdata(spi_rdata),
+        .sys_valid(spi_valid),
+        .sys_ready(spi_ready),
+        .mem_addr(spimem_addr),
+        .mem_rdata(spimem_rdata),
+        .mem_valid(spimem_valid),
+        .mem_ready(spimem_ready)
+    );
+    
+    spimemio spimemio (
+		.clk    (clk_rv),
+		.resetn (rst_rv),
+		.valid  (spimem_valid),
+		.ready  (spimem_ready),
+		.addr   ({4'b0, 3'b110, spimem_addr}),
+		.rdata  (spimem_rdata),
+
+		.flash_csb    (SPI_CS_B),
+		.flash_clk    (SPI_SCK),
+
+		.flash_io0_oe (),
+		.flash_io1_oe (),
+		.flash_io2_oe (),
+		.flash_io3_oe (),
+
+		.flash_io0_do (SPI_MOSI),
+		.flash_io1_do (),
+		.flash_io2_do (),
+		.flash_io3_do (),
+
+		.flash_io0_di (1'b0),
+		.flash_io1_di (SPI_MISO),
+		.flash_io2_di (1'b0),
+		.flash_io3_di (1'b0),
+
+		.cfgreg_we(4'b0000),
+		.cfgreg_di(32'h0),
+		.cfgreg_do()
+	);
+    
     // ----------------------------------------------------------------------
     // PicoRV32
     
@@ -558,12 +535,13 @@ module pano_top(
     // 03000100 - 03000104 UART          (4B)
     // 04000000 - 04080000 USB           (512KB)
     // 08000000 - 08000FFF Video RAM     (4KB)
-    // 0C000000 - 0DFFFFFF LPDDR SDRAM   (32MB)
-    // FFFF0000 - FFFFFFFF Internal RAM  (4KB w/ echo)
-    parameter integer MEM_WORDS = 1024;
+    // 0C000000 - 0CFFFFFF LPDDR SDRAM   (16MB)
+    // 0E000000 - 0E01FFFF SPI Flash     (128KB, mapped from Flash 768K - 896K)
+    // FFFF0000 - FFFFFFFF Internal RAM  (16KB w/ echo)
+    parameter integer MEM_WORDS = 4096;
     parameter [31:0] STACKADDR = 32'hfffffffc;
-    parameter [31:0] PROGADDR_RESET = 32'hffff0000;  // start of the RAM
-    parameter [31:0] PROGADDR_IRQ = 32'hffff0010;
+    parameter [31:0] PROGADDR_RESET = 32'h0e000000;
+    parameter [31:0] PROGADDR_IRQ = 32'h0e000010;
     
     wire mem_valid;
     wire mem_instr;
@@ -581,7 +559,8 @@ module pano_top(
     wire la_addr_in_gpio = (mem_la_addr >= 32'h03000000) && (mem_la_addr < 32'h03000100);
     wire la_addr_in_uart = (mem_la_addr == 32'h03000100);
     wire la_addr_in_usb = (mem_la_addr >= 32'h04000000) && (mem_la_addr < 32'h04080000);
-    wire la_addr_in_ddr = (mem_la_addr >= 32'h0C000000) && (mem_la_addr < 32'h0E000000);
+    wire la_addr_in_ddr = (mem_la_addr >= 32'h0C000000) && (mem_la_addr < 32'h0D000000);
+    wire la_addr_in_spi = (mem_la_addr >= 32'h0E000000) && (mem_la_addr < 32'h0E020000);
     
     reg addr_in_ram;
     reg addr_in_vram;
@@ -589,6 +568,7 @@ module pano_top(
     reg addr_in_uart;
     reg addr_in_usb;
     reg addr_in_ddr;
+    reg addr_in_spi;
     
     always@(posedge clk_rv) begin
         addr_in_ram <= la_addr_in_ram;
@@ -597,15 +577,17 @@ module pano_top(
         addr_in_uart <= la_addr_in_uart;
         addr_in_usb <= la_addr_in_usb;
         addr_in_ddr <= la_addr_in_ddr;
+        addr_in_spi <= la_addr_in_spi;
     end
     
     wire ram_valid = (mem_valid) && (!mem_ready) && (addr_in_ram);
     wire vram_valid = (mem_valid) && (!mem_ready) && (addr_in_vram);
     wire gpio_valid = (mem_valid) && (!mem_ready) && (addr_in_gpio);
     wire uart_valid = (mem_valid) && (addr_in_uart);
-    assign ddr_valid = (mem_valid) && (addr_in_ddr);
+    assign rv_ddr_valid = (mem_valid) && (addr_in_ddr);
     assign usb_valid = (mem_valid) && (addr_in_usb);
-    wire general_valid = (mem_valid) && (!mem_ready) && (!addr_in_ddr) && (!addr_in_uart) && (!addr_in_usb);
+    assign spi_valid = (mem_valid) && (addr_in_spi);
+    wire general_valid = (mem_valid) && (!mem_ready) && (!addr_in_ddr) && (!addr_in_uart) && (!addr_in_usb) && (!addr_in_spi);
     
     reg default_ready;
     
@@ -615,7 +597,7 @@ module pano_top(
     end
     
     wire uart_ready;
-    assign mem_ready = uart_ready || ddr_ready || usb_ready || default_ready;
+    assign mem_ready = uart_ready || rv_ddr_ready_buf || usb_ready || spi_ready || default_ready;
     
     reg mem_valid_last;
     always @(posedge clk_rv) begin
@@ -623,22 +605,22 @@ module pano_top(
             cpu_irq <= 1'b0;
         else begin
             mem_valid_last <= mem_valid;
-            if (mem_valid && !mem_valid_last && !(ram_valid || vram_valid || gpio_valid || usb_valid || uart_valid || ddr_valid))
+            if (mem_valid && !mem_valid_last && !(ram_valid || spi_valid || vram_valid || gpio_valid || usb_valid || uart_valid || rv_ddr_valid))
                 cpu_irq <= 1'b1;
             //else
             //    cpu_irq <= 1'b0;
         end
     end
     
-    assign ddr_addr = mem_addr[24:0];
-    
-    assign ddr_addr = mem_addr[24:0];
-    assign ddr_wstrb = mem_wstrb;
-    assign ddr_wdata = mem_wdata;
+    assign rv_ddr_addr = mem_addr[23:0];
+    assign rv_ddr_wstrb = mem_wstrb;
+    assign rv_ddr_wdata = mem_wdata;
     
     assign usb_addr = mem_addr[18:0];
     assign usb_wstrb = mem_wstrb;
     assign usb_wdata = mem_wdata;
+    
+    assign spi_addr = mem_addr[16:0];
     
     wire rst_rv_pre = !init_done;
     reg [3:0] rst_counter;
@@ -663,6 +645,7 @@ module pano_top(
         .ENABLE_IRQ(1),
         .ENABLE_IRQ_QREGS(0),
         .ENABLE_IRQ_TIMER(0),
+        .COMPRESSED_ISA(1),
         .PROGADDR_IRQ(PROGADDR_IRQ),
         .MASKED_IRQ(32'hfffffffe),
         .LATCHED_IRQ(32'hffffffff)
@@ -679,7 +662,7 @@ module pano_top(
         .mem_la_addr(mem_la_addr),
         .irq({31'b0, cpu_irq})
     );
-    
+        
     // Internal RAM & Boot ROM
     wire [31:0] ram_rdata;
     picosoc_mem #(
@@ -687,7 +670,7 @@ module pano_top(
     ) memory (
         .clk(clk_rv),
         .wen(ram_valid ? mem_wstrb : 4'b0),
-        .addr({12'b0, mem_addr[11:2]}),
+        .addr({10'b0, mem_addr[13:2]}),
         .wdata(mem_wdata),
         .rdata(ram_rdata)
     );
@@ -707,30 +690,29 @@ module pano_top(
     // GPIO
     // ----------------------------------------------------------------------
     
-    // 03000000 (0) - R: delay_sel_det / W: delay_sel_val
-    // 03000004 (1) - W: led_green
-    // 03000008 (2) - W: led_red
-    // 0300000c (3) - W: spi_cs_n
-    // 03000010 (4) - W: spi_clk
-    // 03000014 (5) - W: spi_do
-    // 03000018 (6) - R: spi_di
-    // 0300001c (7) - W: usb_rst_n
+    // 03000000 (0) - R:  delay_sel_det / W: delay_sel_val
+    // 03000004 (1) - W:  led_green
+    // 03000008 (2) - W:  led_red
+    // 0300000c (3) - W:  vb_rst
+    // 03000010 (4) - W:  vb_keyin
+    // 03000014 (5) - W:  i2c_scl
+    // 03000018 (6) - RW: i2c_sda
+    // 0300001c (7) - W:  usb_rst_n
     
     reg [31:0] gpio_rdata;
     reg led_green;
     reg led_red;
-    reg spi_csn;
-    reg spi_clk;
-    reg spi_do;
-    wire spi_di;
     reg usb_rstn;
+    reg i2c_scl;
+    reg i2c_sda;
     
     always@(posedge clk_rv) begin
         if (!rst_rv) begin
             delay_sel_val[4:0] <= delay_sel_val_det[4:0];
             led_green <= 1'b0;
             led_red <= 1'b0;
-            spi_csn <= 1'b1;
+            vb_key <= 8'd0;
+            vb_rst <= 1'b1;
         end
         else if (gpio_valid)
              if (mem_wstrb != 0) begin
@@ -738,32 +720,34 @@ module pano_top(
                     3'd0: delay_sel_val[4:0] <= mem_wdata[4:0];
                     3'd1: led_green <= mem_wdata[0];
                     3'd2: led_red <= mem_wdata[0];
-                    3'd3: spi_csn <= mem_wdata[0];
-                    3'd4: spi_clk <= mem_wdata[0];
-                    3'd5: spi_do <= mem_wdata[0];
+                    3'd3: vb_rst <= mem_wdata[0];
+                    3'd4: vb_key <= mem_wdata[7:0];
+                    3'd5: i2c_scl <= mem_wdata[0];
+                    3'd6: i2c_sda <= mem_wdata[0];
                     3'd7: usb_rstn <= mem_wdata[0];
                 endcase
              end
              else begin
                 case (mem_addr[4:2])
                     3'd0: gpio_rdata <= {27'd0, delay_sel_val_det};
-                    3'd6: gpio_rdata <= {31'd0, spi_di};
+                    3'd6: gpio_rdata <= {31'd0, AUDIO_SDA};
+                    default: gpio_rdata <= 32'd0;
                 endcase
              end
     end
     
-    assign SPI_CS_B = spi_csn;
-    assign SPI_SCK = spi_clk;
-    assign SPI_MOSI = spi_do;
-    assign spi_di = SPI_MISO;
+    assign AUDIO_SCL = i2c_scl;
+    assign AUDIO_SDA = (i2c_sda) ? 1'bz : 1'b0;
+    
     assign USB_RESET_B = usb_rstn;
     assign USB_HUB_RESET_B = usb_rstn;
     
     assign mem_rdata = 
         (addr_in_ram) ? (ram_rdata) : 
-        ((addr_in_ddr) ? (ddr_rdata) : 
+        ((addr_in_ddr) ? (rv_ddr_rdata_buf) : 
         ((addr_in_gpio) ? (gpio_rdata) : 
-        ((addr_in_usb) ? (usb_rdata) : (32'hFFFFFFFF))));
+        ((addr_in_usb) ? (usb_rdata) :
+        ((addr_in_spi) ? (spi_rdata) : (32'hFFFFFFFF)))));
 
     // ----------------------------------------------------------------------
     // VGA Controller
@@ -778,12 +762,12 @@ module pano_top(
         .clk(clk_vga),
         .rst(rst),
         // GameBoy Image Input
-        .gb_hs(1'b0),
-        .gb_vs(1'b0),
-        .gb_pclk(1'b0),
-        .gb_pdat(2'b00),
-        .gb_valid(1'b0),
-        .gb_en(1'b0),
+        .gb_hs(vb_hs),
+        .gb_vs(vb_vs),
+        .gb_pclk(vb_cpl),
+        .gb_pdat(vb_pixel),
+        .gb_valid(vb_valid),
+        .gb_en(!vb_rst),
         // Debugger Char Input
         .dbg_x(dbg_x),
         .dbg_y(dbg_y),
@@ -799,7 +783,7 @@ module pano_top(
         .hold(1'b0)
     );
     
-    assign VGA_CLK = clk_vga_90;
+    assign VGA_CLK = ~clk_vga;
     assign VGA_VSYNC = vga_vs;
     assign VGA_HSYNC = vga_hs;
     
@@ -831,9 +815,8 @@ module pano_top(
     
     // ----------------------------------------------------------------------
     // LED 
-    assign LED_BLUE = dcm_locked_12;
+    assign LED_BLUE = 1'b1;
     assign LED_RED = !led_red;
     assign LED_GREEN = !led_green;
     
-
 endmodule
