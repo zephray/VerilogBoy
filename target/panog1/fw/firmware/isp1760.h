@@ -111,7 +111,7 @@
 #define NACK_TIMEOUT_MS          (500)
 #define SETUP_TIMEOUT_MS         (500)
 
-#define MAX_REG_INT_TRANSFER_NUM (4)
+#define MAX_REG_INT_TRANSFER_NUM (2)
 
 // This should match the define in u-boot
 typedef enum {

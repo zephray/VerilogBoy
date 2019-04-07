@@ -46,12 +46,12 @@
 #define USB_ALTSETTINGALLOC		4
 #define USB_MAXALTSETTING		128	/* Hard limit */
 
-#define USB_MAX_DEVICE			8
-#define USB_MAXCONFIG			8
-#define USB_MAXINTERFACES		8
-#define USB_MAXENDPOINTS		16
-#define USB_MAXCHILDREN			8	/* This is arbitrary */
-#define USB_MAX_HUB				4
+#define USB_MAX_DEVICE			5
+#define USB_MAXCONFIG			2
+#define USB_MAXINTERFACES		4   // DualShock 4 use 4 interfaces
+#define USB_MAXENDPOINTS		4
+#define USB_MAXCHILDREN			3	/* This is arbitrary */
+#define USB_MAX_HUB				2
 
 #define USB_CNTL_TIMEOUT 100 /* 100ms timeout */
 

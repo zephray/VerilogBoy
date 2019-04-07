@@ -18,7 +18,6 @@
  */
 #include <stdio.h>
 #include <stddef.h>
-#include <string.h>
 #include "misc.h"
 #include "term.h"
 #include "part.h"
@@ -31,8 +30,8 @@
 #undef ISP_DEBUG
 
 #ifdef ISP_DEBUG
-#define debug_print(x) term_print(x)
-#define debug_print_hex(x,d) term_print_hex(x,d)
+#define debug_print(x) printf(x)
+#define debug_print_hex(x,d) printf("%x",d)
 #define	debug_printf(fmt, args...) printf(fmt , ##args)
 #else
 #define debug_print(x)
@@ -128,7 +127,7 @@ int isp_init() {
     value = isp_read_dword(ISP_CHIP_ID);
     value = isp_read_dword(ISP_SCRATCH);
     if (value != 0x410C0C0A) {
-        term_print("ISP1760: Scratch RW test failed!\n");
+        printf("ISP1760: Scratch RW test failed!\n");
         return -1;
     } 
     
@@ -200,7 +199,7 @@ int isp_init() {
     isp_write_dword(ISP_USBCMD, ISP_USBCMD_RUN);
     if (isp_wait(ISP_USBCMD, ISP_USBCMD_RUN, ISP_USBCMD_RUN, 
             50) != ISP_SUCCESS) {
-        term_print("Failed to start the ISP1760!\n");
+        printf("Failed to start the ISP1760!\n");
         return -1;
     }
 
@@ -208,7 +207,7 @@ int isp_init() {
     isp_write_dword(ISP_CONFIGFLAG, ISP_CONFIGFLAG_CF);
     if (isp_wait(ISP_CONFIGFLAG, ISP_CONFIGFLAG_CF, ISP_CONFIGFLAG_CF,
             50) != ISP_SUCCESS) {
-        term_print("Failed to enable the EHCI mode!\n");
+        printf("Failed to enable the EHCI mode!\n");
         return -1;
     }
 
@@ -224,7 +223,7 @@ int isp_init() {
     // Wait connection
     if (isp_wait(ISP_PORTSC1, ISP_PORTSC1_ECSC, ISP_PORTSC1_ECSC, 
             10) != ISP_SUCCESS) {
-        term_print("Internal hub failed to connect!\n");
+        printf("Internal hub failed to connect!\n");
         return -1;
     }
 
@@ -354,29 +353,29 @@ isp_result_t isp_transfer(ptd_type_t ptd_type, usb_speed_t speed,
                 // NACK, retry later
                 result = ISP_NACK_TIMEOUT;
                 retry = 1;
-                debug_print("NACK");
+                printf("NACK");
                 delay_us(100);
             }
             // Check H bit
             else if (readback_ptd[3] & (1u << 30)) {
                 // halt, do not retry
                 result = ISP_TRANSFER_HALT;
-                debug_print("HALT");
+                printf("HALT");
             }
             // Check B bit
             else if (readback_ptd[3] & (1u << 29)) {
                 result = ISP_BABBLE;
-                debug_print("BABBLE");
+                printf("BABBLE");
             }
             // Check X bit
             else if (readback_ptd[3] & (1u << 28)) {
                 result = ISP_TRANSFER_ERROR;
-                debug_print("ERR");
+                printf("ERR");
             }
             else if ((direction == DIRECTION_OUT) && 
                     (actual_transfer_length != *length)) {
                 result = ISP_WRONG_LENGTH;
-                debug_print("WLEN");
+                printf("WLEN");
             }
             else {
                 *toggle = (readback_ptd[3] >> 25) & 0x1;
@@ -385,7 +384,7 @@ isp_result_t isp_transfer(ptd_type_t ptd_type, usb_speed_t speed,
             }
         }
         else {
-            debug_print("STO");
+            printf("STO");
             result = ISP_SETUP_TIMEOUT;
         }
 

@@ -18,8 +18,6 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 #include "misc.h"
 #include "part.h"
 #include "usb.h"
@@ -64,10 +62,14 @@
 #define USAGE_HAT_SWITCH               0x39
 //   otherwise ignored. (like pointer)
 
+#define USB_GP_NO_MALLOC    1
+#define USB_GP_MAX_BUF_SIZE 512
+
 uint32_t gp_num_buttons;
 uint32_t gp_buttons;
 uint32_t gp_num_analogs;
 uint8_t  gp_analog[MAX_ANALOG];
+int gp_devindex;
 
 // Private
 int dpad_bit_offset[MAX_DPAD];
@@ -81,9 +83,9 @@ int accepted_report_id = -1;
 uint32_t report_length;
 uint8_t report[MAX_BITS / 8];
 
-#define usb_gp_DEBUG
+#define USB_GP_DEBUG
 
-#ifdef	usb_gp_DEBUG
+#ifdef	USB_GP_DEBUG
 #define	USB_GP_PRINTF(fmt,args...)	printf (fmt ,##args)
 #else
 #define USB_GP_PRINTF(fmt,args...)
@@ -102,8 +104,10 @@ static int usb_gp_probe(struct usb_device *dev, unsigned int ifnum);
 // check if any joysticks is present
 int drv_usb_gp_init(void)
 {
-	int error,i;
+	int error, i, j;
 	struct usb_device *dev;
+
+    gp_devindex = -1;
 
 	/* scan all USB Devices */
 	for(i = 0; i < USB_MAX_DEVICE; i++) {
@@ -111,9 +115,13 @@ int drv_usb_gp_init(void)
 		if(dev == NULL)
 			return -1; // what does this mean?
 		if(dev->devnum != -1) {
-			if(usb_gp_probe(dev, 0) == 1) { 
-				USB_GP_PRINTF("USB gamepad found.\n");
-			}
+            USB_GP_PRINTF("No of IF: %d\n", dev->config.bNumInterfaces);
+            for (j = 0; j < dev->config.no_of_if; j++) {
+                if(usb_gp_probe(dev, j) == 1) {
+                    gp_devindex = i;
+                    USB_GP_PRINTF("USB gamepad found.\n");
+                }
+            }
 		}
 	}
 	return -1;
@@ -321,7 +329,6 @@ void usb_gp_parse_report() {
  */
 
 static int usb_gp_irq(struct usb_device *dev) {
-	USB_GP_PRINTF(".\n");
 	usb_gp_parse_report();
 
 	// install the IRQ handler again
@@ -333,7 +340,11 @@ static int usb_gp_probe(struct usb_device *dev, unsigned int ifnum) {
 	struct usb_interface_descriptor *iface;
 	struct usb_endpoint_descriptor *ep;
 	int pipe, max_packet_size;
+#ifndef USB_GP_NO_MALLOC
 	uint8_t *report_descriptor;
+#else
+    uint8_t report_descriptor[USB_GP_MAX_BUF_SIZE];
+#endif
 	uint32_t report_descriptor_length;
 
 	if (dev->descriptor.bNumConfigurations != 1) return 0;
@@ -345,7 +356,14 @@ static int usb_gp_probe(struct usb_device *dev, unsigned int ifnum) {
 	
 	// This driver actually accepts all HID devices other than mouse and 
 	// keyboard that can return a valid HID report descriptor.
+#ifndef USB_GP_NO_MALLOC
 	report_descriptor = malloc(dev->hid_descriptor.wItemLength);
+#else
+    if (dev->hid_descriptor.wItemLength > USB_GP_MAX_BUF_SIZE) {
+        printf("Descriptor too large. Give up.\n");
+        return 0;
+    }
+#endif
 	report_descriptor_length = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), 
 			USB_REQ_GET_DESCRIPTOR, 0x81, (USB_DT_REPORT << 8), 0, 
 			report_descriptor, dev->hid_descriptor.wItemLength, 
@@ -356,16 +374,12 @@ static int usb_gp_probe(struct usb_device *dev, unsigned int ifnum) {
 				dev->hid_descriptor.wItemLength, report_descriptor_length);
 	}
 
-	// Dump the whole descriptor
-	for (int i = 0; i < report_descriptor_length; i++) {
-		USB_GP_PRINTF("%02x ", report_descriptor[i]);
-	}
-	USB_GP_PRINTF("\n");
-
 	// Parse the descriptor
 	usb_gp_parse_descriptor(report_descriptor, report_descriptor_length);
 
+#ifndef USB_GP_NO_MALLOC
 	free(report_descriptor);
+#endif
 
 	// Find an IN endpoint
 	for (int i = 0; i < iface->bNumEndpoints; i++) {

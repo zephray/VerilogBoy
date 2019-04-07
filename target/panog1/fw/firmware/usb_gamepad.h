@@ -30,5 +30,6 @@ extern uint32_t gp_num_buttons;
 extern uint32_t gp_buttons;
 extern uint32_t gp_num_analogs;
 extern uint8_t  gp_analog[MAX_ANALOG];
+extern int gp_devindex;
 
 #endif

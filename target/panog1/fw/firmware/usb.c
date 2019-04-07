@@ -49,8 +49,6 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 #include "misc.h"
 #include "part.h"
 #include "usb.h"
@@ -68,7 +66,7 @@
 #define USB_PRINTF(fmt, args...)
 #endif
 
-#define USB_BUFSIZ	512
+#define USB_BUFSIZ	256
 
 static struct usb_device usb_dev[USB_MAX_DEVICE];
 static int dev_index;
@@ -781,9 +779,7 @@ int usb_new_device(struct usb_device *dev)
 {
 	int addr, err;
 	int tmp;
-	unsigned char *tmpbuf;
-
-	tmpbuf = malloc(USB_BUFSIZ);
+	unsigned char tmpbuf[USB_BUFSIZ];
 
 	/* We still haven't set the Address yet */
 	addr = dev->devnum;
@@ -816,7 +812,6 @@ int usb_new_device(struct usb_device *dev)
 	err = usb_get_descriptor(dev, USB_DT_DEVICE, 0, desc, 64);
 	if (err < 0) {
 		USB_PRINTF("usb_new_device: usb_get_descriptor() failed\n");
-		free(tmpbuf);
 		return 1;
 	}
 
@@ -834,7 +829,6 @@ int usb_new_device(struct usb_device *dev)
 		}
 		if (port < 0) {
 			printf("usb_new_device:cannot locate device's port.\n");
-			free(tmpbuf);
 			return 1;
 		}
 
@@ -842,7 +836,6 @@ int usb_new_device(struct usb_device *dev)
 		err = hub_port_reset(dev->parent, port, &portstatus);
 		if (err < 0) {
 			printf("\n     Couldn't reset port %i\n", port);
-			free(tmpbuf);
 			return 1;
 		}
 	}
@@ -870,7 +863,6 @@ int usb_new_device(struct usb_device *dev)
 	if (err < 0) {
 		printf("\n      USB device not accepting new address " \
 			"(error=%d)\n", dev->status);
-		free(tmpbuf);
 		return 1;
 	}
 
@@ -887,7 +879,6 @@ int usb_new_device(struct usb_device *dev)
 		else
 			printf("USB device descriptor short read " \
 				"(expected %d, got %d)\n", tmp, err);
-		free(tmpbuf);
 		return 1;
 	}
 	/* correct le values */
@@ -905,8 +896,7 @@ int usb_new_device(struct usb_device *dev)
 	/* we set the default configuration here */
 	if (usb_set_configuration(dev, dev->config.bConfigurationValue)) {
 		printf("failed to set default configuration " \
-			"len %d, status %d\n", dev->act_len, dev->status);
-		free(tmpbuf);
+			"len %d, status %d\n", dev->act_len, dev->status);;
 		return -1;
 	}
 	USB_PRINTF("new device strings: Mfr=%d, Product=%d, SerialNumber=%d\n",
@@ -929,7 +919,7 @@ int usb_new_device(struct usb_device *dev)
 	USB_PRINTF("SerialNumber %s\n", dev->serial);
 	/* now prode if the device is a hub */
 	usb_hub_probe(dev, 0);
-	free(tmpbuf);
+
 	return 0;
 }
 
@@ -1180,7 +1170,7 @@ void usb_hub_port_connect_change(struct usb_device *dev, int port)
 
 int usb_hub_configure(struct usb_device *dev)
 {
-	unsigned char *buffer, *bitmap;
+	unsigned char buffer[USB_BUFSIZ], *bitmap;
 	struct usb_hub_descriptor *descriptor;
 	struct usb_hub_status *hubsts;
 	int i;
@@ -1192,11 +1182,9 @@ int usb_hub_configure(struct usb_device *dev)
 		return -1;
 	hub->pusb_dev = dev;
 	/* Get the the hub descriptor */
-	buffer = malloc(USB_BUFSIZ);
 	if (usb_get_hub_descriptor(dev, buffer, 4) < 0) {
 		USB_HUB_PRINTF("usb_hub_configure: failed to get hub " \
 				   "descriptor, giving up %d\n", dev->status);
-		free(buffer);
 		return -1;
 	}
 	descriptor = (struct usb_hub_descriptor *)buffer;
@@ -1207,14 +1195,12 @@ int usb_hub_configure(struct usb_device *dev)
 		USB_HUB_PRINTF("usb_hub_configure: failed to get hub " \
 				"descriptor - too long: %d\n",
 				descriptor->bLength);
-		free(buffer);
 		return -1;
 	}
 
 	if (usb_get_hub_descriptor(dev, buffer, descriptor->bLength) < 0) {
 		USB_HUB_PRINTF("usb_hub_configure: failed to get hub " \
 				"descriptor 2nd giving up %d\n", dev->status);
-		free(buffer);
 		return -1;
 	}
 	memcpy((unsigned char *)&hub->desc, buffer, descriptor->bLength);
@@ -1281,14 +1267,12 @@ int usb_hub_configure(struct usb_device *dev)
 	if (sizeof(struct usb_hub_status) > USB_BUFSIZ) {
 		USB_HUB_PRINTF("usb_hub_configure: failed to get Status - " \
 				"too long: %d\n", descriptor->bLength);
-		free(buffer);
 		return -1;
 	}
 
 	if (usb_get_hub_status(dev, buffer) < 0) {
 		USB_HUB_PRINTF("usb_hub_configure: failed to get Status %d\n",
 				dev->status);
-		free(buffer);
 		return -1;
 	}
 
@@ -1379,7 +1363,6 @@ int usb_hub_configure(struct usb_device *dev)
 		}
 	} /* end for i all ports */
 
-	free(buffer);
 	return 0;
 }
 
