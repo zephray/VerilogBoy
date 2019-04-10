@@ -26,6 +26,7 @@
 volatile uint32_t *vram_ptr;
 volatile uint32_t *uart_ptr = uart;
 
+bool uart_en = true;
 int term_x = 0;
 int term_y = 0;
 
@@ -57,9 +58,13 @@ void term_clear() {
     vram_ptr = vram;
 }
 
-void term_putchar(char c)
-{
-    *uart_ptr = (uint32_t)c;
+void term_enable_uart(bool en) {
+	uart_en = en;
+}
+
+void term_putchar(char c) {
+	if (uart_en)
+    	*uart_ptr = (uint32_t)c;
     if (c == '\n') {
         term_newline();
     }
@@ -76,14 +81,12 @@ void term_putchar(char c)
     //delay_us(200);
 }
 
-void term_print_string(const char *p)
-{
+void term_print_string(const char *p) {
     while ((*p) && (*p != 0xFF))
         term_putchar(*p++);
 }
 
-void term_print_hex(uint32_t v, int digits)
-{
+void term_print_hex(uint32_t v, int digits) {
     for (int i = 7; i >= 0; i--) {
         char c = "0123456789abcdef"[(v >> (4*i)) & 15];
         if (c == '0' && i >= digits) continue;
@@ -92,8 +95,7 @@ void term_print_hex(uint32_t v, int digits)
     }
 }
 
-static void printf_d(int val)
-{
+static void printf_d(int val) {
 	char buffer[32];
 	char *p = buffer;
 	if (val < 0) {
@@ -108,8 +110,7 @@ static void printf_d(int val)
 		term_putchar(*(--p));
 }
 
-int printf(const char *format, ...)
-{
+int printf(const char *format, ...) {
 	int i;
 	va_list ap;
 

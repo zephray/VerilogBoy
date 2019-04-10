@@ -16,49 +16,12 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
-#include "misc.h"
+#ifndef __I2C_H__
+#define __I2C_H__
 
-uint32_t time() {
-	uint32_t cycles;
-	asm volatile ("rdcycle %0" : "=r"(cycles));
-	return cycles;
-}
+#include <stdint.h>
 
-uint32_t ticks_us() {
-    return time() / CYCLE_PER_US;
-}
+bool i2c_read_reg(uint8_t i2c_addr, uint8_t addr, uint8_t *data);
+bool i2c_write_reg(uint8_t i2c_addr, uint8_t addr, uint8_t data);
 
-uint32_t ticks_ms() {
-    return time() / CYCLE_PER_US / 1000;
-}
-
-void delay_us(uint32_t us) {
-    uint32_t start = time(); 
-    while (time() - start < CYCLE_PER_US * us);
-}
-
-void delay_ms(uint32_t ms) {
-    while (ms--) { delay_us(1000); }
-}
-
-void delay_loop(uint32_t t) {
-	volatile int i;
-	while(t--) {
-		for (i=0;i<20;i++);
-	}
-}
-
-// Additional library functions
-
-void * memscan(void * addr, int c, uint32_t size)
-{
-	unsigned char * p = (unsigned char *) addr;
-
-	while (size) {
-		if (*p == c)
-			return (void *) p;
-		p++;
-		size--;
-	}
-	return (void *) p;
-}
+#endif

@@ -29,6 +29,7 @@
 #include "usb.h"
 #include "usb_gamepad.h"
 #include "ff.h"
+#include "wm8750.h"
 
 #define dly_tap *((volatile uint32_t *)0x03000000)
 #define led_grn *((volatile uint32_t *)0x03000004)
@@ -69,7 +70,7 @@ int task_getkey() {
     for (int i = 0; i < 32; i++) {
         if (gp_buttons & (1 << i)) return i;
     }
-    delay_ms(20);
+    delay_ms(30);
     return -1;
 }
 
@@ -144,7 +145,7 @@ int task_remap_gamepad() {
     while (task_getkey() != -1);
     term_goto(19, 6);
     printf("   B  ");
-    while ((keycode_a = task_getkey()) == -1);
+    while ((keycode_b = task_getkey()) == -1);
     while (task_getkey() != -1);
     term_goto(19, 6);
     printf("   A  ");
@@ -184,10 +185,15 @@ void main() {
     // This is a PicoRV32 custom instruction 
     asm(".word 0x0600000b");
 
+    term_clear();
     term_goto(0,0);
     printf("Pano Logic G1, PicoRV32 @ 25MHz, LPDDR @ 100MHz.\n");
     usb_init();
     term_clear();
+
+    wm8750_init();
+
+    term_enable_uart(false);
 
     // Map joystick
     do {
@@ -361,9 +367,9 @@ void main() {
         uint8_t vb_keyin;
         while (1) {
             led_grn = 1;
-            delay_ms(7);
+            delay_ms(15);
             led_grn = 0;
-            delay_ms(7);
+            delay_ms(15);
             usb_event_poll();
             vb_keyin = 0;
             term_goto(0, 0);

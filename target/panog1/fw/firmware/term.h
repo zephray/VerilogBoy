@@ -20,6 +20,7 @@
 #define __TERM_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 
 void term_clear();
 void term_goto(uint8_t x, uint8_t y);
@@ -27,6 +28,7 @@ void term_putchar(char p);
 int term_print(const char *format, ...);
 void term_print_string(const char *p);
 void term_print_hex(uint32_t v, int digits);
+void term_enable_uart(bool en);
 //void term_print_dec(uint32_t v);
 
 #endif

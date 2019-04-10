@@ -39,6 +39,8 @@
 #define	debug_printf(fmt, args...)
 #endif
 
+#undef ISP_IRQ_DRIVEN
+
 interrupt_transfer_t registered_transfers[USB_MAX_DEVICE];
 
 // Define the interrupts that the driver will handle
@@ -330,9 +332,11 @@ isp_result_t isp_transfer(ptd_type_t ptd_type, usb_speed_t speed,
             // Indicate ATL PTD is filled, start process
             isp_write_dword(ISP_BUFFER_STATUS, buffer_status_filled);
 
+            #ifdef ISP_IRQ_DRIVEN
             // If the transfer is a interrupt transfer, stop here.
             if (ep_type == EP_INTERRUPT) 
                 return 0;
+            #endif
         }
         
         // Wait for the setup to be completed
@@ -924,6 +928,21 @@ void isp_isr(void) {
     }
 }
 
+void isp_poll_no_irq(void) {
+    for (int i = 0; i < MAX_REG_INT_TRANSFER_NUM; i++) {
+        if (registered_transfers[i].device != NULL) {
+            // JUST POLL THIS
+            int result = isp_submit(registered_transfers[i].device,
+                    registered_transfers[i].pipe, 
+                    registered_transfers[i].buffer, 
+                    registered_transfers[i].length, NULL);
+            if (result == 0)
+                registered_transfers[i].device->irq_handle(
+                        registered_transfers[i].device);
+        }
+    }
+}
+
 // External APIs
 // -----------------------------------------------------------------------------
 
@@ -982,17 +1001,25 @@ int submit_int_msg(struct usb_device *dev, unsigned long pipe, void *buffer,
     // the callback need to be managed inside the driver
     isp_register_transfer(dev, pipe, buffer, transfer_len);
 
+#ifdef ISP_IRQ_DRIVEN
     // interval is not changeable
     return isp_submit(dev, pipe, buffer, transfer_len, NULL);
+#else
+    return 0;
+#endif
 }
 
 void usb_event_poll(void) {
+#ifdef ISP_IRQ_DRIVEN
     // Check if there is any interrupts, if so, call the interrupt handler
     // This is used when there is no hardware IRQs in the system
     if ((isp_read_dword(ISP_INTERRUPT) & ISP_INT_MASK) != 0) {
         isp_isr();
     }
     isp_write_dword(ISP_INTERRUPT, ISP_INT_MASK); // Clear interrupts
+#else
+    isp_poll_no_irq();
+#endif
 }
 
 #endif

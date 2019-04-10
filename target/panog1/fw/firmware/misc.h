@@ -32,6 +32,7 @@ uint32_t ticks_us();
 uint32_t ticks_ms();
 void delay_us(uint32_t us);
 void delay_ms(uint32_t ms);
+void delay_loop(uint32_t t);
 
 extern long insn();
 

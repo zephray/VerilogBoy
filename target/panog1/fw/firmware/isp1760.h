@@ -108,8 +108,8 @@
 #define MAX_EP_NUM               (16)
 
 #define STALL_RETRY_NUM          (1000)
-#define NACK_TIMEOUT_MS          (500)
-#define SETUP_TIMEOUT_MS         (500)
+#define NACK_TIMEOUT_MS          (10)
+#define SETUP_TIMEOUT_MS         (10)
 
 #define MAX_REG_INT_TRANSFER_NUM (2)
 

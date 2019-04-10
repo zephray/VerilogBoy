@@ -1,4 +1,4 @@
-OBJS = start.o firmware.o stdlib.o term.o isp1760.o misc.o ff.o ffsystem.o ffunicode.o diskio.o usb.o usb_gamepad.o usb_storage.o
+OBJS = start.o firmware.o stdlib.o term.o isp1760.o i2c.o misc.o ff.o ffsystem.o diskio.o wm8750.o usb.o usb_gamepad.o usb_storage.o
 CFLAGS = -MD -O1 -march=rv32ic -ffreestanding -nostdlib -Wl,--no-relax
 TOOLCHAIN_PREFIX = riscv32-unknown-elf-
 BIN2MIF:= ../../../../tools/bin2mif/bin2mif
