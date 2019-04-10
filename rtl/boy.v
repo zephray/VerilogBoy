@@ -39,8 +39,8 @@ module boy(
     output [1:0] pixel, // Pixel Data
     output valid,
     // Sound output
-    output [15:0] left,
-    output [15:0] right,
+    output reg [15:0] left,
+    output reg [15:0] right,
     // Debug interface
     output done,
     output fault
@@ -74,10 +74,10 @@ module boy(
         
     // High RAM
     reg [7:0] high_ram [0:127];
-    reg high_ram_rd;
+    wire high_ram_rd = cpu_rd;
     reg high_ram_wr;
-    reg [6:0] high_ram_a;
-    reg [7:0] high_ram_din;
+    wire [6:0] high_ram_a = cpu_a[6:0];
+    wire [7:0] high_ram_din = cpu_dout;
     reg [7:0] high_ram_dout;
     always @(posedge clk) begin
         if (high_ram_wr)
@@ -147,7 +147,7 @@ module boy(
     //reg reg_ie_rd;
     reg reg_ie_wr;
     reg [4:0] reg_ie;
-    reg [4:0] reg_ie_din;
+    wire [4:0] reg_ie_din = cpu_dout[4:0];
     wire [4:0] reg_ie_dout;
     always @(posedge clk) begin
         if (reg_ie_wr)
@@ -162,7 +162,7 @@ module boy(
     //reg reg_if_rd;
     reg reg_if_wr;
     reg [4:0] reg_if;
-    reg [4:0] reg_if_din;
+    wire [4:0] reg_if_din = cpu_dout[4:0];
     wire [4:0] reg_if_dout;
     always @(posedge clk) begin
         if (reg_if_wr)
@@ -216,6 +216,33 @@ module boy(
         .int_tim_req(int_tim_req),
         .int_tim_ack(int_tim_ack)
     );
+    
+    // Sound
+    wire [7:0] sound_dout;
+    reg sound_wr; // wire
+    wire [15:0] left_pre;
+    wire [15:0] right_pre;
+    
+    sound sound(
+        .clk(clk),
+        .rst(rst),
+        .a(bus_a),
+        .dout(sound_dout),
+        .din(cpu_dout),
+        .rd(bus_rd),
+        .wr(sound_wr),
+        .left(left_pre),
+        .right(right_pre)
+        /*.ch1_level(ch1_level),
+        .ch2_level(ch2_level),
+        .ch3_level(ch3_level),
+        .ch4_level(ch4_level)*/
+    );
+    
+    always @(posedge clk) begin
+        left <= left_pre;
+        right <= right_pre;
+    end
 
     // Boot ROM Enable Register
     reg brom_disable;
@@ -269,17 +296,53 @@ module boy(
     // Bus Multiplexing
     always @(*) begin
         // High RAM is always accessible from CPU
-        high_ram_a = cpu_a[6:0];
-        if (cpu_a >= 16'hff80) begin
-            high_ram_rd = cpu_rd;
+        high_ram_wr = 1'b0;
+        // Actually, move this behind the bus...
+        sound_wr = 1'b0;
+        reg_ie_wr = 1'b0;
+        reg_if_wr = 1'b0;
+        keypad_reg_wr = 1'b0;
+        timer_wr = 1'b0;
+        dma_mmio_wr = 1'b0;
+        brom_disable_wr = 1'b0;
+        if (bus_a == 16'hffff) begin  // 0xFFFF - IE
+            //reg_ie_rd = bus_rd;
+            reg_ie_wr = cpu_wr;
+            cpu_din = {3'b0, reg_ie_dout};
+        end
+        else if (bus_a == 16'hff0f) begin // 0xFF0F - IF
+            //reg_if_rd = bus_rd;
+            reg_if_wr = cpu_wr;
+            cpu_din = {3'b0, reg_if_dout};
+        end
+        else if (bus_a == 16'hff00) begin // 0xFF00 - Keypad
+            keypad_reg_wr = cpu_wr;
+            cpu_din = keypad_reg;
+        end
+        else if ((bus_a == 16'hff04) || (bus_a == 16'hff05) ||  // Timer
+                (bus_a == 16'hff06) || (bus_a == 16'hff07)) begin
+            timer_wr = cpu_wr;
+            cpu_din = timer_dout;
+        end
+        else if (bus_a == 16'hff46) begin // 0xFF46 - DMA
+            dma_mmio_wr = cpu_wr;
+            cpu_din = dma_mmio_dout;
+        end
+        else if (bus_a == 16'hff50) begin // 0xFF50 - BROM DISABLE
+            brom_disable_wr = cpu_wr;
+            cpu_din = {7'b0, brom_disable};
+        end
+        else if (cpu_a >= 16'hff80) begin // 0xFF80 - High RAM
             high_ram_wr = cpu_wr;
-            high_ram_din = cpu_dout;
             cpu_din = high_ram_dout;
         end
+        else if ((cpu_a >= 16'hff10 && cpu_a <= 16'hff1e) ||
+            (cpu_a >= 16'hff20 && cpu_a <= 16'hff26) ||
+            (cpu_a >= 16'hff30 && cpu_a <= 16'hff3f)) begin // Sound
+            sound_wr = cpu_wr;
+            cpu_din = sound_dout;
+        end
         else begin
-            high_ram_rd = 1'b0;
-            high_ram_wr = 1'b0;
-            high_ram_din = 8'hxx;
             cpu_din = bus_din;
         end
     end
@@ -290,49 +353,11 @@ module boy(
         a = bus_a; // The address is always exposed
         dout = 8'h00; // But the data will be masked when accessing high page
         bus_din = 8'hxx; // Should not happen
-        reg_ie_wr = 1'b0;
-        reg_ie_din = 5'hxx;
-        reg_if_wr = 1'b0;
-        reg_if_din = 5'hxx;
-        keypad_reg_wr = 1'b0;
-        timer_wr = 1'b0;
-        dma_mmio_wr = 1'b0;
-        brom_disable_wr = 1'b0;
         ppu_wr = 1'b0;
         wram_wr = 1'b0;
-        
-        if (bus_a == 16'hffff) begin  // 0xFFFF - IE
-            //reg_ie_rd = bus_rd;
-            reg_ie_wr = bus_wr;
-            reg_ie_din = bus_dout[4:0];
-            bus_din = {3'b0, reg_ie_dout};
-        end
-        else if (bus_a == 16'hff0f) begin // 0xFF0F - IF
-            //reg_if_rd = bus_rd;
-            reg_if_wr = bus_wr;
-            reg_if_din = bus_dout[4:0];
-            bus_din = {3'b0, reg_if_dout};
-        end
-        else if (bus_a == 16'hff00) begin
-            keypad_reg_wr = bus_wr;
-            bus_din = keypad_reg;
-        end
-        else if ((bus_a == 16'hff04) || (bus_a == 16'hff05) ||  // Timer
-                (bus_a == 16'hff06) || (bus_a == 16'hff07)) begin
-            timer_wr = bus_wr;
-            bus_din = timer_dout;
-        end
-        else if (bus_a == 16'hff46) begin // 0xFF46 - DMA
-            dma_mmio_wr = bus_wr;
-            bus_din = dma_mmio_dout;
-        end
-        else if (bus_a == 16'hff50) begin // 0xFF50 - BROM DISABLE
-            brom_disable_wr = bus_wr;
-            bus_din = {7'b0, brom_disable};
-        end
-        else if ((bus_a >= 16'hff40 && bus_a <= 16'hff4b && bus_a != 16'hff46) ||
+        if ((bus_a >= 16'hff40 && bus_a <= 16'hff4b && bus_a != 16'hff46) ||
             (bus_a >= 16'h8000 && bus_a <= 16'h9fff) ||
-            (bus_a >= 16'hfe00 && bus_a <= 16'hfe9f)) begin
+            (bus_a >= 16'hfe00 && bus_a <= 16'hfe9f)) begin // PPU
             bus_din = ppu_dout;
             ppu_wr = bus_wr;
         end
@@ -356,9 +381,5 @@ module boy(
         end
         cs = wr | rd;
     end
-
-    // Disable unused signals
-    assign left = 0;
-    assign right = 0;
 
 endmodule
