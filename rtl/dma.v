@@ -21,12 +21,13 @@
  */
 module dma(
     input  wire        clk,
+    input  wire        phi,
     input  wire        rst,
     output reg         dma_rd,
     output reg         dma_wr,
     //output wire        dma_rd_comb,
     //output wire        dma_wr_comb,
-    output wire [15:0] dma_a,
+    output reg  [15:0] dma_a,
     input  wire [7:0]  dma_din,
     output reg  [7:0]  dma_dout,
     input  wire        mmio_wr,
@@ -38,11 +39,7 @@ module dma(
     // DMA data blocks /////////////////////////////////////////////////////////
 
     reg [7:0]    dma_start_addr;
-    reg [7:0]    count, next_count;
-    reg          dma_a_rw;
-
-    // Select for DMA output address write, read
-    assign dma_a = (dma_a_rw) ? {dma_start_addr, count} : {8'hfe, count};
+    reg [7:0]    count;
 
     assign mmio_dout = dma_start_addr;
 
@@ -53,82 +50,65 @@ module dma(
     localparam DMA_TRANSFER_READ_DATA  = 'd2;
     localparam DMA_TRANSFER_WRITE_DATA = 'd3;
     localparam DMA_TRANSFER_WRITE_WAIT = 'd4;
-    reg [2:0]    cs, ns;
+    reg [2:0] state;
 
-    always @(posedge clk) begin
-        case (cs)
-        DMA_WAIT: begin
+    always @(posedge clk, posedge rst) begin
+        if (rst) begin
+            state <= DMA_WAIT;
+            count <= 1'd0;
             dma_wr <= 1'b0;
             dma_rd <= 1'b0;
             cpu_mem_disable <= 1'b0;
-            dma_a_rw <= 1'b0;
-            if (mmio_wr) begin
-                // Transfer starts on next cycle
-                dma_start_addr <= mmio_din;
-            end
         end
-        DMA_TRANSFER_READ_ADDR: begin
-            dma_wr <= 1'b0;
-            cpu_mem_disable <= 1'b1;
-            if (count == 8'ha0) begin
-                // Finished
-                next_count <= 8'h0;
-            end else begin
+        else begin
+            case (state)
+            DMA_WAIT: begin
+                dma_wr <= 1'b0;
+                dma_rd <= 1'b0;
+                cpu_mem_disable <= 1'b0;
+                if (mmio_wr) begin
+                    // Transfer starts on next cycle
+                    dma_start_addr <= mmio_din;
+                    state <= DMA_TRANSFER_READ_ADDR;
+                end
+                count <= 8'd0;
+            end
+            DMA_TRANSFER_READ_ADDR: begin
+                dma_wr <= 1'b0;
+                cpu_mem_disable <= 1'b1;
                 // Load the temp register with data from memory
-                dma_a_rw <= 1'b1; // Output read address
+                dma_a <= {dma_start_addr, count}; // Output read address
                 dma_rd <= 1'b1;
+                state <= DMA_TRANSFER_READ_DATA;
             end
+            DMA_TRANSFER_READ_DATA: begin
+                state <= DMA_TRANSFER_WRITE_DATA;
+                // Basically wait
+            end
+            DMA_TRANSFER_WRITE_DATA: begin
+                // Read data
+                dma_dout <= dma_din;
+                dma_rd <= 1'b0;
+                // Write the temp register to memory
+                dma_a <= {8'hfe, count}; // Output write address
+                dma_wr <= 1'b1;
+                state <= DMA_TRANSFER_WRITE_WAIT;
+            end
+            DMA_TRANSFER_WRITE_WAIT: begin
+                // Wait
+                if (count == 8'h9f) begin
+                    state <= DMA_WAIT;
+                    count <= 8'd0;
+                end
+                else begin
+                    state <= DMA_TRANSFER_READ_ADDR;
+                    count <= count + 8'd1;
+                end
+            end
+            default: begin
+            end
+            endcase
         end
-        DMA_TRANSFER_READ_DATA: begin
-            cpu_mem_disable <= 1'b1;
-            // Basically wait
-        end
-        DMA_TRANSFER_WRITE_DATA: begin
-            // Read data
-            cpu_mem_disable <= 1'b1;
-            dma_dout <= dma_din;
-            dma_rd <= 1'b0;
-            // Write the temp register to memory
-            dma_a_rw <= 1'b0; // Output write address
-            dma_wr <= 1'b1;
-        end
-        DMA_TRANSFER_WRITE_WAIT: begin
-            next_count <= count + 8'd1;
-        end
-        default: begin
-        end
-        endcase
     end
-
-    always @(*) begin
-        case (cs)
-        DMA_WAIT: 
-            if (mmio_wr) begin
-                ns = DMA_TRANSFER_READ_ADDR;
-            end else begin
-                ns = DMA_WAIT;
-            end
-        DMA_TRANSFER_READ_ADDR: 
-            if (count == 8'ha0) begin
-                ns = DMA_WAIT;
-            end else begin
-                ns = DMA_TRANSFER_READ_DATA;
-            end
-        DMA_TRANSFER_READ_DATA:  ns = DMA_TRANSFER_WRITE_DATA;
-        DMA_TRANSFER_WRITE_DATA: ns = DMA_TRANSFER_WRITE_WAIT;
-        DMA_TRANSFER_WRITE_WAIT: ns = DMA_TRANSFER_READ_ADDR; 
-        default: ns = DMA_WAIT;
-      endcase
-    end
-
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            cs <= DMA_WAIT;
-            count <= 8'h0;
-        end else begin
-            cs <= ns;
-            count <= next_count;
-        end
-   end
    
 endmodule // dma
