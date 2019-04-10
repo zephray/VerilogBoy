@@ -126,13 +126,10 @@ module vga_mixer(
     end
 
     // Gameboy Input
-    reg [7:0] gb_v_counter;
-    reg [7:0] gb_h_counter;
     reg last_hold;
     
     reg [1:0] gb_buffer [0:23039];
-    wire gb_wr_valid = (gb_v_counter > 8'd0);
-    wire [14:0] gb_wr_addr = ((gb_v_counter > 8'd0)?(gb_v_counter - 8'd1):8'd0) * 160 + gb_h_counter;
+    reg [14:0] gb_wr_addr;
     
     reg gb_vs_last;
     reg gb_hs_last;
@@ -155,22 +152,16 @@ module vga_mixer(
     always @(posedge clk, posedge rst)
     begin
         if (rst) begin
-            gb_v_counter <= 0;
-            gb_h_counter <= 0;
+            gb_wr_addr <= 0;
         end
         else begin
             if ((gb_vs_last == 1)&&(gb_vs == 0)) begin
-                gb_v_counter <= 0;
-                last_hold <= hold;
+                gb_wr_addr <= 0;
             end
-            else if ((gb_hs_last == 1)&&(gb_hs == 0)) begin
-                gb_h_counter <= 0;
-                gb_v_counter <= gb_v_counter + 1'b1;
-            end 
             else if (gb_valid) begin
                 if ((gb_pclk_last == 0)&&(gb_pclk == 1)) begin
-                    gb_h_counter <= gb_h_counter + 1'b1;
-                    if ((gb_wr_valid)&&(!last_hold)) begin 
+                    gb_wr_addr <= gb_wr_addr + 1'b1;
+                    if (!last_hold) begin 
                         gb_buffer[gb_wr_addr] <= gb_pdat;
                     end
                 end

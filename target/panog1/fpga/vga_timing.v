@@ -145,7 +145,7 @@ module vga_timing(
     assign gb_grid = (gb_x_grid)||(gb_y_grid);
     assign gb_x = (gb_en) ? (gb_x_count - 8'd80) : (8'h0);
     //assign gb_y = (gb_en) ? (gb_y_count - 8'd24) : (8'h0);
-    assign gb_y = (gb_y_valid) ? (gb_y_count - 8'd24) : (8'h0); // Y should be always available during the period
+    assign gb_y = (gb_y_valid) ? (gb_y_count - 8'd23) : (8'h0); // Y should be always available during the period
     //assign address = y * H_ACT + x;
     wire enable_early = (((h_count >= H_BLANK) && (h_count < H_TOTAL))&&
                                      ((v_count >= V_BLANK) && (v_count < V_TOTAL)));    //One pixel shift

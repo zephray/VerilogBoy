@@ -37,6 +37,12 @@ module testbench;
     wire SPI_CS_B;
     wire SPI_SCK;
     wire SPI_MOSI;
+    wire AUDIO_MCLK;
+    wire AUDIO_BCLK;
+    wire AUDIO_DACDATA;
+    wire AUDIO_DACLRCK;
+    wire AUDIO_SCL;
+    wire AUDIO_SDA;
     wire [11:0] LPDDR_A;
     wire LPDDR_CK_P;
     wire LPDDR_CK_N;
@@ -78,6 +84,12 @@ module testbench;
         .SPI_SCK(SPI_SCK),
         .SPI_MOSI(SPI_MOSI),
         .SPI_MISO(SPI_MISO),
+        .AUDIO_MCLK(AUDIO_MCLK),
+        .AUDIO_BCLK(AUDIO_BCLK),
+        .AUDIO_DACDATA(AUDIO_DACDATA),
+        .AUDIO_DACLRCK(AUDIO_DACLRCK),
+        .AUDIO_SCL(AUDIO_SCL),
+        .AUDIO_SDA(AUDIO_SDA),
         .LPDDR_A(LPDDR_A), 
         .LPDDR_CK_P(LPDDR_CK_P), 
         .LPDDR_CK_N(LPDDR_CK_N), 

@@ -43,9 +43,9 @@ module pano_top(
 
     // WM8750 Codec
     output wire AUDIO_MCLK,
-    input  wire AUDIO_BCLK,
+    output wire AUDIO_BCLK,
     output wire AUDIO_DACDATA,
-    input  wire AUDIO_DACLRCK,
+    output wire AUDIO_DACLRCK,
     //input  wire AUDIO_ADCDATA,
     //output wire AUDIO_ADCLRCK,
     output wire AUDIO_SCL,
@@ -93,9 +93,9 @@ module pano_top(
     // ----------------------------------------------------------------------
     // Clocking
     wire clk_100_in;       // On-board 100M clock source 
-    reg clk_4_raw;        // 4.196MHz for VerilogBoy Core
+    wire clk_4_raw;        // 4.196MHz for VerilogBoy Core
     wire clk_4;
-    reg clk_12_raw;        // 12MHz for USB controller and codec
+    wire clk_12_raw;       // 12MHz for USB controller and codec
     wire clk_12;
     wire clk_24_raw;       // 24MHz for on-board USB hub
     wire clk_24;
@@ -111,8 +111,9 @@ module pano_top(
     wire clk_rv = clk_25;
     wire clk_vga = clk_25;
     wire dcm_locked_12;
-    wire rst_12 = !dcm_locked_12;
-    wire rst = !dcm_locked_12;
+    wire dcm_locked_4;
+    wire rst_12 = !dcm_locked_4;
+    wire rst = !dcm_locked_4;
     reg rst_rv;
     
     IBUFG ibufg_clk_100 (
@@ -120,10 +121,8 @@ module pano_top(
         .I(CLK_OSC)
     );
     
-    // DCM for 12MHz USB & Audio Clock
-    // The WM8750 can accept 12MHz input
     DCM_SP #(
-        // 100 / 25 * 3 = 12MHz
+        // 100 / 25 * 6 = 24MHz
         .CLKFX_DIVIDE(25),   
         .CLKFX_MULTIPLY(6),
         .CLKIN_DIVIDE_BY_2("FALSE"),          // TRUE/FALSE to enable CLKIN divide by two feature
@@ -141,8 +140,8 @@ module pano_top(
         .CLK0(clk_100_raw),
         .CLK90(clk_100_90_raw),
         .CLK180(clk_100_180_raw),
-        .CLKFX(clk_24_raw),                   // DCM CLK synthesis out (M/D)
-        .CLKDV(clk_25_raw),
+        .CLKFX(clk_24_raw),                    // DCM CLK synthesis out (M/D)
+        .CLKDV(clk_25_in),
         .CLKFB(clk_100),                      // DCM clock feedback
         .PSCLK(1'b0),                         // Dynamic phase adjust clock input
         .PSEN(1'b0),                          // Dynamic phase adjust enable input
@@ -151,14 +150,33 @@ module pano_top(
         .LOCKED(dcm_locked_12)
     );
     
-    assign clk_24 = clk_24_raw;
+    DCM_SP #(
+        .CLKFX_DIVIDE(25),   
+        .CLKFX_MULTIPLY(12),
+        .CLKIN_DIVIDE_BY_2("FALSE"),          // TRUE/FALSE to enable CLKIN divide by two feature
+        .CLKIN_PERIOD(40.0),                  // 25 MHz
+        .CLK_FEEDBACK("1X"),
+        .CLKOUT_PHASE_SHIFT("NONE"),
+        .CLKDV_DIVIDE(6.0),
+        .DESKEW_ADJUST("SYSTEM_SYNCHRONOUS"), // SOURCE_SYNCHRONOUS, SYSTEM_SYNCHRONOUS or an integer from 0 to 15
+        .DLL_FREQUENCY_MODE("LOW"),           // HIGH or LOW frequency mode for DLL
+        .DUTY_CYCLE_CORRECTION("TRUE"),       // Duty cycle correction, TRUE or FALSE
+        .PHASE_SHIFT(0),                      // Amount of fixed phase shift from -255 to 255
+        .STARTUP_WAIT("FALSE")                // Delay configuration DONE until DCM LOCK, TRUE/FALSE
+    ) dcm_4 (
+        .CLKIN(clk_25_in),                    // Clock input (from IBUFG, BUFG or DCM)
+        .CLK0(clk_25_raw),
+        .CLKFX(clk_12_raw),                   // DCM CLK synthesis out (M/D)
+        .CLKFB(clk_25),                       // DCM clock feedback
+        .CLKDV(clk_4_raw),
+        .PSCLK(1'b0),                         // Dynamic phase adjust clock input
+        .PSEN(1'b0),                          // Dynamic phase adjust enable input
+        .PSINCDEC(1'b0),                      // Dynamic phase adjust increment/decrement
+        .RST(PB),                             // DCM asynchronous reset input
+        .LOCKED(dcm_locked_4)
+    );
     
-    always@(posedge clk_24) begin
-        if (!dcm_locked_12)
-            clk_12_raw <= 1'b0;
-        else
-            clk_12_raw <= !clk_12_raw;
-    end
+    assign clk_24 = clk_24_raw;
     
     assign clk_12 = clk_12_raw;
     
@@ -182,7 +200,7 @@ module pano_top(
         .I(clk_25_raw)
     );
     
-    reg [1:0] vb_divider;
+    /*reg [1:0] vb_divider;
     always @(posedge clk_25, posedge rst) begin
         if (rst) begin
             vb_divider <= 0;
@@ -195,7 +213,7 @@ module pano_top(
             end
             else
                 vb_divider <= vb_divider - 1;
-    end
+    end*/
     
     BUFG bufg_clk_4 (
         .O(clk_4),
@@ -226,7 +244,7 @@ module pano_top(
     boy boy(
         .rst(vb_rst),
         .clk(clk_4),
-        .phi(),
+        .phi(vb_phi),
         .a(vb_a),
         .dout(vb_dout),
         .din(vb_din),
@@ -249,33 +267,50 @@ module pano_top(
     // Audio
     
     // TODO: Implement an ASRC ?
-    wire a_bclk;
-    reg [15:0] a_sr;
-    wire a_lrck;
-    reg a_last_lrck;
+    // DSP mode B
+    reg [31:0] a_sr;
+    reg a_lrck;
     wire a_dat;
+    reg a_bclk;
+    reg [1:0] a_state;
+    reg [5:0] a_bitcounter;
     
-    always @(negedge a_bclk) begin
-        a_last_lrck <= a_lrck;
-        if (a_lrck && !a_last_lrck) begin
-            // LRCK rising edge, start of right channel
-            a_sr <= vb_right;
-        end
-        else if (!a_lrck && a_last_lrck) begin
-            // LRCK falling edge, start of left channel
-            a_sr <= vb_left;
+    always @(posedge clk_12, posedge vb_rst) begin
+        if (vb_rst) begin
+            a_state <= 2'b0;
+            a_bitcounter <= 5'd0;
         end
         else begin
-            a_sr <= {a_sr[14:0], 1'b0};
+            a_state <= a_state + 1;
+            case (a_state)
+            2'b00: begin
+                a_bclk <= 1'b0;
+                if (a_bitcounter == 5'd0) begin
+                    a_bitcounter <= 5'd31;
+                    a_lrck <= 1'b1;
+                    a_sr <= {vb_left, vb_right};
+                end
+                else begin
+                    a_bitcounter <= a_bitcounter - 1'd1;
+                    a_lrck <= 1'b0;
+                    a_sr <= {a_sr[30:0], 1'b0};
+                end
+            end
+            2'b01: begin end
+            2'b10: begin
+                a_bclk <= 1'b1;
+            end
+            2'b11: begin end
+            endcase
         end
     end
     
-    assign a_dat = a_sr[15];
+    assign a_dat = a_sr[31];
     
-    assign AUDIO_MCLK = clk_24;
-    assign a_bclk = AUDIO_BCLK;
+    assign AUDIO_MCLK = clk_12;
+    assign AUDIO_BCLK = a_bclk;
     assign AUDIO_DACDATA = a_dat;
-    assign a_lrck = AUDIO_DACLRCK;
+    assign AUDIO_DACLRCK = a_lrck;
     
     // ----------------------------------------------------------------------
     // MIG
@@ -601,15 +636,13 @@ module pano_top(
     
     reg mem_valid_last;
     always @(posedge clk_rv) begin
+        mem_valid_last <= mem_valid;
+        if (mem_valid && !mem_valid_last && !(ram_valid || spi_valid || vram_valid || gpio_valid || usb_valid || uart_valid || rv_ddr_valid))
+            cpu_irq <= 1'b1;
+        //else
+        //    cpu_irq <= 1'b0;
         if (!rst_rv)
             cpu_irq <= 1'b0;
-        else begin
-            mem_valid_last <= mem_valid;
-            if (mem_valid && !mem_valid_last && !(ram_valid || spi_valid || vram_valid || gpio_valid || usb_valid || uart_valid || rv_ddr_valid))
-                cpu_irq <= 1'b1;
-            //else
-            //    cpu_irq <= 1'b0;
-        end
     end
     
     assign rv_ddr_addr = mem_addr[23:0];
@@ -627,15 +660,13 @@ module pano_top(
     
     always @(posedge clk_rv)
     begin
+        if (rst_counter == 4'd15)
+            rst_rv <= 1;
+        else
+            rst_counter <= rst_counter + 1;
         if (rst_rv_pre) begin
             rst_rv <= 0;
             rst_counter <= 4'd0;
-        end
-        else begin
-            if (rst_counter == 4'd15)
-                rst_rv <= 1;
-            else
-                rst_counter <= rst_counter + 1;
         end
     end
     
@@ -707,14 +738,7 @@ module pano_top(
     reg i2c_sda;
     
     always@(posedge clk_rv) begin
-        if (!rst_rv) begin
-            delay_sel_val[4:0] <= delay_sel_val_det[4:0];
-            led_green <= 1'b0;
-            led_red <= 1'b0;
-            vb_key <= 8'd0;
-            vb_rst <= 1'b1;
-        end
-        else if (gpio_valid)
+        if (gpio_valid)
              if (mem_wstrb != 0) begin
                 case (mem_addr[4:2])
                     3'd0: delay_sel_val[4:0] <= mem_wdata[4:0];
@@ -734,6 +758,15 @@ module pano_top(
                     default: gpio_rdata <= 32'd0;
                 endcase
              end
+         if (!rst_rv) begin
+            delay_sel_val[4:0] <= delay_sel_val_det[4:0];
+            led_green <= 1'b0;
+            led_red <= 1'b0;
+            vb_key <= 8'd0;
+            vb_rst <= 1'b1;
+            i2c_scl <= 1'b1;
+            i2c_sda <= 1'b1;
+        end
     end
     
     assign AUDIO_SCL = i2c_scl;
