@@ -716,7 +716,22 @@ module control(
                 end
             end
             3'd3: begin
-                if ((opcode == 8'hCD) || (opcode == 8'hCC) || (opcode == 8'hDC) || (opcode == 8'hC4) || (opcode == 8'hD4)) begin
+                if (int_dispatch_deffered) begin
+                    bus_op = 2'b01; // Restore to normal instruction fetch
+                    ab_src = 2'b00; // Restore to fetch from PC
+                    ct_op = 2'b01;  // Restore to PC + 1
+                    next = 1'b0;
+                    ime_clear = 1'b1;
+                    alu_src_a = 2'b00;
+                    alu_src_b = 3'b010;
+                    alu_op_prefix = 2'b00;
+                    alu_op_src = 2'b10;
+                    alu_dst = 2'b00;
+                    pc_we = 1'b0;
+                    flags_we = 1'b0;
+                    int_ack = 1'b1;
+                end
+                else if ((opcode == 8'hCD) || (opcode == 8'hCC) || (opcode == 8'hDC) || (opcode == 8'hC4) || (opcode == 8'hD4)) begin
                     // CALL instruction
                     bus_op = 2'b10;
                     ab_src = 2'b11;
@@ -749,18 +764,7 @@ module control(
                     ab_src = 2'b00; // Restore to fetch from PC
                     ct_op = 2'b01;  // Restore to PC + 1
                     next = 1'b0;
-                    if (int_dispatch_deffered) begin
-                        ime_clear = 1'b1;
-                        alu_src_a = 2'b00;
-                        alu_src_b = 3'b010;
-                        alu_op_prefix = 2'b00;
-                        alu_op_src = 2'b10;
-                        alu_dst = 2'b00;
-                        pc_we = 1'b0;
-                        flags_we = 1'b0;
-                        int_ack = 1'b1;
-                    end
-                    else if (opcode == 8'hFA) begin
+                    if (opcode == 8'hFA) begin
                         // LD A, (nn)
                         alu_src_a = 2'b11;
                     end
