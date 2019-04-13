@@ -148,7 +148,7 @@ module sound(
     // Bus RW - Sequential Write
     integer i;
     
-    always @(posedge clk)
+    always @(posedge clk, posedge rst)
     begin
         if (rst) begin
             for (i = 0; i < 32; i = i+1) begin

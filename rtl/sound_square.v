@@ -115,6 +115,8 @@ module sound_square(
         .num_envelope_sweeps(num_envelope_sweeps),
         .target_vol(target_vol)
     );
+    
+    wire enable_length;
 
     sound_length_ctr #(6) sound_length_ctr(
         .rst(rst),

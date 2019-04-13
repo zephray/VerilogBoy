@@ -127,6 +127,8 @@ module boy(
     wire [4:0] int_req;
 
     wire int_key_req;  
+    wire int_serial_req;
+    wire int_serial_ack;
     wire int_tim_req;
     wire int_tim_ack;
     wire int_lcdc_req;
@@ -135,14 +137,10 @@ module boy(
     wire int_vblank_ack;
 
     assign int_req[4] = int_key_req;
+    assign int_req[3] = int_serial_req;
     assign int_req[2] = int_tim_req;
     assign int_req[1] = int_lcdc_req;
     assign int_req[0] = int_vblank_req;
-
-    /* -- DEBUG -- */
-    //assign int_req = 5'd0;
-    //assign int_req[4] = 1'b0;
-    assign int_req[3] = 1'b0;
 
     //reg reg_ie_rd;
     reg reg_ie_wr;
@@ -173,7 +171,7 @@ module boy(
     assign reg_if_dout = reg_if | int_req;
     assign cpu_int_flags_in = reg_if_dout;
 
-    //assign int_key_ack = reg_if[3];
+    assign int_serial_ack = reg_if[3];
     assign int_tim_ack = reg_if[2];
     assign int_lcdc_ack = reg_if[1];
     assign int_vblank_ack = reg_if[0];
@@ -208,13 +206,29 @@ module boy(
     timer timer(
         .clk(clk),
         .rst(rst),
-        .a(bus_a),
+        .a(cpu_a),
         .dout(timer_dout),
-        .din(bus_dout),
-        .rd(bus_rd),
+        .din(cpu_dout),
+        .rd(cpu_rd),
         .wr(timer_wr),
         .int_tim_req(int_tim_req),
         .int_tim_ack(int_tim_ack)
+    );
+    
+    // Dummy Serial
+    wire [7:0] serial_dout;
+    reg serial_wr; // actually wire
+
+    serial serial(
+        .clk(clk),
+        .rst(rst),
+        .a(cpu_a),
+        .dout(serial_dout),
+        .din(cpu_dout),
+        .rd(cpu_rd),
+        .wr(serial_wr),
+        .int_serial_req(int_serial_req),
+        .int_serial_ack(int_serial_ack)
     );
     
     // Sound
@@ -226,10 +240,10 @@ module boy(
     sound sound(
         .clk(clk),
         .rst(rst),
-        .a(bus_a),
+        .a(cpu_a),
         .dout(sound_dout),
         .din(cpu_dout),
-        .rd(bus_rd),
+        .rd(cpu_rd),
         .wr(sound_wr),
         .left(left_pre),
         .right(right_pre)
@@ -323,6 +337,10 @@ module boy(
                 (bus_a == 16'hff06) || (bus_a == 16'hff07)) begin
             timer_wr = cpu_wr;
             cpu_din = timer_dout;
+        end
+        else if ((bus_a == 16'hff01) || (bus_a == 16'hff02)) begin // Serial
+            serial_wr = cpu_wr;
+            cpu_din = serial_dout;
         end
         else if (bus_a == 16'hff46) begin // 0xFF46 - DMA
             dma_mmio_wr = cpu_wr;

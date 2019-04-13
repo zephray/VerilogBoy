@@ -25,7 +25,7 @@ VERILATOR := $(VERILATOR_ROOT)/bin/verilator
 endif
 VFLAGS := -Wall -Wno-fatal -MMD --trace -cc 
 
-SRC := alu.v boy.v brom.v clk_div.v cpu.v control.v dma.v ppu.v regfile.v \
+SRC := alu.v boy.v brom.v clk_div.v cpu.v control.v dma.v ppu.v regfile.v serial.v \
 	singlereg.v singleport_ram.v sound.v sound_channel_mix.v sound_length_ctr.v\
 	sound_noise.v sound_square.v sound_vol_env.v sound_wave.v timer.v
 
