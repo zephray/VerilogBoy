@@ -35,8 +35,9 @@ module mbc5(
     reg [3:0] ram_bank;
     reg ram_en = 1'b0; // RAM Access Enable
 
-    wire rom_addr_en;//RW Address in ROM range
-    wire ram_addr_en;//RW Address in RAM range
+    wire rom_addr_en; // RW Address in ROM range
+    wire ram_addr_en; // RW Address in RAM range
+    wire rom_addr_lo; // RW Address in LoROM range
 
     wire [15:0] vb_addr;
 
@@ -52,11 +53,6 @@ module mbc5(
 
     assign rom_a[22:14] = rom_addr_lo ? 9'b0 : rom_bank[8:0];
     assign ram_a[16:13] = ram_bank[3:0];
-
-    wire rom_bank_lo_clk;
-    wire rom_bank_hi_clk;
-    wire ram_bank_clk;
-    wire ram_en_clk;
     
     reg vb_wr_last;
     

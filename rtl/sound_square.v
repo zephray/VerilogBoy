@@ -95,7 +95,7 @@ module sound_square(
                 if (sweep_decreasing) 
                     target_freq <= target_freq - (target_freq << num_sweep_shifts);
                 else
-                    {overflow, target_freq} <= target_freq + (target_freq << num_sweep_shifts);
+                    {overflow, target_freq} <= {1'b0, target_freq} + ({1'b0, target_freq} << num_sweep_shifts);
             end
             else begin
                 target_freq <= frequency;

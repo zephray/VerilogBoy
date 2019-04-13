@@ -366,9 +366,11 @@ module ppu(
     always@(h_pix_obj, obj_trigger_id) begin
         obj_trigger_id_from[10] = OBJ_TRIGGER_NOT_FOUND; // There is no more after the 10th
         for (i = 9; i >= 0; i = i - 1) begin
+            /* verilator lint_off WIDTH */
             obj_trigger_id_from[i] = 
                 ((h_pix_obj == obj_trigger_list[i])&&(obj_valid_list[i])) ? (i) : (obj_trigger_id_from[i+1]);
                 // See if this one match, if not, cascade down.
+            /* verilator lint_on WIDTH */
         end
         if (obj_trigger_id == OBJ_TRIGGER_NOT_FOUND) // currently not triggered yet
             obj_trigger_id_next = obj_trigger_id_from[0]; // Search from start
@@ -668,7 +670,7 @@ module ppu(
         end
         else
         begin
-            if (obj_trigger) begin
+            if (obj_trigger && (reg_mode == PPU_MODE_PIX_TRANS)) begin
                 // If already in object rendering stages
                 if ((r_state == S_OFRD0A)||(r_state == S_OFRD0B)||
                     (r_state == S_OFRD1A)||(r_state == S_OFRD1B)||

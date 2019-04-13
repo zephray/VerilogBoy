@@ -37,6 +37,8 @@ module sound(
 
     // Sound registers
     reg [7:0] regs [0:31]; 
+    
+    /* verilator lint_off UNUSED */
     wire [7:0] reg_nr10 = regs[00]; // $FF10 Channel 1 Sweep register (RW)
     wire [7:0] reg_nr11 = regs[01]; // $FF11 Channel 1 Sound length/wave patternduty (RW)
     wire [7:0] reg_nr12 = regs[02]; // $FF12 Channel 1 Volume envelope (RW)
@@ -58,6 +60,7 @@ module sound(
     wire [7:0] reg_nr50 = regs[20]; // $FF24 Channel contorl / ON-OFF / Volume (RW)
     wire [7:0] reg_nr51 = regs[21]; // $FF25 Selection of Sound output terminal (RW)
     wire [7:0] reg_nr52 = regs[22]; // $FF26 Sound on/off
+    /* verilator lint_on UNUSED */
     wire [4:0] reg_addr = {~a[4], a[3:0]}; // Convert 10-20 to 00-10
     
     wire [2:0]  ch1_sweep_time = reg_nr10[6:4];
@@ -68,7 +71,6 @@ module sound(
     wire [3:0]  ch1_initial_volume = reg_nr12[7:4];
     wire        ch1_envelope_increasing = reg_nr12[3];
     wire [2:0]  ch1_num_envelope_sweeps = reg_nr12[2:0];
-    wire        ch1_initialize = reg_nr14[7];
     reg         ch1_start;
     wire        ch1_single = reg_nr14[6];
     wire [10:0] ch1_frequency = {reg_nr14[2:0], reg_nr13[7:0]};
@@ -77,7 +79,6 @@ module sound(
     wire [3:0]  ch2_initial_volume = reg_nr22[7:4];
     wire        ch2_envelope_increasing = reg_nr22[3];
     wire [2:0]  ch2_num_envelope_sweeps = reg_nr22[2:0];
-    wire        ch2_initialize = reg_nr24[7];
     reg         ch2_start;
     wire        ch2_single = reg_nr24[6];
     wire [10:0] ch2_frequency = {reg_nr24[2:0], reg_nr23[7:0]};
@@ -94,7 +95,6 @@ module sound(
     wire [3:0]  ch4_shift_clock_freq = reg_nr43[7:4];
     wire        ch4_counter_width = reg_nr43[3]; // 0 = 15 bits, 1 = 7 bits
     wire [2:0]  ch4_freq_dividing_ratio = reg_nr43[2:0];
-    wire        ch4_initialize = reg_nr44[7];
     reg         ch4_start;
     wire        ch4_single = reg_nr44[6];
     wire        s02_vin = reg_nr50[7];
@@ -335,14 +335,14 @@ module sound(
     begin
         added_s01 = 6'd0;
         added_s02 = 6'd0;
-        if (s01_ch1_enable) added_s01 = added_s01 + ch1;
-        if (s01_ch2_enable) added_s01 = added_s01 + ch2;
-        if (s01_ch3_enable) added_s01 = added_s01 + ch3;
-        if (s01_ch4_enable) added_s01 = added_s01 + ch4;
-        if (s02_ch1_enable) added_s02 = added_s02 + ch1;
-        if (s02_ch2_enable) added_s02 = added_s02 + ch2;
-        if (s02_ch3_enable) added_s02 = added_s02 + ch3;
-        if (s02_ch4_enable) added_s02 = added_s02 + ch4;
+        if (s01_ch1_enable) added_s01 = added_s01 + {2'b0, ch1};
+        if (s01_ch2_enable) added_s01 = added_s01 + {2'b0, ch2};
+        if (s01_ch3_enable) added_s01 = added_s01 + {2'b0, ch3};
+        if (s01_ch4_enable) added_s01 = added_s01 + {2'b0, ch4};
+        if (s02_ch1_enable) added_s02 = added_s02 + {2'b0, ch1};
+        if (s02_ch2_enable) added_s02 = added_s02 + {2'b0, ch2};
+        if (s02_ch3_enable) added_s02 = added_s02 + {2'b0, ch3};
+        if (s02_ch4_enable) added_s02 = added_s02 + {2'b0, ch4};
     end
     
     wire [8:0] mixed_s01 = added_s01 * s01_output_level;

@@ -41,7 +41,7 @@ module sound_noise(
     reg clk_div = 0;
     wire clk_shift;
     
-    reg [5:0] clk_divider = 6'b0; // First stage
+    reg [4:0] clk_divider = 5'b0; // First stage
     always @(posedge clk)
     begin
         if (clk_divider == adjusted_freq_dividing_ratio) begin

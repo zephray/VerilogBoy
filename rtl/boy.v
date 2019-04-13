@@ -317,6 +317,7 @@ module boy(
         reg_if_wr = 1'b0;
         keypad_reg_wr = 1'b0;
         timer_wr = 1'b0;
+        serial_wr = 1'b0;
         dma_mmio_wr = 1'b0;
         brom_disable_wr = 1'b0;
         if (bus_a == 16'hffff) begin  // 0xFFFF - IE
