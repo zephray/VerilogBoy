@@ -264,6 +264,23 @@ module pano_top(
     );
     
     // ----------------------------------------------------------------------
+    // MBC5
+    wire [22:0] vb_rom_a;
+    mbc5 mbc5(
+        .vb_clk(clk_4),
+        .vb_a(vb_a[15:12]),
+        .vb_d(vb_dout),
+        .vb_wr(vb_wr),
+        .vb_rd(vb_rd),
+        .vb_rst(vb_rst),
+        .rom_a(vb_rom_a[22:14]),
+        .ram_a(),
+        .rom_cs_n(),
+        .ram_cs_n()
+    );
+    assign vb_rom_a[13:0] = vb_a[13:0];
+    
+    // ----------------------------------------------------------------------
     // Audio
     
     // TODO: Implement an ASRC ?
@@ -430,7 +447,7 @@ module pano_top(
         .ddr_wstrb(ddr_wstrb),
         .ddr_valid(ddr_valid),
         .ddr_ready(ddr_ready),
-        .vb_a({8'b0, vb_a[14:0]}),
+        .vb_a(vb_rom_a),
         .vb_din(vb_din),
         .vb_dout(vb_dout),
         .vb_rd(vb_rd),
@@ -572,8 +589,8 @@ module pano_top(
     // 08000000 - 08000FFF Video RAM     (4KB)
     // 0C000000 - 0CFFFFFF LPDDR SDRAM   (16MB)
     // 0E000000 - 0E01FFFF SPI Flash     (128KB, mapped from Flash 768K - 896K)
-    // FFFF0000 - FFFFFFFF Internal RAM  (16KB w/ echo)
-    parameter integer MEM_WORDS = 4096;
+    // FFFF0000 - FFFFFFFF Internal RAM  (8KB w/ echo)
+    parameter integer MEM_WORDS = 2048;
     parameter [31:0] STACKADDR = 32'hfffffffc;
     parameter [31:0] PROGADDR_RESET = 32'h0e000000;
     parameter [31:0] PROGADDR_IRQ = 32'h0e000010;
@@ -701,7 +718,7 @@ module pano_top(
     ) memory (
         .clk(clk_rv),
         .wen(ram_valid ? mem_wstrb : 4'b0),
-        .addr({10'b0, mem_addr[13:2]}),
+        .addr({11'b0, mem_addr[12:2]}),
         .wdata(mem_wdata),
         .rdata(ram_rdata)
     );
