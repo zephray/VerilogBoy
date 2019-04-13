@@ -632,4 +632,3 @@ module cpu(
     assign m_cycle = ex_state;
 
 endmodule
-

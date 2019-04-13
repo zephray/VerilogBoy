@@ -148,7 +148,7 @@ module control(
             // Mcycle keeps at 0
             next = 1'b0;
             // No operation for both
-            bus_op = 2'b00;
+            bus_op = 2'b01;
             ct_op = 2'b00;
             // Wake up condition
             halt = halt_last;
@@ -183,18 +183,18 @@ module control(
                     bus_op = 2'b00;
                     ct_op = 2'b10;
                 end
-                else if (opcode == 8'h10) begin
+                /*else if (opcode == 8'h10) begin
                     stop = 1'b1;
-                end
+                end*/
+                /*else if (opcode == 8'h76) begin
+                    bus_op = 2'b00;
+                end*/
                 else if (opcode == 8'hF3) begin
                     ime_clear = 1'b1;
                 end
                 else if (opcode == 8'hFB) begin
                     // EI here need to be delayed for 1 clock?
                     ime_set = 1'b1;
-                end
-                else if (opcode == 8'h76) begin
-                    halt = 1'b1;
                 end
                 else if ((opcode == 8'h02) || (opcode == 8'h0A)) begin
                     rf_rdw_sel = 2'b00; // Select BC
@@ -461,6 +461,12 @@ module control(
                         alu_src_b = 3'b001; // Input from carry
                         rf_rd_sel = 3'b100; // Select H
                         rf_wr_sel = 3'b100; // Select H
+                    end
+                    else if (opcode == 8'h10) begin // stop
+                        stop = 1'b1;
+                    end
+                    else if (opcode == 8'h76) begin // Halt
+                        halt = 1'b1;
                     end
                     else if ((opcode[7:6] == 2'b00)&&
                         ((opcode[3:0] == 4'b0011)||(opcode[3:0] == 4'b1011))) begin
@@ -815,7 +821,7 @@ module control(
     // Generated from control_unit.ods sheet, don't patch here
     initial begin
         decoding_lut[0] =   28'b0001000100000000000100000100;
-        decoding_lut[1] =   28'b0001000100000000000100000100;
+        decoding_lut[1] =   28'b0001000100000000000000000101;
         decoding_lut[2] =   28'b0001000100000000001111000101;
         decoding_lut[3] =   28'b0001000100000000001111000101;
         decoding_lut[4] =   28'b1001000101000000000100000100;
@@ -917,7 +923,7 @@ module control(
         decoding_lut[100] = 28'b1101000101000000001111100001;
         decoding_lut[101] = 28'b1101000101000100001111100001;
         decoding_lut[102] = 28'b1101000101001000001111100001;
-        decoding_lut[103] = 28'b0001000100000000000100000100;
+        decoding_lut[103] = 28'b0001000100000000000000000101;
         decoding_lut[104] = 28'b1100000000000000001111100011;
         decoding_lut[105] = 28'b1100000000000000001111100011;
         decoding_lut[106] = 28'b1100000000000000001111100011;
