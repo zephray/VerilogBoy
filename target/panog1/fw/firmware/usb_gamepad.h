@@ -24,7 +24,7 @@
 #define MAX_DPAD    1
 #define MAX_BUTTON  16
 #define MAX_ANALOG  4
-#define MAX_BITS    64
+#define MAX_BITS    USB_BUFSIZ * 8
 
 extern uint32_t gp_num_buttons;
 extern uint32_t gp_buttons;

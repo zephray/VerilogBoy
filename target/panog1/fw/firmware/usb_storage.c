@@ -68,7 +68,7 @@
 /* direction table -- this indicates the direction of the data
  * transfer for each command code -- a 1 indicates input
  */
-unsigned char us_direction[256/8] = {
+const unsigned char us_direction[256/8] = {
 	0x28, 0x81, 0x14, 0x14, 0x20, 0x01, 0x90, 0x77,
 	0x0C, 0x20, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01,
@@ -76,7 +76,6 @@ unsigned char us_direction[256/8] = {
 };
 #define US_DIRECTION(x) ((us_direction[x>>3] >> (x & 7)) & 1)
 
-static unsigned char usb_stor_buf[512];
 static ccb usb_ccb;
 
 /*
@@ -121,7 +120,6 @@ typedef struct {
 } umass_bbb_csw_t;
 #define UMASS_BBB_CSW_SIZE	13
 
-#define USB_MAX_STOR_DEV 5
 static int usb_max_devs; /* number of highest available usb device */
 
 static block_dev_desc_t usb_dev_desc[USB_MAX_STOR_DEV];
@@ -177,7 +175,7 @@ block_dev_desc_t *usb_stor_get_dev(int index)
 
 void usb_show_progress(void)
 {
-	printf(".");
+	//printf(".");
 }
 
 /*******************************************************************************
@@ -191,7 +189,7 @@ int usb_stor_scan(int mode)
 	struct usb_device *dev;
 
 	/* GJ */
-	memset(usb_stor_buf, 0, sizeof(usb_stor_buf));
+	memset(usb_buf, 0, sizeof(usb_buf));
 
 	if (mode == 1)
 		printf("       scanning bus for storage devices... ");
@@ -1216,7 +1214,7 @@ int usb_stor_get_info(struct usb_device *dev, struct us_data *ss,
 	else
 		ss->transport_reset(ss);
 
-	pccb->pdata = usb_stor_buf;
+	pccb->pdata = usb_buf;
 
 	dev_desc->target = dev->devnum;
 	pccb->lun = dev_desc->lun;
@@ -1225,8 +1223,8 @@ int usb_stor_get_info(struct usb_device *dev, struct us_data *ss,
 	if (usb_inquiry(pccb, ss))
 		return -1;
 
-	perq = usb_stor_buf[0];
-	modi = usb_stor_buf[1];
+	perq = usb_buf[0];
+	modi = usb_buf[1];
 
 	if ((perq & 0x1f) == 0x1f) {
 		/* skip unknown devices */
@@ -1236,9 +1234,9 @@ int usb_stor_get_info(struct usb_device *dev, struct us_data *ss,
 		/* drive is removable */
 		dev_desc->removable = 1;
 	}
-	memcpy(&dev_desc->vendor[0], &usb_stor_buf[8], 8);
-	memcpy(&dev_desc->product[0], &usb_stor_buf[16], 16);
-	memcpy(&dev_desc->revision[0], &usb_stor_buf[32], 4);
+	memcpy(&dev_desc->vendor[0], &usb_buf[8], 8);
+	memcpy(&dev_desc->product[0], &usb_buf[16], 16);
+	memcpy(&dev_desc->revision[0], &usb_buf[32], 4);
 	dev_desc->vendor[8] = 0;
 	dev_desc->product[16] = 0;
 	dev_desc->revision[4] = 0;
@@ -1246,8 +1244,8 @@ int usb_stor_get_info(struct usb_device *dev, struct us_data *ss,
 	usb_bin_fixup(dev->descriptor, (unsigned char *)dev_desc->vendor,
 		      (unsigned char *)dev_desc->product);
 #endif /* CONFIG_USB_BIN_FIXUP */
-	USB_STOR_PRINTF("ISO Vers %X, Response Data %X\n", usb_stor_buf[2],
-			usb_stor_buf[3]);
+	USB_STOR_PRINTF("ISO Vers %X, Response Data %X\n", usb_buf[2],
+			usb_buf[3]);
 	if (usb_test_unit_ready(pccb, ss)) {
 		printf("Device NOT ready\n"
 		       "   Request Sense returned %02X %02X %02X\n",

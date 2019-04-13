@@ -21,7 +21,7 @@
 #include "i2c.h"
 #include "wm8750.h"
 
-short int audio_registers[][2] = {
+const short int audio_registers[][2] = {
     // For now, use default volume settings for LOUT1/ROUT1
 //    { WM8750_LOUT1_VOL_ADDR,            -1 },
 //    { WM8750_ROUT1_VOL_ADDR,            -1 },

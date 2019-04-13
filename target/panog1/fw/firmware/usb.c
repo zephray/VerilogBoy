@@ -66,7 +66,7 @@
 #define USB_PRINTF(fmt, args...)
 #endif
 
-#define USB_BUFSIZ	256
+uint8_t usb_buf[USB_BUFSIZ];
 
 static struct usb_device usb_dev[USB_MAX_DEVICE];
 static int dev_index;
@@ -677,7 +677,7 @@ static int usb_string_sub(struct usb_device *dev, unsigned int langid,
  */
 int usb_string(struct usb_device *dev, int index, char *buf, uint32_t size)
 {
-	unsigned char mybuf[USB_BUFSIZ];
+	unsigned char mybuf[64];
 	unsigned char *tbuf;
 	int err;
 	unsigned int u, idx;
@@ -779,7 +779,7 @@ int usb_new_device(struct usb_device *dev)
 {
 	int addr, err;
 	int tmp;
-	unsigned char tmpbuf[USB_BUFSIZ];
+	//unsigned char tmpbuf[USB_BUFSIZ];
 
 	/* We still haven't set the Address yet */
 	addr = dev->devnum;
@@ -802,7 +802,7 @@ int usb_new_device(struct usb_device *dev)
 	 * the maxpacket size is 8 or 16 the device may be waiting to transmit
 	 * some more, or keeps on retransmitting the 8 byte header. */
 
-	desc = (struct usb_device_descriptor *)tmpbuf;
+	desc = (struct usb_device_descriptor *)usb_buf;
 	dev->descriptor.bMaxPacketSize0 = 64;	    /* Start off at 64 bytes  */
 	/* Default to 64 byte max packet size */
 	dev->maxpacketsize = PACKET_SIZE_64;
@@ -890,8 +890,8 @@ int usb_new_device(struct usb_device *dev)
 		   dev->descriptor.idVendor, dev->descriptor.idProduct,
 		   dev->descriptor.bcdUSB, dev->descriptor.bDeviceClass);
 	/* only support for one config for now */
-	usb_get_configuration_no(dev, &tmpbuf[0], 0);
-	usb_parse_config(dev, &tmpbuf[0], 0);
+	usb_get_configuration_no(dev, &usb_buf[0], 0);
+	usb_parse_config(dev, &usb_buf[0], 0);
 	usb_set_maxpacket(dev);
 	/* we set the default configuration here */
 	if (usb_set_configuration(dev, dev->config.bConfigurationValue)) {
@@ -904,19 +904,19 @@ int usb_new_device(struct usb_device *dev)
 		   dev->descriptor.iSerialNumber);
 	memset(dev->mf, 0, sizeof(dev->mf));
 	memset(dev->prod, 0, sizeof(dev->prod));
-	memset(dev->serial, 0, sizeof(dev->serial));
+	//memset(dev->serial, 0, sizeof(dev->serial));
 	if (dev->descriptor.iManufacturer)
 		usb_string(dev, dev->descriptor.iManufacturer,
 			   dev->mf, sizeof(dev->mf));
 	if (dev->descriptor.iProduct)
 		usb_string(dev, dev->descriptor.iProduct,
 			   dev->prod, sizeof(dev->prod));
-	if (dev->descriptor.iSerialNumber)
+	/*if (dev->descriptor.iSerialNumber)
 		usb_string(dev, dev->descriptor.iSerialNumber,
-			   dev->serial, sizeof(dev->serial));
-	USB_PRINTF("Manufacturer %s\n", dev->mf);
-	USB_PRINTF("Product      %s\n", dev->prod);
-	USB_PRINTF("SerialNumber %s\n", dev->serial);
+			   dev->serial, sizeof(dev->serial));*/
+	printf("Manufacturer %s\n", dev->mf);
+	printf("Product      %s\n", dev->prod);
+	//USB_PRINTF("SerialNumber %s\n", dev->serial);
 	/* now prode if the device is a hub */
 	usb_hub_probe(dev, 0);
 

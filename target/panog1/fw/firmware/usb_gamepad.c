@@ -52,7 +52,7 @@
 #define USAGE_PAGE_BUTTON              0x09
 //   otherwise ignored. (like vendor defined or consumer)
 
-// accpetable usage:
+// acceptable usage:
 #define USAGE_JOYSTICK                 0x04
 #define USAGE_GAMEPAD                  0x05
 #define USAGE_X                        0x30
@@ -61,9 +61,6 @@
 #define USAGE_RZ                       0x35
 #define USAGE_HAT_SWITCH               0x39
 //   otherwise ignored. (like pointer)
-
-#define USB_GP_NO_MALLOC    1
-#define USB_GP_MAX_BUF_SIZE 512
 
 uint32_t gp_num_buttons;
 uint32_t gp_buttons;
@@ -81,7 +78,7 @@ int button_count = 0;
 int analog_count = 0;
 int accepted_report_id = -1;
 uint32_t report_length;
-uint8_t report[MAX_BITS / 8];
+//uint8_t report[MAX_BITS / 8];
 
 #define USB_GP_DEBUG
 
@@ -305,6 +302,7 @@ void usb_gp_parse_report() {
     int i;
     uint8_t tmp_in;
     uint8_t tmp_out;
+    uint8_t *report = usb_buf;
     
     if ((accepted_report_id == -1) || (report[0] == accepted_report_id)) {
         gp_buttons = 0;
@@ -340,11 +338,7 @@ static int usb_gp_probe(struct usb_device *dev, unsigned int ifnum) {
 	struct usb_interface_descriptor *iface;
 	struct usb_endpoint_descriptor *ep;
 	int pipe, max_packet_size;
-#ifndef USB_GP_NO_MALLOC
-	uint8_t *report_descriptor;
-#else
-    uint8_t report_descriptor[USB_GP_MAX_BUF_SIZE];
-#endif
+	uint8_t *report_descriptor = usb_buf;
 	uint32_t report_descriptor_length;
 
 	if (dev->descriptor.bNumConfigurations != 1) return 0;
@@ -356,14 +350,10 @@ static int usb_gp_probe(struct usb_device *dev, unsigned int ifnum) {
 	
 	// This driver actually accepts all HID devices other than mouse and 
 	// keyboard that can return a valid HID report descriptor.
-#ifndef USB_GP_NO_MALLOC
-	report_descriptor = malloc(dev->hid_descriptor.wItemLength);
-#else
-    if (dev->hid_descriptor.wItemLength > USB_GP_MAX_BUF_SIZE) {
+    if (dev->hid_descriptor.wItemLength > USB_BUFSIZ) {
         printf("Descriptor too large. Give up.\n");
         return 0;
     }
-#endif
 	report_descriptor_length = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), 
 			USB_REQ_GET_DESCRIPTOR, 0x81, (USB_DT_REPORT << 8), 0, 
 			report_descriptor, dev->hid_descriptor.wItemLength, 
@@ -376,10 +366,6 @@ static int usb_gp_probe(struct usb_device *dev, unsigned int ifnum) {
 
 	// Parse the descriptor
 	usb_gp_parse_descriptor(report_descriptor, report_descriptor_length);
-
-#ifndef USB_GP_NO_MALLOC
-	free(report_descriptor);
-#endif
 
 	// Find an IN endpoint
 	for (int i = 0; i < iface->bNumEndpoints; i++) {
@@ -397,7 +383,7 @@ static int usb_gp_probe(struct usb_device *dev, unsigned int ifnum) {
 	// What is maximum packet size is larger than report length?
 	dev->irq_handle = usb_gp_irq;
 	USB_GP_PRINTF("USB gamepad enable interrupt pipe...\n");
-	usb_submit_int_msg(dev, pipe, report, report_length, ep->bInterval);
+	usb_submit_int_msg(dev, pipe, usb_buf, report_length, ep->bInterval);
 
 	return 1;
 }

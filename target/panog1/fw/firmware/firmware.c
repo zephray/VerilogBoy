@@ -62,6 +62,32 @@ void ui_printframe() {
     for (int i = 0; i < 80; i++) term_putchar('-');
 }
 
+void ui_printbox() {
+    term_goto(15, 10);
+    term_putchar(' ');
+    term_putchar(' ');
+    for (int i = 0; i < 46; i++) term_putchar('_');
+    term_putchar(' ');
+    term_putchar(' ');
+    for (int i = 11; i < 16; i++) {
+        term_goto(15, i); 
+        term_putchar(' ');
+        term_putchar('|');
+        for (int i = 0; i < 46; i++) term_putchar(' ');
+        term_putchar('|');
+        term_putchar(' ');
+    }
+    term_goto(15, 15);
+    term_putchar(' ');
+    term_putchar(' ');
+    for (int i = 0; i < 46; i++) term_putchar('_');
+    term_putchar(' ');
+    term_putchar(' ');
+    term_goto(37, 11);
+    printf("Notice");
+    term_goto(20, 12);
+}
+
 // keycode is the shift from right
 int task_getkey() {
     usb_event_poll();
@@ -167,6 +193,15 @@ task_remap_no_gamepad:
     printf("No gamepad detected. Please plug in a controller and reset.");
     while(1);
 
+}
+
+bool check_rom_size(uint32_t size) {
+    int bitsum = 0;
+    for (int i = 0; i < 32; i++) {
+        bitsum += size & 1;
+        size >>= 1;
+    }
+    return (bitsum == 1) ? true : false;
 }
 
 void main() {
@@ -295,19 +330,7 @@ void main() {
             while (task_getkey() != -1);
         } while (keycode != keycode_a);
 
-        term_goto(17, 10);
-        for (int i = 0; i < 46; i++) term_putchar('_');
-        for (int i = 11; i < 16; i++) {
-            term_goto(16, i); 
-            term_putchar('|');
-            for (int i = 0; i < 46; i++) term_putchar(' ');
-            term_putchar('|');
-        }
-        term_goto(17, 15);
-        for (int i = 0; i < 46; i++) term_putchar('_');
-        term_goto(37, 11);
-        printf("Notice");
-        term_goto(20, 12);
+        ui_printbox();
 
         line = 0;
         res = f_opendir(&Dir, directory);
@@ -321,6 +344,14 @@ void main() {
             line ++;
         } while ((line - 1) != selection);
         strcpy(filename + 3, Finfo.fname);
+
+        uint32_t filesize = Finfo.fsize;
+
+        if (!check_rom_size(filesize)) {
+            printf("Invalid game size!\n");
+            while ((keycode = task_getkey()) == -1);
+            continue; 
+        }
         
         res = f_open(&File[0], filename, FA_OPEN_EXISTING | FA_READ);
         if (res) {
@@ -331,8 +362,8 @@ void main() {
         int actual;
         printf("Game loading in progress. Please wait...");
         term_goto(21, 14);
-        f_read(&File[0], (void *)(0x0c800000), 32*1024, &actual);
-        if (actual != 32768) {
+        f_read(&File[0], (void *)(0x0c800000), filesize, &actual);
+        if (actual != filesize) {
             printf("Unable to read game file (%d bytes read).\n", actual);
             while(1);
         }
@@ -340,7 +371,7 @@ void main() {
         volatile uint8_t *romptr, *base;
         base = (uint8_t *)0x0c800000;
         uint32_t sum = 0;
-        for (int i = 0; i < 32*1024; i++) {
+        for (int i = 0; i < filesize; i++) {
             romptr = base + i;
             if (i != 0x14E && i != 0x14F) {
                 sum += *romptr;

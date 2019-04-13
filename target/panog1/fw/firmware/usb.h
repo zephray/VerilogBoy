@@ -42,14 +42,17 @@
 
 #include "usb_defs.h"
 
+#define USB_BUFSIZ	512
+extern uint8_t usb_buf[USB_BUFSIZ];
+
 /* Everything is aribtrary */
 #define USB_ALTSETTINGALLOC		4
 #define USB_MAXALTSETTING		128	/* Hard limit */
 
 #define USB_MAX_DEVICE			5
-#define USB_MAXCONFIG			2
+#define USB_MAXCONFIG			1
 #define USB_MAXINTERFACES		4   // DualShock 4 use 4 interfaces
-#define USB_MAXENDPOINTS		4
+#define USB_MAXENDPOINTS		2
 #define USB_MAXCHILDREN			3	/* This is arbitrary */
 #define USB_MAX_HUB				2
 
@@ -166,7 +169,7 @@ struct usb_device {
 	int	speed;			/* full/low/high */
 	char	mf[32];			/* manufacturer */
 	char	prod[32];		/* product */
-	char	serial[32];		/* serial number */
+	//char	serial[32];		/* serial number */
 
 	/* Maximum packet size; one of: PACKET_SIZE_* */
 	int maxpacketsize;
@@ -225,7 +228,7 @@ void usb_event_poll(void);
 
 #ifdef CONFIG_USB_STORAGE
 
-#define USB_MAX_STOR_DEV 5
+#define USB_MAX_STOR_DEV 1
 block_dev_desc_t *usb_stor_get_dev(int index);
 int usb_stor_scan(int mode);
 int usb_stor_info(void);

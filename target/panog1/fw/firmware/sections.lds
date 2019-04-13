@@ -10,7 +10,7 @@ means.
 MEMORY
 {
     FLASH (xr)  : ORIGIN = 0x0E000000, LENGTH = 0x20000
-    RAM (xrw)   : ORIGIN = 0xFFFF0000, LENGTH = 0x2000
+    RAM (xrw)   : ORIGIN = 0xFFFF0000, LENGTH = 0x1000
 }
 
 

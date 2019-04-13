@@ -41,7 +41,7 @@
 
 #undef ISP_IRQ_DRIVEN
 
-interrupt_transfer_t registered_transfers[USB_MAX_DEVICE];
+interrupt_transfer_t registered_transfers[MAX_REG_INT_TRANSFER_NUM];
 
 // Define the interrupts that the driver will handle
 #define ISP_INT_MASK  0x00000080
