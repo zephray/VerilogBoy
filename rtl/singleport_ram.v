@@ -1,9 +1,10 @@
 module singleport_ram #(
-    parameter integer WORDS = 8192
+    parameter integer WORDS = 8192,
+    parameter ABITS = 13
 )(
     input clka,
     input wea,
-    input [12:0] addra,
+    input [ABITS - 1:0] addra,
     input [7:0] dina,
     output reg [7:0] douta
 );

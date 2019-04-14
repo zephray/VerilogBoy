@@ -33,12 +33,13 @@ module serial(
     );
 	 
     //reg [7:0] reg_sb;
-    reg [7:0] reg_sc;
+    reg reg_sc_start;
+    reg reg_sc_int;
     
     always @(*) begin
         dout = 8'hff;
         if (a == 16'hff01) dout = 8'hff; else
-        if (a == 16'hff02) dout = reg_sc;
+        if (a == 16'hff02) dout = {reg_sc_start, 6'b111111, reg_sc_int};
     end
     
     reg [2:0] count;
@@ -47,7 +48,8 @@ module serial(
     always @(posedge clk, posedge rst) begin
         if (rst) begin
             //reg_sb <= 8'h00;
-            reg_sc <= 8'h00;
+            reg_sc_start <= 1'b0;
+            reg_sc_int <= 1'b0;
             int_serial_req <= 1'b0;
             count <= 3'd0;
             last_clk <= 1'b0;
@@ -56,7 +58,8 @@ module serial(
             last_clk <= clk_spi;
             //if      (wr && (a == 16'hff01)) reg_sb <= din;
             if (wr && (a == 16'hff02)) begin
-                reg_sc <= din;
+                reg_sc_start <= din[7];
+                reg_sc_int <= din[0];
                 if (din[7] && din[0]) count <= 3'd7;
                 else count <= 3'd0;
             end

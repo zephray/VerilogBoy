@@ -387,7 +387,7 @@ module boy(
         else if ((!brom_disable && bus_a <= 16'h00ff)) begin
             bus_din = brom_dout;
         end
-        else if (bus_a <= 16'h7fff) begin
+        else if ((bus_a <= 16'h7fff) || ((bus_a >= 16'ha000) && (bus_a <= 16'hbfff))) begin
             // cartridge, need add CRAM later
             rd = bus_rd;
             wr = bus_wr;
