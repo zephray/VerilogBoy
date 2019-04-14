@@ -266,6 +266,9 @@ module pano_top(
     // ----------------------------------------------------------------------
     // MBC5
     wire [22:0] vb_rom_a;
+    wire [16:0] vb_ram_a;
+    wire vb_ram_cs_n;
+    wire [7:0] vb_crom_dout;
     mbc5 mbc5(
         .vb_clk(clk_4),
         .vb_a(vb_a[15:12]),
@@ -274,11 +277,31 @@ module pano_top(
         .vb_rd(vb_rd),
         .vb_rst(vb_rst),
         .rom_a(vb_rom_a[22:14]),
-        .ram_a(),
+        .ram_a(vb_ram_a[16:13]),
         .rom_cs_n(),
-        .ram_cs_n()
+        .ram_cs_n(vb_ram_cs_n)
     );
     assign vb_rom_a[13:0] = vb_a[13:0];
+    assign vb_ram_a[12:0] = vb_a[12:0];
+    
+    // ----------------------------------------------------------------------
+    // Cartridge RAM
+    // Work RAM
+    wire [7:0] vb_cram_dout;
+    wire vb_cram_wr = !vb_ram_cs_n & vb_wr;
+
+    singleport_ram #(
+        .WORDS(32768),
+        .ABITS(15)
+    ) br_cram (
+        .clka(clk_4),
+        .wea(vb_cram_wr),
+        .addra(vb_ram_a[14:0]),
+        .dina(vb_dout),
+        .douta(vb_cram_dout)
+    );
+    
+    assign vb_din = (vb_ram_cs_n) ? (vb_crom_dout) : (vb_cram_dout);
     
     // ----------------------------------------------------------------------
     // Audio
@@ -448,9 +471,9 @@ module pano_top(
         .ddr_valid(ddr_valid),
         .ddr_ready(ddr_ready),
         .vb_a(vb_rom_a),
-        .vb_din(vb_din),
-        .vb_dout(vb_dout),
-        .vb_rd(vb_rd),
+        .vb_din(vb_crom_dout),
+        .vb_dout(8'h00),
+        .vb_rd(vb_phi),
         .vb_wr(1'b0)
     );
     
