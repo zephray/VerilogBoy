@@ -259,9 +259,9 @@ lcd_init_sequence:
     ; Display Inversion ON
     db $01, $21
     ; Set column address
-    ;db $05, $2a, $00, $00, $01, $3f
+    db $05, $2a, $00, $00, $01, $3f
     ; Set row address
-    ;db $05, $2b, $00, $00, $01, $3f
+    db $05, $2b, $00, $00, $01, $3f
 lcd_init_sequence_end:
 
 ; name: delay
@@ -378,6 +378,8 @@ dsi_init__send_loop:
     ; enable HS clock
     ld a, VAL_DSIC_CTL_HSC
     ld [$ff00+REG_DSIC_CTL], a
+    call delay
+
     ; Enable DSI HS mode
     ld a, VAL_DSIC_CTL_TIM
     ld [$ff00+REG_DSIC_CTL], a

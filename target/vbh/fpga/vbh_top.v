@@ -245,11 +245,7 @@ module vbh_top(
 
     // ----------------------------------------------------------------------
     // MIPI DSI controller
-    
-    wire        pix_next_frame;
-    wire        pix_vsync;
-    wire        pix_almost_full;
-    wire [23:0] pix;
+    wire [23:0] pix_raw;
     reg         pix_wr;
     wire        dsi_dat_lp_p;
     wire        dsi_dat_lp_n;
@@ -257,11 +253,28 @@ module vbh_top(
     wire        dsi_clk_lp_p;
     wire        dsi_clk_lp_n;
     wire        dsi_clk_lp_oe;
+     
+    wire        pix_next_frame;
+    wire        pix_vsync;
+    wire        pix_almost_full;
+    reg  [23:0] pix;
+    
+    localparam X_SIZE = 320;
+    localparam Y_SIZE = 320;
     
     reg [16:0] pix_counter;
+    reg [8:0] x_counter;
+    reg [8:0] y_counter;
     reg last_vsync;
     reg [6:0] frame_counter;
     reg [1:0] color_sel;
+    
+    reg [9:0] color_shift;
+    reg [7:0] red;
+    reg [7:0] green;
+    reg [7:0] blue;
+    reg [10:0] x_raw;
+    reg [9:0] x;
     
     always@(posedge clk_dsi) begin
         if (rst) begin
@@ -269,17 +282,35 @@ module vbh_top(
             pix_wr <= 1'b0;
             frame_counter <= 0;
             color_sel <= 0;
+            x_counter <= 0;
+            y_counter <= 0;
+            color_shift <= 0;
         end
         else begin
-            if (pix_counter < 17'd102400) begin
-                pix_counter <= pix_counter + 1;
-                pix_wr <= 1'b1;
+            if (pix_counter < (X_SIZE * Y_SIZE)) begin
+                if (pix_almost_full) begin
+                    pix_wr <= 1'b0;
+                end
+                else begin
+                    pix_counter <= pix_counter + 1;
+                    if (x_counter < (X_SIZE - 1)) begin
+                        x_counter <= x_counter + 1'd1;
+                    end
+                    else begin
+                        x_counter <= 0;
+                        y_counter <= y_counter + 1'd1;
+                    end
+                    pix_wr <= 1'b1;
+                end
             end
             else begin
                 pix_wr <= 1'b0;
                 last_vsync <= pix_next_frame;
                 if (!last_vsync && pix_next_frame) begin
                     pix_counter <= 0;
+                    x_counter <= 0;
+                    y_counter <= 0;
+                    color_shift <= (color_shift == 767) ? (0) : (color_shift + 1);
                     if (frame_counter == 59) begin
                         if (color_sel == 2)
                             color_sel <= 0;
@@ -295,11 +326,103 @@ module vbh_top(
         end
     end
     
-    assign pix = (color_sel == 0) ? (24'hFF0000) : ((color_sel == 1) ? (24'h00FF00) : (24'h0000FF));
+    wire [5:0] char_x;
+    wire [4:0] char_y;
+    reg  [7:0] char_out;
+    always@(*) begin
+        char_out = 8'h20;
+        case (char_y)
+            6'd9: begin
+                case (char_x)
+                    7'd13: char_out = 8'h48;
+                    7'd14: char_out = 8'h65;
+                    7'd15: char_out = 8'h6c;
+                    7'd16: char_out = 8'h6c;
+                    7'd17: char_out = 8'h6f;
+                    7'd18: char_out = 8'h2c;
+                    7'd19: char_out = 8'h20;
+                    7'd20: char_out = 8'h77;
+                    7'd21: char_out = 8'h6f;
+                    7'd22: char_out = 8'h72;
+                    7'd23: char_out = 8'h6c;
+                    7'd24: char_out = 8'h64;
+                    7'd25: char_out = 8'h21;
+                endcase
+            end
+        endcase
+    end
+    assign char_x = x_counter[8:3];
+    assign char_y = y_counter[8:4];
+    
+    wire [6:0] font_ascii = char_out[6:0];
+    wire [3:0] font_row = y_counter[3:0];
+    wire [2:0] font_col = x_counter[2:0];
+    wire font_pixel;
+    
+    vga_font vga_font(
+      .clk(~clk_dsi),
+      .ascii_code(font_ascii),
+      .row(font_row),
+      .col(font_col),
+      .pixel(font_pixel)
+    );
+    
+    always @(*) begin
+        x_raw = x_counter + color_shift;
+        x = ((x_raw) >= 768) ? (x_raw - 768) : (x_raw);
+        //x = color_shift;
+        if ((x < 256)) begin
+            red = 255 - x;
+            green = x;
+            blue = 0;
+        end
+        else if ((x >= 256)&&(x < 512)) begin
+            red = 0;
+            green = 511 - x;
+            blue = x - 256;
+        end
+        else if ((x >= 512)&&(x < 768)) begin
+            red = x - 512;
+            green = 0;
+            blue = 767 - x;
+        end
+    end
+    
+    wire [23:0] pix_text;
+    //assign pix_text = (font_pixel) ? (24'hFFFFFF): (24'h0);
+    assign pix_text = (!font_pixel) ? ({red, green, blue}): 24'h000000;
+    
+    //assign pix_raw = (!font_pixel) ? ((color_sel == 0) ? (24'hFF0000) : ((color_sel == 1) ? (24'h00FF00) : (24'h0000FF))): 24'h000000;
+    //assign pix = (y_counter == 0) ? ((color_sel == 0) ? (24'hFF0000) : ((color_sel == 1) ? (24'h00FF00) : (24'h0000FF))): 24'h000000;
+    assign pix_raw = ((y_counter == Y_SIZE - 1) || (x_counter == X_SIZE - 1) || (y_counter == 0) || (x_counter == 0)) ? 24'hFFFFFF: pix_text;
+    //assign pix_raw = pix_text;
+    always@(posedge clk_dsi)
+        pix <= pix_raw;
+        //pix <= {pix_raw[23:19], pix_raw[15:10], pix_raw[7:3]};
+    
+    reg last_te;
+    wire te_in = LCD_TE;
+    reg te_sync_1, te_sync_2, te;
+    reg internal_vsync;
+    always@(posedge clk_dsi) begin
+        te_sync_1 <= te_in;
+        te_sync_2 <= te_sync_1;
+        te <= te_sync_2;
+    end
+    
+    always@(posedge clk_dsi) begin
+        last_te <= te;
+        if ((last_te)&&(!te))
+            internal_vsync <= 1'b1;
+        else
+            internal_vsync <= 1'b0;
+    end
     
 //    assign pix_wr = 1'b1;
+//    assign pix_vsync = LCD_TE;
     assign pix_vsync = 1'b1;
-    
+//    assign pix_vsync = internal_vsync;
+
     dsi_core dsi_core(
         .clk_sys_i(clk_core),
         .clk_dsi_i(clk_dsi),
@@ -333,10 +456,10 @@ module vbh_top(
         .wb_stall_o(wb_stall)
     );
     
-    assign LCD_D_LP_P = ((dsi_dat_lp_p == 1'b1) && (dsi_dat_lp_oe == 1'b1)) ? 1'b1 : 1'bZ;
-    assign LCD_D_LP_N = ((dsi_dat_lp_n == 1'b1) && (dsi_dat_lp_oe == 1'b1)) ? 1'b1 : 1'bZ;
-    assign LCD_C_LP_P = ((dsi_clk_lp_p == 1'b1) && (dsi_clk_lp_oe == 1'b1)) ? 1'b1 : 1'bZ;
-    assign LCD_C_LP_N = ((dsi_clk_lp_n == 1'b1) && (dsi_clk_lp_oe == 1'b1)) ? 1'b1 : 1'bZ;
+    assign LCD_D_LP_P = ((dsi_dat_lp_p == 1'b1) && (dsi_dat_lp_oe == 1'b1)) ? 1'b1 : 1'bz;
+    assign LCD_D_LP_N = ((dsi_dat_lp_n == 1'b1) && (dsi_dat_lp_oe == 1'b1)) ? 1'b1 : 1'bz;
+    assign LCD_C_LP_P = ((dsi_clk_lp_p == 1'b1) && (dsi_clk_lp_oe == 1'b1)) ? 1'b1 : 1'bz;
+    assign LCD_C_LP_N = ((dsi_clk_lp_n == 1'b1) && (dsi_clk_lp_oe == 1'b1)) ? 1'b1 : 1'bz;
     
     assign BL_EN = 1'b1;
     assign BL_PWM = 1'b0;
