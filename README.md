@@ -39,7 +39,7 @@ Next step would be improving the accuracy.
 
 Photo of VerilogBoy on Pano G1 running open source GameBoy game [Tobu Tobu Girl](http://tangramgames.dk/tobutobugirl/):
 
-![Running-on-PanoG1](https://github.com/zephray/VerilogBoy/raw/refactor/doc/.png)
+![Running-on-PanoG1](https://github.com/zephray/VerilogBoy/raw/refactor/doc/demo_tobu.jpg)
 
 For progress regarding different ports, view README.md under the specific target folder.
 
