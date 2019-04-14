@@ -18,7 +18,7 @@ The main system architecture is designed as follows (outdated):
 
 ![Architecture](https://cdn.hackaday.io/images/6958041523363605244.jpg)
 
-There are three major parts needs to be implemented: the Game Boy CPU (8-bit CISC Processor called SM83, Intel 8080 like), the PPU (Pixel Processing Unit), and the sound unit. Several interfacing modules are needed to support the IO capability provided by the specific hardware (FPGA development board or "VerilogBoy Handheld").
+There are three major parts needs to be implemented: the Game Boy CPU (8-bit CISC Processor called SM83, Intel 8080 like), the PPU (Pixel Processing Unit), and the sound unit (sometimes referred as a PSG, Programmable Sound Generator). Several interfacing modules are needed to support the IO capability provided by the specific hardware (FPGA development board or "VerilogBoy Handheld").
 
 ## Targets (Ports)
 
@@ -26,16 +26,20 @@ Current Pano Logic G1 is the only supported platform. ML505 and VBH support are 
 
 ## Progress
 
-![Running-on-ML505](https://cdn.hackaday.io/images/8583531548721704232.jpg)
-
-Refactoring in progress. Previous version could run *The Legend of Zelda: Link's Awakening* and *Pokemon Yellow* with no noticable glitch on the Xilinx ML505 board (as shown in the photo). See 'master' branch for previous version, at least for now.
+Refactoring in progress. Current version could run several commerical games with no noticable glitch on the Pano Logic G1 device. 'Master' branch contains the previous version that runs on the ML505.
 
  - [x] SM83 CPU (Refactoring stage 1 done, passes all Blargg's tests)
  - [x] PPU (Pixel Processing Unit, Pixel-FIFO architecture)
  - [x] OAMDMA (Object Attribute Memory DMA)
- - [ ] PSG (Programmable Sound Generator)
+ - [x] PSG (Programmable Sound Generator)
  - [x] Timer
- - [ ] Link
+ - [x] Link (Dummy link module, allows some games to run in single player mode)
+
+Next step would be improving the accuracy.
+
+Photo of VerilogBoy on Pano G1 running open source GameBoy game [Tobu Tobu Girl](http://tangramgames.dk/tobutobugirl/):
+
+![Running-on-PanoG1](https://github.com/zephray/VerilogBoy/raw/refactor/doc/.png)
 
 For progress regarding different ports, view README.md under the specific target folder.
 
