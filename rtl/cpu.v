@@ -295,10 +295,10 @@ module cpu(
         (int_flags_masked[2]) ? (16'h0050) : (
         (int_flags_masked[3]) ? (16'h0058) : (
         (int_flags_masked[4]) ? (16'h0060) : (
-            // no interrupts anymore ??? We havn't cleared it yet!
-            // This should not happen [TM]
-            // Cancel interrupt dispatch
-            pc_rd
+            // no interrupts anymore, dispatching is cancelled.
+            // jump to 0000 instead
+            // this behavior is tested by acceptence/interrupts/ie_push
+            16'h0000
         )))));
     assign pc_we_l = ((alu_dst == 2'b01) && (pc_b_sel == 1'b0)) ? (1'b1) : (1'b0);
     assign pc_we_h = ((alu_dst == 2'b01) && (pc_b_sel == 1'b1)) ? (1'b1) : (1'b0);
