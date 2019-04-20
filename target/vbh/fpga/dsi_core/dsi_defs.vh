@@ -26,8 +26,6 @@
 //`define PTYPE_BLANKING    6'h09
 `define PTYPE_BLANKING    6'h19
 `define PTYPE_RGB24       6'h3e
-`define PTYPE_RGB16       6'h0e
-`define PTYPE_RGB         6'h0e
 
 `define PTYPE_EOT         6'h08
 

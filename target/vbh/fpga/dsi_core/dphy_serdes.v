@@ -189,7 +189,7 @@ module dphy_serdes #(
       .RST                    (~rst_n_a_i));
 
    OBUFTDS
-     #(.IOSTANDARD ("DIFF_SSTL18_I"))
+     #(.IOSTANDARD ("DIFF_HSTL_I_18"))
    U_Tristate
      (.O          (q_p_o),
       .OB         (q_n_o),

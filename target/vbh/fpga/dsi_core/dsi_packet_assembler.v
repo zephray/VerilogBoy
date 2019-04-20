@@ -48,7 +48,8 @@ module dsi_packet_assembler
     phy_hs_dreq_i
     );
 
-    parameter g_bytes_per_pixel = 2;
+    parameter g_pixels_per_clock = 1;
+    parameter g_lanes = 1;
 
     input         clk_i;
     input         rst_n_i;
@@ -58,13 +59,13 @@ module dsi_packet_assembler
     input [5:0]               p_type_i;
     input [15:0]              p_wcount_i;
     input [15:0]              p_command_i;
-    input [g_bytes_per_pixel * 8-1:0] p_payload_i;
+    input [g_pixels_per_clock * 24-1:0] p_payload_i;
     input                     p_last_i;
    
     output                    p_dreq_o;
     output                    p_dlast_o;
-    output [7:0]              phy_d_o;
-    output                    phy_dvalid_o;
+    output [g_lanes*8-1:0]    phy_d_o;
+    output [g_lanes-1:0]      phy_dvalid_o;
    
     output                    phy_hs_request_o;
     input                     phy_hs_dreq_i;
@@ -87,13 +88,13 @@ module dsi_packet_assembler
     reg                       pack_valid;
     wire                      pack_empty;
     reg                       pack_flush;
-    wire                      pack_qvalid;
+    wire [g_lanes-1:0]        pack_qvalid;
    
    
     dsi_packer
     #(
         .g_input_bytes(4), // could be up to 4 bytes
-        .g_output_bytes(1)
+        .g_output_bytes(g_lanes)
     )
     U_Packer
     (
@@ -115,11 +116,11 @@ module dsi_packet_assembler
 
     reg            crc_reset,crc_valid;
     wire [15:0]    crc_value;
-    reg [2:0]      crc_nbytes = g_bytes_per_pixel;
+    reg [2:0]      crc_nbytes = g_pixels_per_clock * 3;
    
     dsi_crc
     #(
-        .g_max_data_bytes(g_bytes_per_pixel)
+        .g_max_data_bytes(g_pixels_per_clock * 3)
     ) 
     U_CRC 
     (
@@ -211,12 +212,12 @@ module dsi_packet_assembler
             `ST_PAYLOAD: begin
                 if(pack_valid)
                 begin
-                    if(tx_count == g_bytes_per_pixel) begin
+                    if(tx_count == 3) begin
                         tx_count <= 1;
                         state <= `ST_CRC;
                     end
                     else begin
-                        tx_count <= tx_count - g_bytes_per_pixel;
+                        tx_count <= tx_count - 3;
                         if(!p_req_i)
                             state <= `ST_LP_MODE;
                     end
@@ -237,8 +238,8 @@ module dsi_packet_assembler
     begin
         case (state)
         `ST_LP_MODE: begin
-            pack_data  = (`DSI_SYNC_SEQ);
-            pack_size  = 1;
+            pack_data  = ({g_lanes{`DSI_SYNC_SEQ}});
+            pack_size  = g_lanes;
             pack_valid = pack_req_d0 && p_req_i && phy_hs_dreq_i;
             pack_flush = ~p_req_i;
         end
@@ -259,7 +260,7 @@ module dsi_packet_assembler
 
         `ST_PAYLOAD:  begin
             pack_data  = p_payload_i;
-            pack_size  = g_bytes_per_pixel;
+            pack_size  = g_pixels_per_clock * 3;
             pack_valid = pack_req_d0;
             pack_flush = 0;
         end
@@ -291,7 +292,7 @@ module dsi_packet_assembler
     begin
         case(state)
         `ST_PAYLOAD: begin
-            if (tx_count == g_bytes_per_pixel && pack_valid)
+            if (tx_count == 3 * g_pixels_per_clock && pack_valid)
                 p_dreq = 0;
             else
                 p_dreq = pack_req & p_req_i & phy_hs_dreq_i;

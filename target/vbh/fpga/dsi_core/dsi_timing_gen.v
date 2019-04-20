@@ -59,9 +59,9 @@ module dsi_timing_gen (
     host_wr_i
     );
 
-    parameter g_bytes_per_pixel = 2;
+    parameter g_pixels_per_clock = 1;
 
-    localparam g_pixel_width =  g_bytes_per_pixel * 8;
+    localparam g_pixel_width = g_pixels_per_clock * 24;
 
     input clk_i;
     input rst_n_i;
@@ -195,7 +195,7 @@ module dsi_timing_gen (
                     send(1, `PTYPE_BLANKING, h_4, `ST_HSYNC_START, 0);
             end // case: `ST_FPORCH
           
-            // Full Sync
+            // Complete Sync
             /*`ST_HSYNC_START: begin
                 p_req_o <= 1;
 
@@ -216,7 +216,7 @@ module dsi_timing_gen (
                 if(v_count == 0)
                     send(0, `PTYPE_VSYNC_START, 0, `ST_BPORCH, 0);
                 else if (v_count == v_4)
-                    send(0, `PTYPE_EOT, h_3, `ST_LP, 1); // h_3 used as the frame gap
+                    send(0, `PTYPE_EOT, 12'hFFF, `ST_LP, 1); // h_3 used as the frame gap
                 else
                     send(0, `PTYPE_HSYNC_START, 0, `ST_BPORCH, 0);
             end
@@ -242,7 +242,7 @@ module dsi_timing_gen (
 
             `ST_LINE:
             begin
-                send(1, disp_en_mask ? `PTYPE_RGB: `PTYPE_BLANKING, h_3, `ST_FPORCH, 0);
+                send(1, disp_en_mask ? `PTYPE_RGB24: `PTYPE_BLANKING, h_3, `ST_FPORCH, 0);
                 if(p_dreq_i) begin
                     if(v_count == v_4)
                         v_count <= 0;
@@ -271,7 +271,7 @@ module dsi_timing_gen (
             `ST_LONG_PACKET:
             begin
                 if(p_dreq_i)  begin
-                    pixel_counter <= pixel_counter - g_bytes_per_pixel;
+                    pixel_counter <= pixel_counter - 3;
                     pixel_counter_d0 <= pixel_counter;
                 end
 

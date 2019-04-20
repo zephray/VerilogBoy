@@ -16,16 +16,21 @@
 ////////////////////////////////////////////////////////////////////////////////
 module vbh_top(
     // Global Clock Input
-    input CLK_IN,
+    input wire CLK_IN,
     // PSRAM Interface
-    inout [15:0] RAM_DQ,
-    output [21:0] RAM_A,
-    output RAM_LB_N,
-    output RAM_UB_N,
-    output RAM_OE_N,
-    output RAM_CE_N,
-    output RAM_WE_N,
-    output RAM_ZZ_N,
+    inout  wire [15:0] RAM_DQ,
+    output wire [21:0] RAM_A,
+    output wire RAM_LB_N,
+    output wire RAM_UB_N,
+    output wire RAM_OE_N,
+    output wire RAM_CE_N,
+    output wire RAM_WE_N,
+    output wire RAM_ZZ_N,
+    // SPI Flash Interface
+    output wire SPI_CS_B,
+    output wire SPI_SCK,
+    output wire SPI_MOSI,
+    input  wire SPI_MISO,
     // SD Card Interface
     /*output SD_CLK,
     output SD_CMD,
@@ -38,22 +43,22 @@ module vbh_top(
     output DAC_SCK,
     inout DAC_SDA,*/
     // PMU Interface
-    /*input PMU_IRQ,
+    //input PMU_IRQ,
     output PMU_SCK,
-    inout PMU_SDA,*/
+    inout PMU_SDA,
     // LCD Interface
-    output BL_EN,
-    output BL_PWM,
-    input LCD_TE,
-    output LCD_RESET,
-    output LCD_D_LP_P,
-    output LCD_D_LP_N,
-    output LCD_D_HS_P,
-    output LCD_D_HS_N,
-    output LCD_C_LP_P,
-    output LCD_C_LP_N,
-    output LCD_C_HS_P,
-    output LCD_C_HS_N
+    output wire BL_EN,
+    output wire BL_PWM,
+    input  wire LCD_TE,
+    output wire LCD_RESET,
+    output wire LCD_D_LP_P,
+    output wire LCD_D_LP_N,
+    output wire LCD_D_HS_P,
+    output wire LCD_D_HS_N,
+    output wire LCD_C_LP_P,
+    output wire LCD_C_LP_N,
+    output wire LCD_C_HS_P,
+    output wire LCD_C_HS_N
     // Keyboard Matrix
     /*input [3:0] KEY_IN,
     output [1:0] KEY_OUT*/
@@ -63,9 +68,9 @@ module vbh_top(
     // Clocking
 	wire clk_in = CLK_IN;
     wire clk_in_bufg;
-    wire clk_core;   // Clock for VerilogBoy Core
-    wire clk_dsi;    // Clock for DSI (Logic)
-    wire clk_phy;    // Clock for DSI (PHY, 8xLogic)
+    wire clk_core;   // Clock for VerilogBoy Core, 4MHz
+    wire clk_dsi;    // Clock for DSI (Logic), 33MHz (pixel clock)
+    wire clk_phy;    // Clock for DSI (PHY, 8xLogic), 270MHz
     wire clk_phy_s;  // Clock for DSI (Data lane, Same or shift from PHY)
     wire rst_pll;
     wire rst;
@@ -89,6 +94,8 @@ module vbh_top(
     assign rst_pll = 1'b0;
     assign rst = !pll_locked;
     
+    wire clk_rv = clk_core; // 4MHz
+    
     /*debounce_rst debounce_rst(
         .clk(clk_in_bufg),
         .noisyRst(1'b0),
@@ -100,7 +107,8 @@ module vbh_top(
     // ----------------------------------------------------------------------
     // VerilogBoy core
     
-    wire        vb_phi;
+    reg vb_rst;
+    /*wire        vb_phi;
     wire [15:0] vb_a;
     wire [7:0]  vb_dout;
     wire [7:0]  vb_din;
@@ -135,114 +143,236 @@ module vbh_top(
         .left(vb_left),
         .right(vb_right),
         .done(done)
-    );
-	 
-    // ----------------------------------------------------------------------
-    // Memory Controller
+    );*/
     
-    // The memory controller receives address from the VerilogBoy Core and 
-    // map it either into RAM bank, BootROM, or peripheral register address.
     
-    // VB Core Memory Map: (16-bit address, 64KiB)
-    // 0000 - 3EFF Cartridge Bank 0 (PSRAM) / BootROM (BRAM)
-    // 4000 - 7FFF Cartridge Bank X (PSRAM)
-    // 8000 - 9FFF Blank (Mapped inside the VB Core)
-    // A000 - BFFF CRAM (PSRAM)
-    // C000 - DFFF WRAM (PSRAM)
-    // E000 - EFFF Echo WRAM (PSRAM)
-    // F000 - FDFF Echo WRAM (PSRAM)
-    // FE00 - FF00 Blank
-	 // FF00 - FF7F Blank / Peripherals (Wishbone)
-    // FF80 - FFFF Blank
-	 
-    // Physical RAM Memory Map: (23-bit address, 8MiB)
-    // 000000 - 3FFFFF Cartridge ROM (4MB)
-    // 400000 - 41FFFF Cartridge RAM (128KB)
-    // 420000 - 427FFF Work RAM (32KB)
-    // 428000 - 43FFFF Extended Work RAM (96KB)
-    // 440000 - 7FFFFF Unused
+    // Not used now
+    reg psram_master_sel;
+    wire [22:0] rv_psram_addr;
+    wire rv_psram_ready;
+    wire [31:0] rv_psram_rdata;
+    wire [31:0] rv_psram_wdata;
+    wire [3:0] rv_psram_wstrb;
+    wire rv_psram_valid;
+    wire rv_psram_wr = rv_psram_valid & (rv_psram_wstrb != 0);
+    wire rv_psram_oe = rv_psram_valid & (rv_psram_wstrb == 0);
+    wire [21:0] vb_psram_addr;
+    wire vb_psram_rd;
+    wire vb_psram_wr;
+    wire [7:0] vb_psram_rdata;
+    wire [7:0] vb_psram_wdata;
     
-    wire        vb_brom_en = 1'b1; // Fixed to enable for now
-    wire [4:0]  vb_wram_bank = 5'd0; // Fixed to bank 0 for now
-    wire [7:0]  wb_a;
-    wire [7:0]  wb_din; // Master to Slave
-    wire [7:0]  wb_dout;// Slave to Master
-    wire        wb_cyc;
-    wire        wb_stb;
-    wire        wb_we;
-    wire        wb_ack;
-    wire        wb_stall;
-    wire [22:0] rom_a; // Up to 8MB (hardware limit to 4MB)
-    wire [7:0]  rom_d;
-    wire        rom_rd;
-    wire [17:0] ram_a; // Up to 256KB
-    wire [7:0]  ram_din;
-    wire [7:0]  ram_dout;
-    wire        ram_wr;
-    wire        ram_rd;
-    wire [13:0] brom_a; // Up to 16KB
-    wire [7:0]  brom_d;
-    wire        brom_rd;
-    
-    mc mc(
-        .vb_clk(clk_core),
-        .vb_rst(rst),
-        .vb_din(vb_din),
-        .vb_dout(vb_dout),
-        .vb_a(vb_a),
-        .vb_wr(vb_wr),
-        .vb_rd(vb_rd),
-        .vb_brom_en(vb_brom_en),
-        .vb_wram_bank(vb_wram_bank),
-        .wb_a(wb_a),
-        .wb_din(wb_din),
-        .wb_dout(wb_dout),
-        .wb_cyc(wb_cyc),
-        .wb_stb(wb_stb),
-        .wb_we(wb_we),
-        .wb_ack(wb_ack),
-        .wb_stall(wb_stall),
-        .rom_a(rom_a),
-        .rom_d(rom_d),
-        .rom_rd(rom_rd),
-        .ram_a(ram_a),
-        .ram_din(ram_din),
-        .ram_dout(ram_dout),
-        .ram_wr(ram_wr),
-        .ram_rd(ram_rd),
-        .brom_a(brom_a),
-        .brom_d(brom_d),
-        .brom_rd(brom_rd)
-    );
-    
-    // Map addresses into PSRAM
-    wire psram_rd = ram_rd || rom_rd;
-    wire psram_wr = ram_wr;
-    wire [21:0] psram_a = (ram_rd || ram_wr) ? ({5'b10000, ram_a[17:1]}) : {1'b1, rom_a[21:1]};
-    wire psram_ub = (ram_rd || ram_wr) ? (ram_a[0]) : (rom_a[0]);
-    wire psram_lb = !psram_ub;
-    wire [15:0] psram_din = (psram_ub) ? ({ram_din[7:0], 8'b0}) : ({8'b0, ram_din[7:0]});
-    wire [15:0] psram_dout;
-    assign rom_d = (psram_ub) ? (psram_dout[15:8]) : (psram_dout[7:0]);
-    assign ram_dout = (psram_ub) ? (psram_dout[15:8]) : (psram_dout[7:0]);
-    
-    assign RAM_WE_N = !psram_wr;
-    assign RAM_OE_N = !psram_rd;
-    assign RAM_CE_N = !(psram_wr || psram_rd);
-    assign RAM_A[21:0] = psram_a;
-    assign RAM_LB_N = !psram_lb;
-    assign RAM_UB_N = !psram_ub;
+    assign RAM_WE_N = (psram_master_sel) ? (!vb_psram_wr) : (!rv_psram_wr);
+    assign RAM_OE_N = (psram_master_sel) ? (!vb_psram_rd) : (!rv_psram_oe);
+    assign RAM_CE_N = 1'b0;
+    assign RAM_A[21:0] = (psram_master_sel) ? (vb_psram_addr[21:0]) : ({1'b0, rv_psram_addr[22:2]});
+    assign RAM_LB_N = 1'b0;
+    assign RAM_UB_N = 1'b0;
     assign RAM_ZZ_N = 1'b1;
-    assign RAM_DQ[15:0] = (psram_wr) ? (psram_din) : (16'hzz);
-    assign psram_dout[15:0] = RAM_DQ[15:0];
-	 
-    // Boot ROM (8KB for now)
-    brom brom(
-        .clk(clk_core),
-        .a(brom_a[12:0]),
-        .d(brom_d)
-    );
+    assign RAM_DQ[15:0] = (RAM_WE_N) ? ((psram_master_sel) ? ({8'h00, vb_psram_wdata}) : (rv_psram_wdata[15:0])) : 16'hzz;
+    
+    /*assign vb_psram_addr = vb_a[15:0];
+    assign vb_psram_rd = vb_rd;
+    assign vb_psram_wr = vb_wr;
+    assign vb_psram_wdata = vb_dout;
+    assign vb_din = vb_psram_rdata;*/
+    assign vb_psram_addr = 0;
+    assign vb_psram_rd = 0;
+    assign vb_psram_wr = 0;
+    assign vb_psram_wdata = 0;
+    
+    // ----------------------------------------------------------------------
+    // PicoRV32
+    
+    wire [16:0] spi_addr;
+    wire spi_ready;
+    wire [31:0] spi_rdata;
+    wire spi_valid;
+    
+    // Memory Map
+    // 03000000 - 03000100 GPIO          See description below
+    // 04000000 - 0400000F DSI           (16B)
+    // 08000000 - 08000FFF Video RAM     (4KB)
+    // 0C000000 - 0C7FFFFF PSRAM         (8MB)
+    // 0E000000 - 0E01FFFF SPI Flash     (128KB, mapped from Flash 768K - 896K)
+    // FFFF0000 - FFFFFFFF Internal RAM  (8KB w/ echo)
+    parameter integer MEM_WORDS = 2048;
+    parameter [31:0] STACKADDR = 32'hfffffffc;
+    parameter [31:0] PROGADDR_RESET = 32'h0e000000;
+    parameter [31:0] PROGADDR_IRQ = 32'h0e000010;
+    
+    wire mem_valid;
+    wire mem_instr;
+    wire mem_ready;
+    wire [31:0] mem_addr;
+    wire [31:0] mem_wdata;
+    wire [3:0] mem_wstrb;
+    wire [31:0] mem_rdata;
+    wire [31:0] mem_la_addr;
+    
+    reg cpu_irq;
+    
+    wire la_addr_in_ram   = (mem_la_addr >= 32'hFFFF0000);
+    wire la_addr_in_vram  = (mem_la_addr >= 32'h08000000) && (mem_la_addr < 32'h08004000);
+    wire la_addr_in_gpio  = (mem_la_addr >= 32'h03000000) && (mem_la_addr < 32'h03000100);
+    wire la_addr_in_dsi   = (mem_la_addr >= 32'h04000000) && (mem_la_addr < 32'h0400003F);
+    wire la_addr_in_psram = (mem_la_addr >= 32'h0C000000) && (mem_la_addr < 32'h0C800000);
+    wire la_addr_in_spi   = (mem_la_addr >= 32'h0E000000) && (mem_la_addr < 32'h0E020000);
+    
+    reg addr_in_ram;
+    reg addr_in_vram;
+    reg addr_in_gpio;
+    reg addr_in_dsi;
+    reg addr_in_psram;
+    reg addr_in_spi;
+    
+    always@(posedge clk_rv) begin
+        addr_in_ram <= la_addr_in_ram;
+        addr_in_vram <= la_addr_in_vram;
+        addr_in_gpio <= la_addr_in_gpio;
+        addr_in_dsi <= la_addr_in_dsi;
+        addr_in_psram <= la_addr_in_psram;
+        addr_in_spi <= la_addr_in_spi;
+    end
+    
+    wire ram_valid = (mem_valid) && (!mem_ready) && (addr_in_ram);
+    wire vram_valid = (mem_valid) && (!mem_ready) && (addr_in_vram);
+    wire gpio_valid = (mem_valid) && (!mem_ready) && (addr_in_gpio);
+    wire dsi_valid = (mem_valid) && (!mem_ready) && (addr_in_dsi);
+    assign rv_psram_valid = (mem_valid) && (!mem_ready) && (addr_in_psram);
+    assign spi_valid = (mem_valid) && (addr_in_spi);
+    wire general_valid = (mem_valid) && (!mem_ready) && (!addr_in_spi);
+    
+    reg default_ready;
+    
+    always @(posedge clk_rv) begin
+        default_ready <= general_valid;
+    end
 
+    assign mem_ready = spi_ready || default_ready;
+    
+    reg mem_valid_last;
+    always @(posedge clk_rv) begin
+        mem_valid_last <= mem_valid;
+        if (mem_valid && !mem_valid_last && !(ram_valid || spi_valid || vram_valid || gpio_valid || rv_psram_valid || dsi_valid))
+            cpu_irq <= 1'b1;
+        //else
+        //    cpu_irq <= 1'b0;
+        if (!rst_rv)
+            cpu_irq <= 1'b0;
+    end
+    
+    assign rv_psram_addr = mem_addr[22:0];
+    assign rv_psram_wstrb = mem_wstrb;
+    assign rv_psram_wdata = mem_wdata;
+    
+    assign spi_addr = mem_addr[16:0];
+    
+    reg rst_rv;
+    wire rst_rv_pre = rst;
+    reg [3:0] rst_counter;
+    
+    always @(posedge clk_rv)
+    begin
+        if (rst_counter == 4'd15)
+            rst_rv <= 1;
+        else
+            rst_counter <= rst_counter + 1;
+        if (rst_rv_pre) begin
+            rst_rv <= 0;
+            rst_counter <= 4'd0;
+        end
+    end
+    
+     picorv32 #(
+        .STACKADDR(STACKADDR),
+        .PROGADDR_RESET(PROGADDR_RESET),
+        .ENABLE_IRQ(1),
+        .ENABLE_IRQ_QREGS(0),
+        .ENABLE_IRQ_TIMER(0),
+        .COMPRESSED_ISA(1),
+        .PROGADDR_IRQ(PROGADDR_IRQ),
+        .MASKED_IRQ(32'hfffffffe),
+        .LATCHED_IRQ(32'hffffffff)
+    ) cpu (
+        .clk(clk_rv),
+        .resetn(rst_rv),
+        .mem_valid(mem_valid),
+        .mem_instr(mem_instr),
+        .mem_ready(mem_ready),
+        .mem_addr(mem_addr),
+        .mem_wdata(mem_wdata),
+        .mem_wstrb(mem_wstrb),
+        .mem_rdata(mem_rdata),
+        .mem_la_addr(mem_la_addr),
+        .irq({31'b0, cpu_irq})
+    );
+    
+    // Internal RAM & Boot ROM
+    wire [31:0] ram_rdata;
+    picosoc_mem #(
+        .WORDS(MEM_WORDS)
+    ) memory (
+        .clk(clk_rv),
+        .wen(ram_valid ? mem_wstrb : 4'b0),
+        .addr({11'b0, mem_addr[12:2]}),
+        .wdata(mem_wdata),
+        .rdata(ram_rdata)
+    );
+    
+    // ----------------------------------------------------------------------
+    // SPI Flash
+    
+    // Wires to spimemio
+    wire [16:0] spimem_addr;
+    wire spimem_ready;
+    wire [31:0] spimem_rdata;
+    wire spimem_valid;
+    
+    cache cache(
+        .clk(clk_rv),
+        .rst(rst),
+        .sys_addr(spi_addr), 
+        .sys_rdata(spi_rdata),
+        .sys_valid(spi_valid),
+        .sys_ready(spi_ready),
+        .mem_addr(spimem_addr),
+        .mem_rdata(spimem_rdata),
+        .mem_valid(spimem_valid),
+        .mem_ready(spimem_ready)
+    );
+    
+    spimemio spimemio (
+		.clk    (clk_dsi),
+		.resetn (rst_rv),
+		.valid  (spimem_valid),
+		.ready  (spimem_ready),
+		.addr   ({4'b0, 3'b110, spimem_addr}),
+		.rdata  (spimem_rdata),
+
+		.flash_csb    (SPI_CS_B),
+		.flash_clk    (SPI_SCK),
+
+		.flash_io0_oe (),
+		.flash_io1_oe (),
+		.flash_io2_oe (),
+		.flash_io3_oe (),
+
+		.flash_io0_do (SPI_MOSI),
+		.flash_io1_do (),
+		.flash_io2_do (),
+		.flash_io3_do (),
+
+		.flash_io0_di (1'b0),
+		.flash_io1_di (SPI_MISO),
+		.flash_io2_di (1'b0),
+		.flash_io3_di (1'b0),
+
+		.cfgreg_we(4'b0000),
+		.cfgreg_di(32'h0),
+		.cfgreg_do()
+	);
+    
     // ----------------------------------------------------------------------
     // MIPI DSI controller
     wire [23:0] pix_raw;
@@ -257,7 +387,7 @@ module vbh_top(
     wire        pix_next_frame;
     wire        pix_vsync;
     wire        pix_almost_full;
-    reg  [23:0] pix;
+    wire [23:0] pix;
     
     localparam X_SIZE = 320;
     localparam Y_SIZE = 320;
@@ -266,10 +396,7 @@ module vbh_top(
     reg [8:0] x_counter;
     reg [8:0] y_counter;
     reg last_vsync;
-    reg [6:0] frame_counter;
-    reg [1:0] color_sel;
     
-    reg [9:0] color_shift;
     reg [7:0] red;
     reg [7:0] green;
     reg [7:0] blue;
@@ -280,11 +407,8 @@ module vbh_top(
         if (rst) begin
             pix_counter <= 0;
             pix_wr <= 1'b0;
-            frame_counter <= 0;
-            color_sel <= 0;
             x_counter <= 0;
             y_counter <= 0;
-            color_shift <= 0;
         end
         else begin
             if (pix_counter < (X_SIZE * Y_SIZE)) begin
@@ -310,17 +434,6 @@ module vbh_top(
                     pix_counter <= 0;
                     x_counter <= 0;
                     y_counter <= 0;
-                    color_shift <= (color_shift == 767) ? (0) : (color_shift + 1);
-                    if (frame_counter == 59) begin
-                        if (color_sel == 2)
-                            color_sel <= 0;
-                        else
-                            color_sel <= color_sel + 1;
-                        frame_counter <= 0;
-                    end
-                    else begin
-                        frame_counter <= frame_counter + 1;
-                    end
                 end
             end
         end
@@ -328,100 +441,59 @@ module vbh_top(
     
     wire [5:0] char_x;
     wire [4:0] char_y;
-    reg  [7:0] char_out;
-    always@(*) begin
-        char_out = 8'h20;
-        case (char_y)
-            6'd9: begin
-                case (char_x)
-                    7'd13: char_out = 8'h48;
-                    7'd14: char_out = 8'h65;
-                    7'd15: char_out = 8'h6c;
-                    7'd16: char_out = 8'h6c;
-                    7'd17: char_out = 8'h6f;
-                    7'd18: char_out = 8'h2c;
-                    7'd19: char_out = 8'h20;
-                    7'd20: char_out = 8'h77;
-                    7'd21: char_out = 8'h6f;
-                    7'd22: char_out = 8'h72;
-                    7'd23: char_out = 8'h6c;
-                    7'd24: char_out = 8'h64;
-                    7'd25: char_out = 8'h21;
-                endcase
-            end
-        endcase
+    
+    wire vram_wea = (vram_valid && (mem_wstrb != 0)) ? 1'b1 : 1'b0;
+    
+    wire [7:0] vram_dout;
+    wire [11:0] rd_addr = char_y * 40 + char_x;
+    dualport_ram vram(
+        .clka(clk_rv),
+        .wea(vram_wea),
+        .addra(mem_addr[11:2]),
+        .dina(mem_wdata[7:0]),
+        .clkb(~clk_dsi),
+        .addrb(rd_addr[9:0]),
+        .doutb(vram_dout)
+    );
+
+// synthesis translate_off
+    always @(posedge clk_rv) begin
+        if (vram_wea) begin
+            $display("%c", mem_wdata[7:0]);
+        end
     end
+// synthesis translate_on
+
     assign char_x = x_counter[8:3];
     assign char_y = y_counter[8:4];
     
-    wire [6:0] font_ascii = char_out[6:0];
     wire [3:0] font_row = y_counter[3:0];
     wire [2:0] font_col = x_counter[2:0];
     wire font_pixel;
     
     vga_font vga_font(
-      .clk(~clk_dsi),
-      .ascii_code(font_ascii),
+      .clk(clk_dsi),
+      .ascii_code(vram_dout[6:0]),
       .row(font_row),
       .col(font_col),
       .pixel(font_pixel)
     );
     
-    always @(*) begin
-        x_raw = x_counter + color_shift;
-        x = ((x_raw) >= 768) ? (x_raw - 768) : (x_raw);
-        //x = color_shift;
-        if ((x < 256)) begin
-            red = 255 - x;
-            green = x;
-            blue = 0;
-        end
-        else if ((x >= 256)&&(x < 512)) begin
-            red = 0;
-            green = 511 - x;
-            blue = x - 256;
-        end
-        else if ((x >= 512)&&(x < 768)) begin
-            red = x - 512;
-            green = 0;
-            blue = 767 - x;
-        end
-    end
-    
     wire [23:0] pix_text;
     //assign pix_text = (font_pixel) ? (24'hFFFFFF): (24'h0);
-    assign pix_text = (!font_pixel) ? ({red, green, blue}): 24'h000000;
+    //assign pix_text = (!font_pixel) ? ({red, green, blue}): 24'h000000;
     
     //assign pix_raw = (!font_pixel) ? ((color_sel == 0) ? (24'hFF0000) : ((color_sel == 1) ? (24'h00FF00) : (24'h0000FF))): 24'h000000;
     //assign pix = (y_counter == 0) ? ((color_sel == 0) ? (24'hFF0000) : ((color_sel == 1) ? (24'h00FF00) : (24'h0000FF))): 24'h000000;
-    assign pix_raw = ((y_counter == Y_SIZE - 1) || (x_counter == X_SIZE - 1) || (y_counter == 0) || (x_counter == 0)) ? 24'hFFFFFF: pix_text;
+    //assign pix_raw = ((y_counter == Y_SIZE - 1) || (x_counter == X_SIZE - 1) || (y_counter == 0) || (x_counter == 0)) ? 24'hFFFFFF: pix_text;
     //assign pix_raw = pix_text;
-    always@(posedge clk_dsi)
-        pix <= pix_raw;
+    //always@(posedge clk_dsi)
+    //    pix <= pix_raw;
         //pix <= {pix_raw[23:19], pix_raw[15:10], pix_raw[7:3]};
-    
-    reg last_te;
-    wire te_in = LCD_TE;
-    reg te_sync_1, te_sync_2, te;
-    reg internal_vsync;
-    always@(posedge clk_dsi) begin
-        te_sync_1 <= te_in;
-        te_sync_2 <= te_sync_1;
-        te <= te_sync_2;
-    end
-    
-    always@(posedge clk_dsi) begin
-        last_te <= te;
-        if ((last_te)&&(!te))
-            internal_vsync <= 1'b1;
-        else
-            internal_vsync <= 1'b0;
-    end
-    
-//    assign pix_wr = 1'b1;
-//    assign pix_vsync = LCD_TE;
+
     assign pix_vsync = 1'b1;
-//    assign pix_vsync = internal_vsync;
+    
+    assign pix = (font_pixel) ? (24'hFFFFFF): (24'h0);
 
     dsi_core dsi_core(
         .clk_sys_i(clk_core),
@@ -446,14 +518,14 @@ module vbh_top(
         .dsi_clk_lp_n_o(dsi_clk_lp_n),
         .dsi_clk_lp_oe_o(dsi_clk_lp_oe),
         .dsi_reset_n_o(LCD_RESET),
-        .wb_adr_i(wb_a[3:0]),
-        .wb_dat_i(wb_din),
-        .wb_dat_o(wb_dout),
-        .wb_cyc_i(wb_cyc),
-        .wb_stb_i(wb_stb),
-        .wb_we_i(wb_we),
-        .wb_ack_o(wb_ack),
-        .wb_stall_o(wb_stall)
+        .wb_adr_i(mem_addr[5:2]),
+        .wb_dat_i(mem_wdata),
+        .wb_dat_o(),
+        .wb_cyc_i(dsi_valid),
+        .wb_stb_i(mem_wstrb),
+        .wb_we_i((mem_wstrb != 0) ? 1'b1 : 1'b0),
+        .wb_ack_o(),
+        .wb_stall_o()
     );
     
     assign LCD_D_LP_P = ((dsi_dat_lp_p == 1'b1) && (dsi_dat_lp_oe == 1'b1)) ? 1'b1 : 1'bz;
@@ -464,7 +536,54 @@ module vbh_top(
     assign BL_EN = 1'b1;
     assign BL_PWM = 1'b0;
     
+    // ----------------------------------------------------------------------
+    // GPIO
     
+    // 03000000 (0) - W:  psram_master_sel
+    // 03000004 (1) - ?
+    // 03000008 (2) - ?
+    // 0300000c (3) - W:  vb_rst
+    // 03000010 (4) - ?
+    // 03000014 (5) - W:  i2c_scl
+    // 03000018 (6) - RW: i2c_sda
+    // 0300001c (7) - ?
+    
+    reg [31:0] gpio_rdata;
+    reg i2c_scl;
+    reg i2c_sda;
+    
+    always@(posedge clk_rv) begin
+        if (gpio_valid)
+             if (mem_wstrb != 0) begin
+                case (mem_addr[4:2])
+                    3'd0: psram_master_sel <= mem_wdata[0];
+                    3'd3: vb_rst <= mem_wdata[0];
+                    3'd5: i2c_scl <= mem_wdata[0];
+                    3'd6: i2c_sda <= mem_wdata[0];
+                endcase
+             end
+             else begin
+                case (mem_addr[4:2])
+                    3'd6: gpio_rdata <= {31'd0, PMU_SDA};
+                    default: gpio_rdata <= 32'd0;
+                endcase
+             end
+         if (!rst_rv) begin
+            vb_rst <= 1'b1;
+            i2c_scl <= 1'b1;
+            i2c_sda <= 1'b1;
+        end
+    end
+    
+    assign PMU_SCK = i2c_scl;
+    assign PMU_SDA = (i2c_sda) ? 1'bz : 1'b0;
+    
+    assign mem_rdata = 
+        (addr_in_ram) ? (ram_rdata) : 
+        ((addr_in_psram) ? (rv_psram_rdata) : 
+        ((addr_in_gpio) ? (gpio_rdata) : 
+        ((addr_in_spi) ? (spi_rdata) : (32'hFFFFFFFF))));
+
 
     // ----------------------------------------------------------------------
     // I2C Master Controller #1
