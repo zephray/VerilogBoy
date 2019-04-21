@@ -53,15 +53,30 @@
 module ppu(
     input clk,
     input rst,
-    input [15:0] a,
-    output reg [7:0] dout,
-    input [7:0] din,
-    input rd,
-    input wr,
+    // MMIO Bus, 0xFF40 - 0xFF4B, always visible to CPU
+    input wire [15:0] mmio_a,
+    output reg [7:0]  mmio_dout,
+    input wire [7:0]  mmio_din,
+    input wire        mmio_rd,
+    input wire        mmio_wr,
+    // VRAM Bus, 0x8000 - 0x9FFF
+    input wire [15:0] vram_a,
+    output wire [7:0] vram_dout,
+    input wire [7:0]  vram_din,
+    input wire        vram_rd,
+    input wire        vram_wr,
+    // OAM Bus,  0xFE00 - 0xFE9F
+    input wire [15:0] oam_a,
+    output wire [7:0] oam_dout,
+    input wire [7:0]  oam_din,
+    input wire        oam_rd,
+    input wire        oam_wr,
+    // Interrupt interface
     output reg int_vblank_req,
     output reg int_lcdc_req,
     input int_vblank_ack,
     input int_lcdc_ack,
+    // Pixel output
     output cpl, // Pixel Clock, = ~clk
     output reg [1:0] pixel, // Pixel Output
     output reg valid, // Pixel Valid
@@ -126,10 +141,6 @@ module ppu(
     
     assign vram_addr_int = (vram_addr_int_sel == 1'b1) ? (vram_addr_obj) : (vram_addr_bg);
     
-    wire addr_in_ppu  = (a >= 16'hFF40 && a <= 16'hFF4B);
-    wire addr_in_vram = (a >= 16'h8000 && a <= 16'h9FFF);
-    wire addr_in_oam  = (a >= 16'hFE00 && a <= 16'hFE9F);
-    
     wire vram_access_ext = ((reg_mode == PPU_MODE_H_BLANK)||
                             (reg_mode == PPU_MODE_V_BLANK)||
                             (reg_mode == PPU_MODE_OAM_SEARCH));
@@ -167,13 +178,14 @@ module ppu(
         end
     end
     
-    assign oam_wr_addr = a[7:0];
-    assign oam_rd_addr = (oam_access_ext) ? (a[7:0]) : (oam_rd_addr_int); 
-    assign oam_data_in = din;
+    assign oam_wr_addr = oam_a[7:0];
+    assign oam_rd_addr = (oam_access_ext) ? (oam_a[7:0]) : (oam_rd_addr_int); 
+    assign oam_data_in = oam_din;
     assign oam_data_out_byte = (oam_rd_addr[0]) ? oam_data_out[15:8] : oam_data_out[7:0];
-    //assign oam_we = (addr_in_oam)&(wr)&(oam_access_ext);
-    assign oam_we = (addr_in_oam)&(wr); // What if always allow OAM access?
-    
+    //assign oam_we = (wr)&(oam_access_ext);
+    assign oam_we = oam_wr; // What if always allow OAM access?
+    assign oam_dout = (oam_access_ext) ? (oam_data_out_byte) : (8'hFF);
+
     // 8 bit WR, 8 bit RD, 8KB VRAM
     wire        vram_we;
     wire [12:0] vram_addr;
@@ -189,10 +201,11 @@ module ppu(
         .dina(vram_data_in),
         .douta(vram_data_out));
         
-    assign vram_addr_ext = a[12:0];
+    assign vram_addr_ext = vram_a[12:0];
     assign vram_addr = (vram_access_ext) ? (vram_addr_ext) : (vram_addr_int);
-    assign vram_data_in = din;
-    assign vram_we = (addr_in_vram)&(wr)&(vram_access_ext);
+    assign vram_data_in = vram_din;
+    assign vram_we = (vram_wr)&(vram_access_ext);
+    assign vram_dout = (vram_access_ext) ? (vram_data_out) : (8'hFF);
     
     // Pixel Pipeline
     
@@ -778,37 +791,22 @@ module ppu(
     // Bus RW - Combinational Read
     always @(*)
     begin
-        dout = 8'hFF;
-        if (addr_in_ppu) begin
-            case (a)
-                16'hFF40: dout = reg_lcdc;
-                16'hFF41: dout = reg_stat;
-                16'hFF42: dout = reg_scy;
-                16'hFF43: dout = reg_scx;
-                16'hFF44: dout = reg_ly;
-                16'hFF45: dout = reg_lyc;
-                16'hFF46: dout = reg_dma;
-                16'hFF47: dout = reg_bgp;
-                16'hFF48: dout = reg_obp0;
-                16'hFF49: dout = reg_obp1;
-                16'hFF4A: dout = reg_wy;
-                16'hFF4B: dout = reg_wx;
-            endcase
-        end
-        else
-        if (addr_in_vram) begin
-            if (vram_access_ext)
-            begin
-                dout = vram_data_out;
-            end
-        end
-        else
-        if (addr_in_oam) begin
-            if (oam_access_ext)
-            begin
-                dout = oam_data_out_byte;
-            end
-        end
+        // MMIO Bus
+        mmio_dout = 8'hFF;
+        case (mmio_a)
+            16'hFF40: mmio_dout = reg_lcdc;
+            16'hFF41: mmio_dout = reg_stat;
+            16'hFF42: mmio_dout = reg_scy;
+            16'hFF43: mmio_dout = reg_scx;
+            16'hFF44: mmio_dout = reg_ly;
+            16'hFF45: mmio_dout = reg_lyc;
+            16'hFF46: mmio_dout = reg_dma;
+            16'hFF47: mmio_dout = reg_bgp;
+            16'hFF48: mmio_dout = reg_obp0;
+            16'hFF49: mmio_dout = reg_obp1;
+            16'hFF4A: mmio_dout = reg_wy;
+            16'hFF4B: mmio_dout = reg_wx;
+        endcase
     end
     
     // Bus RW - Sequential Write
@@ -829,24 +827,22 @@ module ppu(
         end
         else
         begin
-            if (wr) begin
-                if (addr_in_ppu) begin
-                    case (a)
-                        16'hFF40: reg_lcdc <= din;
-                        16'hFF41: reg_stat[7:3] <= din[7:3];
-                        16'hFF42: reg_scy <= din;
-                        16'hFF43: reg_scx <= din;
-                        //16'hFF44: reg_ly <= din;
-                        16'hFF45: reg_lyc <= din;
-                        16'hFF46: reg_dma <= din;
-                        16'hFF47: reg_bgp <= din;
-                        16'hFF48: reg_obp0 <= din;
-                        16'hFF49: reg_obp1 <= din;
-                        16'hFF4A: reg_wy <= din;
-                        16'hFF4B: reg_wx <= din;
-                    endcase
-                end
-                // VRAM and OAM access should be completed automatically 
+            if (mmio_wr) begin
+                case (mmio_a)
+                    16'hFF40: reg_lcdc <= mmio_din;
+                    16'hFF41: reg_stat[7:3] <= mmio_din[7:3];
+                    16'hFF42: reg_scy <= mmio_din;
+                    16'hFF43: reg_scx <= mmio_din;
+                    //16'hFF44: reg_ly <= mmio_din;
+                    16'hFF45: reg_lyc <= mmio_din;
+                    16'hFF46: reg_dma <= mmio_din;
+                    16'hFF47: reg_bgp <= mmio_din;
+                    16'hFF48: reg_obp0 <= mmio_din;
+                    16'hFF49: reg_obp1 <= mmio_din;
+                    16'hFF4A: reg_wy <= mmio_din;
+                    16'hFF4B: reg_wx <= mmio_din;
+                endcase
+                // VRAM and OAM access are not handled here
             end
         end
     end

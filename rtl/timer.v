@@ -11,7 +11,7 @@
 // Dependencies: 
 //
 // Additional Comments: 
-//
+//   This should probably run at 1MHz domain, but currently at 4MHz.
 //////////////////////////////////////////////////////////////////////////////////
 module timer(
     input wire clk,
@@ -41,16 +41,16 @@ module timer(
     wire [1:0] reg_clock_sel = reg_tac[1:0];
     
     assign reg_div[7:0] = div[15:8];
-    wire clk_4khz = div[9];
-    wire clk_256khz = div[3];
-    wire clk_64khz = div[5];
-    wire clk_16khz = div[7];
+    wire clk_4khz = !div[9];
+    wire clk_256khz = !div[3];
+    wire clk_64khz = !div[5];
+    wire clk_16khz = !div[7];
     wire clk_tim;
     assign clk_tim = (reg_timer_enable) ? (
         (reg_clock_sel == 2'b00) ? (clk_4khz) : (
         (reg_clock_sel == 2'b01) ? (clk_256khz) : (
-        (reg_clock_sel == 2'b00) ? (clk_64khz) : 
-                                   (clk_16khz)))) : (1'b0);
+        (reg_clock_sel == 2'b10) ? (clk_64khz) : 
+                                   (clk_16khz)))) : (1'b1);
     
     reg last_clk_tim;
     reg carry;
@@ -67,13 +67,11 @@ module timer(
     end
     
     // Bus RW - Sequential Write
-    always @(posedge clk)
-    begin
+    always @(posedge clk) begin
         last_clk_tim <= clk_tim;
     end
     
-    always @(posedge clk, posedge rst)
-    begin
+    always @(posedge clk, posedge rst) begin
         if (rst) begin
             //reg_div <= 0;
             reg_tima <= 0;
@@ -84,12 +82,10 @@ module timer(
         end
         else begin
             div <= div + 1'b1;
-            if ((wr)&&(addr_in_timer)) begin
-                if (a == 16'hFF04) div <= 0; else
-                if (a == 16'hFF05) reg_tima <= din; else
-                if (a == 16'hFF06) reg_tma <= din; else
-                if (a == 16'hFF07) reg_tac <= din;
-            end
+            if ((wr) && (a == 16'hFF04)) div <= 4; // compensate 1 cycle delay
+            else if ((wr) && (a == 16'hFF06)) reg_tma <= din;
+            else if ((wr) && (a == 16'hFF07)) reg_tac <= din;
+            else if ((wr) && (a == 16'hFF05) && (!carry)) reg_tima <= din;
             else begin
                 if ((last_clk_tim == 1'b0)&&(clk_tim == 1'b1)) begin
                     {carry, reg_tima} <= reg_tima + 1'b1;
@@ -104,7 +100,7 @@ module timer(
                     else begin
                         if ((int_tim_req)&&(int_tim_ack)) begin
                             int_tim_req <= 1'b0;
-                        end
+                        end 
                     end
                 end
             end

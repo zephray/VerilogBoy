@@ -25,12 +25,30 @@ module serial(
     input wire int_serial_ack
     );
     
-    wire clk_spi; //8kHz SPI Clock
+    reg clk_spi; //8kHz SPI Clock
     
-    clk_div #(.WIDTH(10), .DIV(512)) spi_div(
+    /*clk_div #(.WIDTH(10), .DIV(512)) spi_div(
         .i(clk),
         .o(clk_spi)
-    );
+    );*/
+
+    reg [8:0] counter;
+    
+    always @(posedge clk, posedge rst)
+    begin
+        if (rst) begin
+            counter <= 9'h72;
+            clk_spi <= 1'b0;
+        end 
+        else begin
+            if (counter == (512 / 2 - 1)) begin
+                clk_spi <= ~clk_spi;
+                counter <= 0;
+            end
+            else
+                counter <= counter + 1'b1;
+        end
+    end
 	 
     //reg [7:0] reg_sb;
     reg reg_sc_start;
@@ -42,7 +60,7 @@ module serial(
         if (a == 16'hff02) dout = {reg_sc_start, 6'b111111, reg_sc_int};
     end
     
-    reg [2:0] count;
+    reg [3:0] count;
     reg last_clk;
     
     always @(posedge clk, posedge rst) begin
@@ -51,7 +69,7 @@ module serial(
             reg_sc_start <= 1'b0;
             reg_sc_int <= 1'b0;
             int_serial_req <= 1'b0;
-            count <= 3'd0;
+            count <= 4'd0;
             last_clk <= 1'b0;
         end
         else begin
@@ -60,15 +78,15 @@ module serial(
             if (wr && (a == 16'hff02)) begin
                 reg_sc_start <= din[7];
                 reg_sc_int <= din[0];
-                if (din[7] && din[0]) count <= 3'd7;
-                else count <= 3'd0;
+                if (din[7] && din[0]) count <= 4'd8;
+                else count <= 4'd0;
             end
             else begin
                 // Dummy serial interface
-                if (count != 3'd0) begin
+                if (count != 4'd0) begin
                     if (!last_clk && clk_spi) begin
-                        count <= count - 3'd1;
-                        if ((count - 3'd1) == 0) begin
+                        count <= count - 4'd1;
+                        if ((count - 4'd1) == 0) begin
                             int_serial_req <= 1'b1;
                         end
                     end

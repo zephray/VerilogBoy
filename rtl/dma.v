@@ -33,7 +33,9 @@ module dma(
     input  wire        mmio_wr,
     input  wire [7:0]  mmio_din,
     output wire [7:0]  mmio_dout,
-    output reg         cpu_mem_disable
+    output wire        dma_occupy_extbus,
+    output wire        dma_occupy_vidbus,
+    output wire        dma_occupy_oambus
     );
 
     // DMA data blocks /////////////////////////////////////////////////////////
@@ -43,35 +45,66 @@ module dma(
 
     assign mmio_dout = dma_start_addr;
 
+    reg cpu_mem_disable;
+
+    assign dma_occupy_extbus = cpu_mem_disable & 
+            ((dma_start_addr <= 8'h7f) || (dma_start_addr >= 8'ha0));
+    assign dma_occupy_vidbus = cpu_mem_disable &
+            ((dma_start_addr >= 8'h80) && (dma_start_addr <= 8'h9f));
+    assign dma_occupy_oambus = cpu_mem_disable;
+
    // DMA transfer logic //////////////////////////////////////////////////////
    
-    localparam DMA_WAIT = 'd0;
+    localparam DMA_IDLE = 'd0;
     localparam DMA_TRANSFER_READ_ADDR  = 'd1;
     localparam DMA_TRANSFER_READ_DATA  = 'd2;
     localparam DMA_TRANSFER_WRITE_DATA = 'd3;
     localparam DMA_TRANSFER_WRITE_WAIT = 'd4;
+    localparam DMA_DELAY = 'd5;
+    
     reg [2:0] state;
 
     always @(posedge clk, posedge rst) begin
         if (rst) begin
-            state <= DMA_WAIT;
-            count <= 1'd0;
+            dma_start_addr <= 8'h00;
+        end
+        else begin
+            if (mmio_wr) begin
+                // Writing is always valid regardless of the state
+                dma_start_addr <= mmio_din;
+            end
+        end
+    end
+
+    always @(posedge clk, posedge rst) begin
+        if (rst) begin
+            state <= DMA_IDLE;
+            count <= 8'd0;
             dma_wr <= 1'b0;
             dma_rd <= 1'b0;
             cpu_mem_disable <= 1'b0;
         end
         else begin
             case (state)
-            DMA_WAIT: begin
+            DMA_IDLE: begin
                 dma_wr <= 1'b0;
                 dma_rd <= 1'b0;
                 cpu_mem_disable <= 1'b0;
                 if (mmio_wr) begin
                     // Transfer starts on next cycle
-                    dma_start_addr <= mmio_din;
+                    state <= DMA_DELAY;
+                    count <= 8'd3; // Delay before start
+                end
+                else
+                    count <= 8'd0;
+            end
+            DMA_DELAY: begin
+                if (count != 8'd0) begin
+                    count <= count - 1;
+                end
+                else begin
                     state <= DMA_TRANSFER_READ_ADDR;
                 end
-                count <= 8'd0;
             end
             DMA_TRANSFER_READ_ADDR: begin
                 dma_wr <= 1'b0;
@@ -97,7 +130,7 @@ module dma(
             DMA_TRANSFER_WRITE_WAIT: begin
                 // Wait
                 if (count == 8'h9f) begin
-                    state <= DMA_WAIT;
+                    state <= DMA_IDLE;
                     count <= 8'd0;
                 end
                 else begin

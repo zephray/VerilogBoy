@@ -18,32 +18,29 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 module boy(
-    input rst, // Async Reset Input
-    input clk, // 4.19MHz Clock Input
-    output phi, // 1.05MHz Reference Clock Output
+    input wire rst, // Async Reset Input
+    input wire clk, // 4.19MHz Clock Input
+    output wire phi, // 1.05MHz Reference Clock Output
     // Cartridge interface
-    output reg [15:0] a, // Address Bus
-    output reg [7:0] dout,  // Data Bus
-    input  [7:0] din,
-    output reg wr, // Write Enable
-    output reg rd, // Read Enable
-    output reg cs, // External RAM Chip Select
+    output wire [15:0] a, // Address Bus
+    output wire [7:0] dout,  // Data Bus
+    input wire [7:0] din,
+    output wire wr, // Write Enable
+    output wire rd, // Read Enable
     // Keyboard input
-    /* verilator lint_off UNUSED */
-    input [7:0] key,
-    /* verilator lint_on UNUSED */
+    input wire [7:0] key,
     // LCD output
-    output hs, // Horizontal Sync Output
-    output vs, // Vertical Sync Output
-    output cpl, // Pixel Data Latch
-    output [1:0] pixel, // Pixel Data
-    output valid,
+    output wire hs, // Horizontal Sync Output
+    output wire vs, // Vertical Sync Output
+    output wire cpl, // Pixel Data Latch
+    output wire [1:0] pixel, // Pixel Data
+    output wire valid,
     // Sound output
     output reg [15:0] left,
     output reg [15:0] right,
     // Debug interface
-    output done,
-    output fault
+    output wire done,
+    output wire fault
     );
     
     // CPU
@@ -90,11 +87,13 @@ module boy(
     wire dma_rd; // DMA Memory Write Enable
     wire dma_wr; // DMA Memory Read Enable
     wire [15:0] dma_a; // Main Address Bus
-    wire [7:0]  dma_din; // Main Data Bus
+    reg  [7:0]  dma_din; // Main Data Bus
     wire [7:0]  dma_dout;
     wire [7:0]  dma_mmio_dout;
     reg dma_mmio_wr; // actually wire
-    wire cpu_mem_disable;
+    wire dma_occupy_extbus; // 0x0000 - 0x7FFF, 0xA000 - 0xFFFF
+    wire dma_occupy_vidbus; // 0x8000 - 0x9FFF
+    wire dma_occupy_oambus; // 0xFE00 - 0xFE9F
     dma dma(
         .clk(clk),
         .rst(rst),
@@ -106,19 +105,10 @@ module boy(
         .mmio_wr(dma_mmio_wr),
         .mmio_din(cpu_dout),
         .mmio_dout(dma_mmio_dout),
-        .cpu_mem_disable(cpu_mem_disable)
+        .dma_occupy_extbus(dma_occupy_extbus),
+        .dma_occupy_vidbus(dma_occupy_vidbus),
+        .dma_occupy_oambus(dma_occupy_oambus)
     );
-
-    wire bus_wr; //Bus Master Memory Write Enable
-    wire bus_rd; //Bus Master Memory Read Enable
-    wire [15:0] bus_a; // Main Address Bus
-    reg  [7:0]  bus_din; // Main Data Bus, acutally wire
-    wire [7:0]  bus_dout;
-    assign bus_wr = (cpu_mem_disable) ? (dma_wr) : (cpu_wr);
-    assign bus_rd = (cpu_mem_disable) ? (dma_rd) : (cpu_rd);
-    assign bus_a = (cpu_mem_disable) ? (dma_a) : (cpu_a);
-    assign dma_din = bus_din;
-    assign bus_dout = (cpu_mem_disable) ? (dma_dout) : (cpu_dout);
 
     // Interrupt
     // int_req is the request signal from peripherals.
@@ -177,17 +167,48 @@ module boy(
     assign int_vblank_ack = reg_if[0];
 
     // PPU
-    wire [7:0] ppu_dout;
-    reg ppu_wr; // actually wire
+    wire [7:0] ppu_mmio_dout;
+    reg ppu_mmio_wr; // actually wire
+    wire [15:0] vram_a;
+    wire [7:0] vram_dout;
+    //wire [7:0] vram_din;
+    wire vram_rd;
+    wire vram_wr;
+    reg vram_cpu_wr;
+    wire [15:0] oam_a;
+    wire [7:0] oam_dout;
+    wire [7:0] oam_din;
+    wire oam_rd;
+    wire oam_wr;
+    reg oam_cpu_wr;
+
+    assign vram_a = (dma_occupy_vidbus) ? (dma_a) : (cpu_a);
+    //assign vram_din = (dma_occupy_vidbus) ? (dma_dout) : (cpu_dout);
+    assign vram_rd = (dma_occupy_vidbus) ? (dma_rd) : (cpu_rd);
+    assign vram_wr = (dma_occupy_vidbus) ? (1'b0) : (vram_cpu_wr);
+    assign oam_a = (dma_occupy_oambus) ? (dma_a) : (cpu_a);
+    assign oam_din = (dma_occupy_oambus) ? (dma_dout) : (cpu_dout);
+    assign oam_rd = (dma_occupy_oambus) ? (1'b0) : (cpu_rd);
+    assign oam_wr = (dma_occupy_oambus) ? (dma_wr) : (oam_cpu_wr);
 
     ppu ppu(
         .clk(clk),
         .rst(rst),
-        .a(bus_a),
-        .dout(ppu_dout), // VRAM & OAM RW goes through PPU
-        .din(bus_dout),
-        .rd(bus_rd), 
-        .wr(ppu_wr),
+        .mmio_a(cpu_a), // mmio bus is always accessable to CPU
+        .mmio_dout(ppu_mmio_dout),
+        .mmio_din(cpu_dout),
+        .mmio_rd(cpu_rd),
+        .mmio_wr(ppu_mmio_wr),
+        .vram_a(vram_a),
+        .vram_dout(vram_dout),
+        .vram_din(cpu_dout), // DMA never writes to VRAM
+        .vram_rd(vram_rd),
+        .vram_wr(vram_wr),
+        .oam_a(oam_a),
+        .oam_dout(oam_dout),
+        .oam_din(oam_din),
+        .oam_rd(oam_rd),
+        .oam_wr(oam_wr),
         .int_vblank_req(int_vblank_req),
         .int_lcdc_req(int_lcdc_req),
         .int_vblank_ack(int_vblank_ack),
@@ -271,21 +292,26 @@ module boy(
 
     wire [7:0] brom_dout;
     brom brom(
-        .a(bus_a[7:0]),
+        .a(cpu_a[7:0]),
         .d(brom_dout)
     );
 
     // Work RAM
     wire [7:0] wram_dout;
-    reg wram_wr; // actually wire
+    wire [12:0] wram_a;
+    wire wram_wr;
+    reg wram_cpu_wr; // actually wire
+
+    assign wram_a = (dma_occupy_extbus) ? (dma_a[12:0]) : (cpu_a[12:0]);
+    assign wram_wr = (dma_occupy_extbus) ? (1'b0) : (wram_cpu_wr);
 
     singleport_ram #(
         .WORDS(8192)
     ) br_wram (
         .clka(clk),
         .wea(wram_wr),
-        .addra(bus_a[12:0]),
-        .dina(bus_dout),
+        .addra(wram_a), 
+        .dina(cpu_dout), // DMA never writes to Work RAM
         .douta(wram_dout)
     );
 
@@ -298,7 +324,7 @@ module boy(
             keypad_high <= 2'b11;
         else
             if (keypad_reg_wr)
-                keypad_high <= bus_dout[5:4];
+                keypad_high <= cpu_dout[5:4];
     end
     assign keypad_reg[7:6] = 2'b11;
     assign keypad_reg[5:4] = keypad_high[1:0];
@@ -307,12 +333,15 @@ module boy(
           ((keypad_high[0] == 1'b1) ? (key[3:0]) : 4'h0)); 
     assign int_key_req = (keypad_reg[3:0] != 4'hf) ? (1'b1) : (1'b0);
 
-    // Bus Multiplexing
+    // External Bus
+    reg ext_cpu_wr;  // wire
+    assign a = (dma_occupy_extbus) ? (dma_a) : (cpu_a);
+    assign dout = cpu_dout; // DMA never writes to external bus
+    assign wr = (dma_occupy_extbus) ? (1'b0) : (ext_cpu_wr);
+    assign rd = (dma_occupy_extbus) ? (dma_rd) : (cpu_rd);
+
+    // Bus Multiplexing, CPU
     always @(*) begin
-        // High RAM is always accessible from CPU
-        high_ram_wr = 1'b0;
-        // Actually, move this behind the bus...
-        sound_wr = 1'b0;
         reg_ie_wr = 1'b0;
         reg_if_wr = 1'b0;
         keypad_reg_wr = 1'b0;
@@ -320,34 +349,42 @@ module boy(
         serial_wr = 1'b0;
         dma_mmio_wr = 1'b0;
         brom_disable_wr = 1'b0;
-        if (bus_a == 16'hffff) begin  // 0xFFFF - IE
+        high_ram_wr = 1'b0;
+        sound_wr = 1'b0;
+        ppu_mmio_wr = 1'b0;
+        vram_cpu_wr = 1'b0;
+        oam_cpu_wr = 1'b0;
+        wram_cpu_wr = 1'b0;
+        ext_cpu_wr = 1'b0;
+        // -- These are exclusive to CPU --
+        if (cpu_a == 16'hffff) begin  // 0xFFFF - IE
             //reg_ie_rd = bus_rd;
             reg_ie_wr = cpu_wr;
             cpu_din = {3'b0, reg_ie_dout};
         end
-        else if (bus_a == 16'hff0f) begin // 0xFF0F - IF
+        else if (cpu_a == 16'hff0f) begin // 0xFF0F - IF
             //reg_if_rd = bus_rd;
             reg_if_wr = cpu_wr;
             cpu_din = {3'b0, reg_if_dout};
         end
-        else if (bus_a == 16'hff00) begin // 0xFF00 - Keypad
+        else if (cpu_a == 16'hff00) begin // 0xFF00 - Keypad
             keypad_reg_wr = cpu_wr;
             cpu_din = keypad_reg;
         end
-        else if ((bus_a == 16'hff04) || (bus_a == 16'hff05) ||  // Timer
-                (bus_a == 16'hff06) || (bus_a == 16'hff07)) begin
+        else if ((cpu_a == 16'hff04) || (cpu_a == 16'hff05) ||  // Timer
+                (cpu_a == 16'hff06) || (cpu_a == 16'hff07)) begin
             timer_wr = cpu_wr;
             cpu_din = timer_dout;
         end
-        else if ((bus_a == 16'hff01) || (bus_a == 16'hff02)) begin // Serial
+        else if ((cpu_a == 16'hff01) || (cpu_a == 16'hff02)) begin // Serial
             serial_wr = cpu_wr;
             cpu_din = serial_dout;
         end
-        else if (bus_a == 16'hff46) begin // 0xFF46 - DMA
+        else if (cpu_a == 16'hff46) begin // 0xFF46 - DMA
             dma_mmio_wr = cpu_wr;
             cpu_din = dma_mmio_dout;
         end
-        else if (bus_a == 16'hff50) begin // 0xFF50 - BROM DISABLE
+        else if (cpu_a == 16'hff50) begin // 0xFF50 - BROM DISABLE
             brom_disable_wr = cpu_wr;
             cpu_din = {7'b0, brom_disable};
         end
@@ -361,44 +398,50 @@ module boy(
             sound_wr = cpu_wr;
             cpu_din = sound_dout;
         end
+        else if (cpu_a >= 16'hff40 && cpu_a <= 16'hff4b) begin // PPU MMIO
+            ppu_mmio_wr = cpu_wr;
+            cpu_din = ppu_mmio_dout;
+        end
+        else if ((cpu_a <= 16'h00ff) && (!brom_disable)) begin // Boot ROM
+            cpu_din = brom_dout;
+        end 
+        // -- These are shared between CPU and DMA --
+        else if (cpu_a >= 16'h8000 && cpu_a <= 16'h9fff) begin // VRAM
+            vram_cpu_wr = cpu_wr;
+            cpu_din = (dma_occupy_vidbus) ? (8'hff) : (vram_dout);
+        end
+        else if (cpu_a >= 16'hfe00 && cpu_a <= 16'hfe9f) begin // OAM
+            oam_cpu_wr = cpu_wr;
+            cpu_din = (dma_occupy_oambus) ? (8'hff) : (oam_dout);
+        end
+        else if ((cpu_a >= 16'hc000 && cpu_a <= 16'hdfff) ||
+                 (cpu_a >= 16'he000 && cpu_a <= 16'hfdff)) begin // WRAM
+            wram_cpu_wr = cpu_wr;
+            cpu_din = (dma_occupy_extbus) ? (8'hff) : (wram_dout);
+        end
+        else if ((cpu_a <= 16'h7fff) ||
+                 (cpu_a >= 16'ha000 && cpu_a <= 16'hbfff)) begin // External
+            ext_cpu_wr = cpu_wr;
+            cpu_din = (dma_occupy_extbus) ? (8'hff) : (din);
+        end
         else begin
-            cpu_din = bus_din;
+            // Unmapped area
+            cpu_din = 8'hff;
         end
     end
 
+    // Bus Multiplexing, DMA
     always @(*) begin
-        wr = 1'b0;
-        rd = 1'b0;
-        a = bus_a; // The address is always exposed
-        dout = 8'h00; // But the data will be masked when accessing high page
-        bus_din = 8'hxx; // Should not happen
-        ppu_wr = 1'b0;
-        wram_wr = 1'b0;
-        if ((bus_a >= 16'hff40 && bus_a <= 16'hff4b && bus_a != 16'hff46) ||
-            (bus_a >= 16'h8000 && bus_a <= 16'h9fff) ||
-            (bus_a >= 16'hfe00 && bus_a <= 16'hfe9f)) begin // PPU
-            bus_din = ppu_dout;
-            ppu_wr = bus_wr;
+        if (dma_a >= 16'h8000 && dma_a <= 16'h9fff) begin // VRAM
+            dma_din = vram_dout;
         end
-        else if ((bus_a >= 16'hc000 && bus_a <= 16'hdfff)) begin // WRAM
-            bus_din = wram_dout;
-            wram_wr = bus_wr;
-        end
-        else if ((!brom_disable && bus_a <= 16'h00ff)) begin
-            bus_din = brom_dout;
-        end
-        else if ((bus_a <= 16'h7fff) || ((bus_a >= 16'ha000) && (bus_a <= 16'hbfff))) begin
-            // cartridge, need add CRAM later
-            rd = bus_rd;
-            wr = bus_wr;
-            dout = bus_dout;
-            bus_din = din;
+        else if ((dma_a >= 16'hc000 && dma_a <= 16'hdfff) ||
+                 (dma_a >= 16'he000 && dma_a <= 16'hfdff)) begin // WRAM
+            dma_din = wram_dout;
         end
         else begin
-            // read to unmapped area returns ff
-            bus_din = 8'hff;
+            dma_din = din;
         end
-        cs = wr | rd;
     end
 
 endmodule
