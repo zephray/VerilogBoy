@@ -45,7 +45,101 @@ For progress regarding different ports, view README.md under the specific target
 
 ## Accuracy
 
-This project is not built to be entirely accurate, but built with accuracy in mind. Most of the CPU timing should follow the original DMG-CPU, and implement a rudimentary 2-stage pipelining just as the original one does.
+This project is not built to be entirely accurate, but built with accuracy in mind. Most of the CPU timing should follow the original DMG-CPU, and implement a rudimentary 2-stage pipelining just as the original one does. 
+
+Here are the results of several tests I have tried to run on it.
+
+Note: Tests which depends on the revision / model of GameBoy are omitted. VerilogBoy only focus on behaviors that are common among all monochrome GameBoys (GS).
+
+### Blargg's tests
+
+| Test              | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy |
+| ----------------- | ---------- | ---- | -------- | ----- | ---- |------------|
+| cpu instrs        | :+1:       | :+1: | :+1:     | :+1:  | :+1: | :+1:       |
+
+Notes: other tests hasn't been tried.
+
+### Mooneye GB acceptance tests
+
+| Test                    | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
+| ----------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
+| add sp e timing         | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| call timing             | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| call timing2            | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| call cc_timing          | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| call cc_timing2         | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| di timing GS            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| div timing              | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| ei sequence             | :+1:       | :+1: | :+1:     | :+1:   | :x:  | :x:        |
+| ei timing               | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| halt ime0 ei            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| halt ime0 nointr_timing | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| halt ime1 timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| halt ime1 timing2 GS    | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| if ie registers         | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| intr timing             | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| jp timing               | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| jp cc timing            | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| ld hl sp e timing       | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| oam dma_restart         | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :x:        |
+| oam dma start           | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| oam dma timing          | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| pop timing              | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| push timing             | :+1:       | :x:  | :x:      | :+1:   | :+1: | :+1:       |
+| rapid di ei             | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| ret timing              | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| ret cc timing           | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| reti timing             | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
+| reti intr timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| rst timing              | :+1:       | :x:  | :x:      | :+1:   | :+1: | :+1:       |
+
+#### Instructions
+
+| Test                        | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
+| --------------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
+| daa                         | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+
+#### Interrupt handling
+
+| Test                        | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
+| --------------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
+| ie push                     | :+1:       | :x:  | :x:      | :x:    | :x:  | :+1:       |
+
+#### OAM DMA
+
+| Test                        | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
+| --------------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
+| basic                       | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| reg_read                    | :+1:       | :+1: | :+1:     | :x:    | :x:  | :+1:       |
+| sources dmgABCmgbS          | :+1:       | :+1: | :x:      | :x:    | :x:  | :x:        |
+
+#### Serial
+
+| Test                        | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy |
+| --------------------------- | ---------- | ---- | -------- | ------| ---- |------------|
+| boot sclk align dmgABCmgb   | :x:        | :+1: | :+1:     | :x:   | :x:  | :+1:       |
+
+Note: this test only seems to test the time to finish the first transfer. What about the second? (Delta time required to do a transfer and get notified by the interrupt)
+
+#### Timer
+
+| Test                 | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
+| -------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
+| div write            | :+1:       | :+1: | :x:      | :+1:   | :+1: | :+1:       |
+| rapid toggle         | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
+| tim00 div trigger    | :+1:       | :+1: | :+1:     | :x:    | :+1: | :+1:       |
+| tim00                | :+1:       | :+1: | :x:      | :+1:   | :+1: | :+1:       |
+| tim01 div trigger    | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
+| tim01                | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| tim10 div trigger    | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
+| tim10                | :+1:       | :+1: | :x:      | :+1:   | :+1: | :+1:       |
+| tim11 div trigger    | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
+| tim11                | :+1:       | :+1: | :x:      | :+1:   | :+1: | :+1:       |
+| tima reload          | :+1:       | :+1: | :x:      | :x:    | :+1: | :x:        |
+| tima write reloading | :+1:       | :+1: | :x:      | :x:    | :+1: | :x:        |
+| tma write reloading  | :+1:       | :+1: | :x:      | :x:    | :+1: | :x:        |
+
+Note: The timer implementation is just... far from accurate. The expected result of tima_write_reloading test simply doesn't make much sense to me.
 
 ## Directory Structure
 
@@ -200,25 +294,34 @@ Note: the architecture is subject to change.
  - Video output: 1.54" MIPI-DSI 320x320 IPS TFT-LCD
  - Audio output: On-board I2S codec (WM8960)
 
+Photo of the Rev. 0.2 prototype:
+
+![Running-on-VBH](https://github.com/zephray/VerilogBoy/raw/refactor/doc/demo_vbh_r0p2.jpg)
+.jpg)
+
 # Acknowledge
 
 This project reused codes from several other projects. A great thanks to their efforts!
 
- - https://github.com/nightslide7/Gameboy
- - https://github.com/cliffordwolf/picorv32
- - https://github.com/u-boot/u-boot
- - https://github.com/twlostow/dsi-shield
- - https://github.com/MParygin/v.vga.font8x16
+ - [https://github.com/nightslide7/Gameboy](https://github.com/nightslide7/Gameboy)
+ - [https://github.com/cliffordwolf/picorv32](https://github.com/cliffordwolf/picorv32)
+ - [https://github.com/u-boot/u-boot](https://github.com/u-boot/u-boot)
+ - [https://github.com/twlostow/dsi-shield](https://github.com/twlostow/dsi-shield)
+ - [https://github.com/MParygin/v.vga.font8x16](https://github.com/MParygin/v.vga.font8x16)
 
 These projects are used as references. Again, thanks for sharing.
 
- - https://github.com/freecores/genesys_ddr2
- - https://github.com/ZipCPU/s6soc
+ - [https://github.com/freecores/genesys_ddr2](https://github.com/freecores/genesys_ddr2)
+ - [https://github.com/ZipCPU/s6soc](https://github.com/ZipCPU/s6soc)
 
 These are extremely helpful resources about the Game Boy® itself:
 
- - https://github.com/Gekkio/mooneye-gb
- - https://github.com/Gekkio/gb-ctr
+ - [https://github.com/Gekkio/mooneye-gb](https://github.com/Gekkio/gb-ctr)
+ - [https://github.com/Gekkio/gb-ctr](https://github.com/Gekkio/gb-ctr)
+
+Game used for demonstration, thanks for the great game:
+
+ - [https://github.com/SimonLarsen/tobutobugirl](https://github.com/SimonLarsen/tobutobugirl)
 
 # Legalese
 
