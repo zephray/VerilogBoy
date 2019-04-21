@@ -74,7 +74,7 @@ module dsi_core(
     dsi_clk_lp_n_o,
     dsi_clk_lp_oe_o,
 
-    // Displat Reset pin
+    // Display Reset pin
     dsi_reset_n_o,
 
     // Host control registers (WBv4 pipelined, clk_sys_i clock domain)
@@ -185,6 +185,7 @@ module dsi_core(
     reg         lp_valid = 0;
     reg [7:0]   lp_data = 0;
    
+    wire rst_n_dsi;
     dsi_sync_chain #(2) Sync3 (clk_dsi_i, 1'b0, rst_n_i, rst_n_dsi);
    
     dphy_lane U_DataLane (
