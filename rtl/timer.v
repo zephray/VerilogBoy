@@ -15,6 +15,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 module timer(
     input wire clk,
+    input wire [1:0] ct, // certain things can only happen at 1MHz rate
     input wire rst,
     input wire [15:0] a,
     output reg [7:0] dout,
@@ -41,19 +42,19 @@ module timer(
     wire [1:0] reg_clock_sel = reg_tac[1:0];
     
     assign reg_div[7:0] = div[15:8];
-    wire clk_4khz = !div[9];
-    wire clk_256khz = !div[3];
-    wire clk_64khz = !div[5];
-    wire clk_16khz = !div[7];
+    wire clk_4khz = div[9];
+    wire clk_256khz = div[3];
+    wire clk_64khz = div[5];
+    wire clk_16khz = div[7];
     wire clk_tim;
     assign clk_tim = (reg_timer_enable) ? (
         (reg_clock_sel == 2'b00) ? (clk_4khz) : (
         (reg_clock_sel == 2'b01) ? (clk_256khz) : (
         (reg_clock_sel == 2'b10) ? (clk_64khz) : 
-                                   (clk_16khz)))) : (1'b1);
+                                   (clk_16khz)))) : (1'b0);
     
     reg last_clk_tim;
-    reg carry;
+    reg write_block;
     
     // Bus RW
     // Bus RW - Combinational Read
@@ -79,28 +80,42 @@ module timer(
             reg_tac <= 0;
             div <= 0;
             int_tim_req <= 0;
+            write_block <= 0;
         end
         else begin
             div <= div + 1'b1;
             if ((wr) && (a == 16'hFF04)) div <= 4; // compensate 1 cycle delay
-            else if ((wr) && (a == 16'hFF06)) reg_tma <= din;
+            else if ((wr) && (a == 16'hFF06)) begin
+                // test acceptance/timer/tma_write_reloading seems to imply
+                // that the reloading is done using a latch rather a FF
+                // writing to tma in the same cycle will fall through to tima
+                // as well.
+                reg_tma <= din;
+                if (write_block)
+                    reg_tima <= din;
+            end
             else if ((wr) && (a == 16'hFF07)) reg_tac <= din;
-            else if ((wr) && (a == 16'hFF05) && (!carry)) reg_tima <= din;
+            else if ((wr) && (a == 16'hFF05) && (!write_block)) reg_tima <= din;
             else begin
-                if ((last_clk_tim == 1'b0)&&(clk_tim == 1'b1)) begin
-                    {carry, reg_tima} <= reg_tima + 1'b1;
+                if ((last_clk_tim == 1'b1)&&(clk_tim == 1'b0)) begin
+                    reg_tima <= reg_tima + 1'b1;
+                    if (reg_tima == 8'hFF) begin
+                        int_tim_req <= 1'b1; // interrupt doesn't get delayed.
+                    end
                 end
                 else begin
-                    //Overflow is delayed by 1 CYCLE (4 clocks), not quite implemented yet due to CPU limitation
-                    if (carry) begin
-                        reg_tima <= reg_tma;
-                        carry <= 1'b0;
-                        int_tim_req <= 1'b1;
-                    end
-                    else begin
-                        if ((int_tim_req)&&(int_tim_ack)) begin
-                            int_tim_req <= 1'b0;
-                        end 
+                    if ((int_tim_req)&&(int_tim_ack)) begin
+                        int_tim_req <= 1'b0;
+                    end 
+                    if ((ct == 2'b00)&&(reg_timer_enable)) begin
+                        if (reg_tima == 8'd0) begin
+                            reg_tima <= reg_tma;
+                            //int_tim_req <= 1'b1;
+                            write_block <= 1'b1;
+                        end
+                        else begin
+                            write_block <= 1'b0;
+                        end
                     end
                 end
             end

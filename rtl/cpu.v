@@ -19,6 +19,7 @@ module cpu(
     input clk,
     input rst,
     output reg phi,
+    output wire [1:0] ct,
     output reg [15:0] a,
     output reg [7:0] dout,
     input [7:0] din,
@@ -408,6 +409,8 @@ module cpu(
         else
             ct_state <= ct_next_state;
     end
+
+    assign ct = ct_state;
 
     //reg [15:0] imm_reg; decleared before
     assign temp_rd = imm_reg;

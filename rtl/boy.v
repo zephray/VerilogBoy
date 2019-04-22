@@ -52,11 +52,13 @@ module boy(
     wire [4:0]  cpu_int_en;        // CPU Interrupt Enable input
     wire [4:0]  cpu_int_flags_in;  // CPU Interrupt Flags input
     wire [4:0]  cpu_int_flags_out; // CPU Interrupt Flags output
+    wire [1:0]  cpu_ct;            // 0-3 T cycle number inside one M cycle
     
     cpu cpu(
         .clk(clk),
         .rst(rst),
         .phi(phi),
+        .ct(cpu_ct),
         .a(cpu_a),
         .dout(cpu_dout),
         .din(cpu_din),
@@ -227,6 +229,7 @@ module boy(
     timer timer(
         .clk(clk),
         .rst(rst),
+        .ct(cpu_ct),
         .a(cpu_a),
         .dout(timer_dout),
         .din(cpu_dout),
