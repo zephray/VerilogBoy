@@ -81,7 +81,7 @@ Notes: other tests hasn't been tried.
 | jp timing               | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | jp cc timing            | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | ld hl sp e timing       | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
-| oam dma_restart         | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :x:        |
+| oam dma_restart         | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | oam dma start           | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | oam dma timing          | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | pop timing              | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
@@ -121,6 +121,23 @@ Notes: other tests hasn't been tried.
 
 Note: this test only seems to test the time to finish the first transfer. What about the second? (Delta time required to do a transfer and get notified by the interrupt)
 
+#### PPU
+
+| Test                        | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy |
+| --------------------------- | ---------- | ---- | -------- | ------| ---- |------------|
+| hblank ly scx timing GS     | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:        |
+| intr 1 2 timing GS          | :+1:       | :+1: | :+1:     | :+1:  | :+1: | :x:        |
+| intr 2 0 timing             | :+1:       | :+1: | :x:      | :+1:  | :+1: | :x:        |
+| intr 2 mode0 timing         | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:        |
+| intr 2 mode3 timing         | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:        |
+| intr 2 oam ok timing        | :+1:       | :+1: | :x:      | :x:   | :+1: | :x:        |
+| intr 2 mode0 timing sprites | :x:        | :+1: | :x:      | :x:   | :+1: | :x:        |
+| lcdon timing dmgABCmgbS     | :x:        | :+1: | :x:      | :x:   | :x:  | :x:        |
+| lcdon write timing GS       | :x:        | :+1: | :x:      | :x:   | :x:  | :x:        |
+| stat irq blocking           | :x:        | :+1: | :+1:     | :x:   | :+1: | :x:        |
+| stat lyc onoff              | :x:        | :+1: | :x:      | :x:   | :x:  | :x:        |
+| vblank stat intr GS         | :+1:       | :+1: | :x:      | :+1:  | :+1: | :x:        |
+
 #### Timer
 
 | Test                 | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
@@ -135,11 +152,9 @@ Note: this test only seems to test the time to finish the first transfer. What a
 | tim10                | :+1:       | :+1: | :x:      | :+1:   | :+1: | :+1:       |
 | tim11 div trigger    | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
 | tim11                | :+1:       | :+1: | :x:      | :+1:   | :+1: | :+1:       |
-| tima reload          | :+1:       | :+1: | :x:      | :x:    | :+1: | :x:        |
-| tima write reloading | :+1:       | :+1: | :x:      | :x:    | :+1: | :x:        |
-| tma write reloading  | :+1:       | :+1: | :x:      | :x:    | :+1: | :x:        |
-
-Note: The timer implementation is just... far from accurate. The expected result of tima_write_reloading test simply doesn't make much sense to me.
+| tima reload          | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
+| tima write reloading | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
+| tma write reloading  | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
 
 ## Directory Structure
 
@@ -297,7 +312,6 @@ Note: the architecture is subject to change.
 Photo of the Rev. 0.2 prototype:
 
 ![Running-on-VBH](https://github.com/zephray/VerilogBoy/raw/refactor/doc/demo_vbh_r0p2.jpg)
-.jpg)
 
 # Acknowledge
 
