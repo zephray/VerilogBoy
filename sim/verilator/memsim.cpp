@@ -25,7 +25,9 @@
 #include <assert.h>
 #include "memsim.h"
 
-MEMSIM::MEMSIM(const unsigned int nwords, const unsigned int delay) {
+MEMSIM::MEMSIM(const ABUSW base, const unsigned int nwords, 
+        const unsigned int delay) {
+    m_base = base;
     m_len = nwords;
     m_mem = new DBUSW[m_len];
     m_delay = delay;
@@ -75,24 +77,26 @@ void MEMSIM::apply(const DBUSW wr_data, const ABUSW address,
     const uchar wr_enable, const uchar rd_enable, DBUSW &rd_data) {
 
     if (delay_count == 0) {
-        if (last_wr && !wr_enable) {
-            m_mem[address] = last_data;
-            delay_count = m_delay;
+        if ((address >= m_base) && (address < (m_base + m_len))) {
+            if (last_wr && !wr_enable) {
+                m_mem[address] = last_data;
+                delay_count = m_delay;
 #ifdef __DEBUG
-        printf("MEMBUS W[%04x] = %02x\n",
-            address,
-            last_data);
+            printf("MEMBUS W[%04x] = %02x\n",
+                address,
+                last_data);
 #endif
+            } 
+            else if (!last_rd && rd_enable) {
+                rd_data = m_mem[address];
+                delay_count = m_delay;
+#ifdef __DEBUG
+            printf("MEMBUS R[%04x] = %02x\n",
+                address,
+                rd_data);
+#endif
+            }
         } 
-        else if (!last_rd && rd_enable) {
-            rd_data = m_mem[address];
-            delay_count = m_delay;
-#ifdef __DEBUG
-        printf("MEMBUS R[%04x] = %02x\n",
-            address,
-            rd_data);
-#endif
-        }
         last_rd = rd_enable;
         last_wr = wr_enable;
         last_data = wr_data;

@@ -59,6 +59,7 @@ public:
     bool m_done;
     bool m_fault;
     MEMSIM *m_bootrom;
+    MEMSIM *m_cartram;
     DISPSIM *m_dispsim;
     MMRPROBE *m_mmrprobe;
 
@@ -67,7 +68,8 @@ public:
         Verilated::traceEverOn(true);
 
         m_done = false;
-        m_bootrom = new MEMSIM(32768, 0);
+        m_bootrom = new MEMSIM(0x0000, 32768, 0);
+        m_cartram = new MEMSIM(0xa000, 8192, 0);
         m_trace = NULL;
 
         if (!quiet) {
@@ -88,7 +90,8 @@ public:
         if (verbose) {
             delete m_mmrprobe;
         }
-
+        delete m_bootrom;
+        delete m_cartram;
     }
 
     void opentrace(const char *vcdname) {
@@ -134,6 +137,14 @@ public:
 
     virtual void tick(void) {
         m_bootrom->operator()(
+            m_core -> dout,
+            m_core -> a,
+            0,
+            //m_core -> wr,
+            m_core -> rd,
+            m_core -> din);
+
+        m_cartram->operator()(
             m_core -> dout,
             m_core -> a,
             m_core -> wr,
@@ -301,7 +312,7 @@ int main(int argc, char **argv) {
         sim_tick++;
 
         // Get the next event
-        if (!quiet & (sim_tick % 32768 == 0)) {
+        if (!quiet & (sim_tick % 4096 == 0)) {
             SDL_Event event;
             if (SDL_PollEvent(&event))
             {

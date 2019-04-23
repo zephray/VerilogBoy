@@ -28,6 +28,7 @@ public:
     typedef unsigned short ABUSW;
     typedef unsigned char uchar;
 
+    ABUSW m_base;
     DBUSW *m_mem;
     ABUSW m_len;
     int m_delay;
@@ -36,7 +37,8 @@ public:
     uchar last_rd;
     DBUSW last_data;
 
-    MEMSIM(const unsigned int nwords, const unsigned int delay=27);
+    MEMSIM(const ABUSW base, const unsigned int nwords, 
+        const unsigned int delay);
     ~MEMSIM(void);
     void load(const char *fname);
     void load(const unsigned int addr, const char *buf,const size_t len);
