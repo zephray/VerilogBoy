@@ -140,6 +140,7 @@ module cpu(
         .cb(cb),
         .imm(imm_low),
         .m_cycle(m_cycle),
+        .ct_state(ct_state),
         .f_z(flags_rd[3]),
         .f_c(flags_rd[0]),
         .alu_src_a(alu_src_a_ex),
@@ -190,9 +191,12 @@ module cpu(
         // entering STOP mode, so only keypad can wake up the CPU.
         (stop) ? (((int_flags_in & int_en) != 0) || (key_in != 0)) : 
         (1'b0));
+    reg wake_delay; // Wake should be delayed for 1 Mcycle
     always @(posedge clk) begin
-        if (ct_state == 2'b10)
-            wake <= wake_comb;
+        if (ct_state == 2'b10) begin
+            wake_delay <= wake_comb;
+            wake <= wake_delay;
+        end
     end
 
     wire [7:3] current_opcode;

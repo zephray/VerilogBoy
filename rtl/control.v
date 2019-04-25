@@ -23,6 +23,7 @@ module control(
     /* verilator lint_on UNUSED */
     input  [7:0] cb,
     input  [2:0] m_cycle,
+    input  [2:0] ct_state,
     input        f_z,
     input        f_c,
     output reg [1:0] alu_src_a,
@@ -71,8 +72,14 @@ module control(
 
     reg ime_clear;
     reg ime_set;
+    reg ime_delay_set;
+    reg ime_delay_set_ff;
     reg ime;
     assign int_master_en = ime;
+
+    always @(posedge clk)
+        if (ct_state == 2'd3)
+            ime_delay_set_ff <= ime_delay_set;
 
     always @(posedge clk, posedge rst) begin
         if (rst)
@@ -80,6 +87,8 @@ module control(
         else if (ime_clear)
             ime <= 1'b0;
         else if (ime_set)
+            ime <= 1'b1;
+        else if (ime_delay_set_ff)
             ime <= 1'b1;
     end
 
@@ -126,6 +135,7 @@ module control(
         temp_redir = 1'b0;
         opcode_redir = 1'b0;
         ime_set = 1'b0;
+        ime_delay_set = 1'b0;
         ime_clear = 1'b0;
         int_ack = 1'b0;
         flags_pattern = 2'b00;
@@ -194,7 +204,7 @@ module control(
                 end
                 else if (opcode == 8'hFB) begin
                     // EI here need to be delayed for 1 clock?
-                    ime_set = 1'b1;
+                    ime_delay_set = 1'b1;
                 end
                 else if ((opcode == 8'h02) || (opcode == 8'h0A)) begin
                     rf_rdw_sel = 2'b00; // Select BC
