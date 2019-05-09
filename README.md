@@ -49,6 +49,8 @@ This project is not built to be entirely accurate, but built with accuracy in mi
 
 Here are the results of several tests I have tried to run on it.
 
+PPU implementation is ... wrong: There are two pipelines in the GameBoy PPU, one for BG and one for sprite. I only implemented one for both. There is only one fetcher, though.
+
 Note: Tests which depends on the revision / model of GameBoy are omitted. VerilogBoy only focus on behaviors that are common among all monochrome GameBoys (GS).
 
 ### Blargg's tests
@@ -266,6 +268,15 @@ make rtl
 make sim
 ```
 
+Build the boot ROM:
+
+```
+cd roms
+make
+```
+
+Copy the bootrom.mif to where it is required. (For example, target/panog1)
+
 #### Running unit-tests
 
 At project directory:
@@ -274,6 +285,8 @@ cd roms/tests
 make
 ./compare.sh
 ```
+
+Please be aware currently tests are broken... (Difference in PC counting)
 
 #### Running ROMs
 
