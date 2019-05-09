@@ -39,14 +39,11 @@ module mc(
     output reg [22:0] rom_a,
     input [7:0] rom_d,
     output reg rom_rd,
-    output reg [17:0] ram_a,
+    output reg [16:0] ram_a,
     output reg [7:0] ram_din,
     input [7:0] ram_dout,
     output reg ram_wr,
-    output reg ram_rd,
-    output reg [13:0] brom_a,
-    input [7:0] brom_d,
-    output reg brom_rd
+    output reg ram_rd
     );
     
     // VB Core Memory Map: (16-bit address, 64KiB)
@@ -79,8 +76,6 @@ module mc(
     );
     
     always @(*) begin
-        brom_rd = 1'b0;
-        brom_a = 14'bX;
         wb_a = 8'bX;
         wb_din = 8'bX;
         wb_cyc = 1'b0;
@@ -90,16 +85,10 @@ module mc(
         rom_a = 23'bX;
         ram_rd = 1'b0;
         ram_wr = 1'b0;
-        ram_a = 18'bX;
+        ram_a = 17'bX;
         ram_din = 8'bX;
         vb_din = 8'bX;
-        if ((vb_a >= 16'h0000) && (vb_a <= 16'h3FFF) && (vb_brom_en)) begin
-            // Map to BootROM
-            brom_a[13:0] = vb_a[13:0];
-            brom_rd = vb_rd;
-            vb_din = brom_d;
-        end
-        else if ((vb_a >= 16'hFF00) && (vb_a <= 16'hFF7F) && (vb_brom_en)) begin
+        if ((vb_a >= 16'hA000) && (vb_a <= 16'hA07F) && (vb_brom_en)) begin
             // Map to Wishbone (Ignoring ACK and STALL)
             wb_a = vb_a[7:0];
             wb_din[7:0] = vb_dout[7:0];
@@ -119,28 +108,8 @@ module mc(
             // Map to Cart RAM
             ram_wr = vb_wr;
             ram_rd = vb_rd;
-            ram_a[17] = 1'b0;
             ram_a[16:13] = ram_a_high[16:13];
             ram_a[12:0] = vb_a[12:0];
-            ram_din = vb_dout;
-            vb_din = ram_dout;
-        end
-        else if ((vb_a >= 16'hA000) && (vb_a <= 16'hAFFF)) begin
-            // Map to Work RAM (Bank 0)
-            ram_wr = vb_wr;
-            ram_rd = vb_rd;
-            ram_a[17:12] = 6'b100000;
-            ram_a[11:0] = vb_a[11:0];
-            ram_din = vb_dout;
-            vb_din = ram_dout;
-        end
-        else if ((vb_a >= 16'hB000) && (vb_a <= 16'hBFFF)) begin
-            // Map to Work RAM (Bank X)
-            ram_wr = vb_wr;
-            ram_rd = vb_rd;
-            ram_a[17] = 1'b1;
-            ram_a[16:12] = vb_wram_bank[4:0];
-            ram_a[11:0] = vb_a[11:0];
             ram_din = vb_dout;
             vb_din = ram_dout;
         end
