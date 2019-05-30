@@ -616,7 +616,7 @@ module pano_top(
     parameter integer MEM_WORDS = 2048;
     parameter [31:0] STACKADDR = 32'hfffffffc;
     parameter [31:0] PROGADDR_RESET = 32'h0e000000;
-    parameter [31:0] PROGADDR_IRQ = 32'h0e000010;
+    parameter [31:0] PROGADDR_IRQ = 32'h0e000008;
     
     wire mem_valid;
     wire mem_instr;
