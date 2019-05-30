@@ -401,7 +401,7 @@ isp_result_t isp_transfer(ptd_type_t ptd_type, usb_speed_t speed,
     // If current direction is input, read payload back
     if (direction == DIRECTION_IN) {
         if (result == ISP_SUCCESS) {
-            *length = actual_transfer_length;
+            *length = actual_transfer_length & 0x0FFF;
             if ((actual_transfer_length != 0) && 
                     (actual_transfer_length <= max_length)) {
                 isp_read_memory(payload_address, (uint32_t *)buffer, 
