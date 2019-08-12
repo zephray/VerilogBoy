@@ -357,7 +357,7 @@ isp_result_t isp_transfer(ptd_type_t ptd_type, usb_speed_t speed,
                 // NACK, retry later
                 result = ISP_NACK_TIMEOUT;
                 retry = 1;
-                printf("NACK");
+                printf("NACK\n");
                 delay_us(100);
             }
             // Check H bit
@@ -575,6 +575,11 @@ static int isp_submit(struct usb_device *dev, unsigned long pipe,
     case ISP_BABBLE:
         dev->status = USB_ST_BABBLE_DET;
         break;
+
+    case ISP_NACK_TIMEOUT:
+       dev->status = USB_ST_NAK_REC;
+       break;
+
     default:
         dev->status = USB_ST_CRC_ERR;
         break;
