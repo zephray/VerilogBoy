@@ -1,0 +1,363 @@
+
+#NET "osc_clk" TNM_NET = "osc_clk";
+#TIMESPEC TS_osc_clk = PERIOD "osc_clk" 10 ns HIGH 50 %;
+
+#NET "resetCtrl_clk251" TNM_NET = resetCtrl_clk251;
+#TIMESPEC TS_resetCtrl_clk251 = PERIOD "resetCtrl_clk251" 40 ns HIGH 50%;
+
+#NET "u_cpu_pll/cntr_11" TNM_NET = u_cpu_pll/cntr_11;
+#TIMESPEC TS_clk = PERIOD "u_cpu_pll/cntr_11" TS_osc_clk * 4 HIGH 50%;
+#
+#NET "idt_clk1" TNM_NET = idt_clk1;
+#TIMESPEC TS_idt_clk1 = PERIOD "idt_clk1" 150 MHz HIGH 50%;
+#
+# 100MHZ Oscillator
+#NET "osc_clk" LOC = U10;
+#NET "osc_clk" IOSTANDARD = LVCMOS33;
+
+#============================================================
+# IDT ICS307 Clock Generator
+#============================================================
+#NET "idt_sclk"   LOC = F2  |IOSTANDARD = LVCMOS33;
+#NET "idt_strobe" LOC = G5  |IOSTANDARD = LVCMOS33;
+#NET "idt_data"   LOC = F1  |IOSTANDARD = LVCMOS33;
+#
+#NET "idt_iclk"   LOC = J2  |IOSTANDARD = LVCMOS33;
+#NET "idt_clk1"   LOC = J4  |IOSTANDARD = LVCMOS33;
+#============================================================
+# SPI
+#============================================================
+NET "CSB" LOC = U3  |IOSTANDARD = LVCMOS33;
+NET "DRCK1" LOC = U16 |IOSTANDARD = LVCMOS33;
+NET "MOSI" LOC = T4  |IOSTANDARD = LVCMOS33;
+NET "MISO" LOC = N10 |IOSTANDARD = LVCMOS33;
+#============================================================
+# LEDs
+#============================================================
+#NET "led_green" LOC = H1;
+#NET "led_green" IOSTANDARD = LVCMOS33;
+#NET "led_green" PULLUP;
+#NET "led_blue" LOC = L1;
+#NET "led_blue" IOSTANDARD = LVCMOS33;
+#NET "led_blue" PULLUP;
+#NET "led_red" LOC = L3;
+#NET "led_red" IOSTANDARD = LVCMOS33;
+
+#============================================================
+# AUDIO - Wolfson CODEC
+#============================================================
+# mode is pulled down to GND -> two wire mode: I2C
+# csb is pulled down to GND -> I2C addr 0x34
+#NET "audio_mclk"   LOC = U9  |IOSTANDARD = LVCMOS33;
+#NET "audio_bclk"   LOC = P10 |IOSTANDARD = LVCMOS33;
+#NET "audio_dacdat" LOC = U15 |IOSTANDARD = LVCMOS33;
+#NET "audio_daclrc" LOC = N12 |IOSTANDARD = LVCMOS33;
+#NET "audio_adcdat" LOC = V3  |IOSTANDARD = LVCMOS33;
+#NET "audio_adclrc" LOC = V15 |IOSTANDARD = LVCMOS33;
+#NET "audio_sda"    LOC = T3  |IOSTANDARD = LVCMOS33;
+#NET "audio_scl"    LOC = R10 |IOSTANDARD = LVCMOS33;
+#============================================================
+# DDR2 DRAM
+#============================================================
+#NET "sdram_a[0]"   LOC = F11 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[1]"   LOC = D13 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[2]"   LOC = E13 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[3]"   LOC = E11 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[4]"   LOC = B16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[5]"   LOC = A16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[6]"   LOC = A12 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[7]"   LOC = A11 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[8]"   LOC = D14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[9]"   LOC = A14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[10]"  LOC = B14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_a[11]"  LOC = A13 |IOSTANDARD = SSTL18_I;
+#NET "sdram_ck"     LOC = J17 |IOSTANDARD = SSTL18_I;
+#NET "sdram_ck_"    LOC = J16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_cke"    LOC = E15 |IOSTANDARD = SSTL18_I;
+#NET "sdram_cs_"    LOC =  | IOSTANDARD = SSTL18_I;
+#NET "sdram_we_"    LOC = P16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_cas_"   LOC = M14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_ras_"   LOC = H14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dm[0]"  LOC = K12 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dm[1]"  LOC = K13 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dm[2]"  LOC = J14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dm[3]"  LOC = H15 |IOSTANDARD = SSTL18_I;
+#NET "sdram_ba[0]"  LOC = F12 |IOSTANDARD = SSTL18_I;
+#NET "sdram_ba[1]"  LOC = E12 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[31]" LOC = C18 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[30]" LOC = C17 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[29]" LOC = D17 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[28]" LOC = D16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[27]" LOC = F15 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[26]" LOC = F14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[25]" LOC = F18 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[24]" LOC = F17 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[23]" LOC = G14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[22]" LOC = G13 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[21]" LOC = G15 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[20]" LOC = G16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[19]" LOC = H16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[18]" LOC = H17 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[17]" LOC = J12 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[16]" LOC = J13 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[15]" LOC = K15 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[14]" LOC = K14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[13]" LOC = L16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[12]" LOC = L15 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[11]" LOC = N18 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[10]" LOC = M18 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[9]"  LOC = M15 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[8]"  LOC = M16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[7]"  LOC = P17 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[6]"  LOC = P18 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[5]"  LOC = N15 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[4]"  LOC = N14 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[3]"  LOC = R18 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[2]"  LOC = T18 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[1]"  LOC = U18 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dq[0]"  LOC = T17 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dqs[3]" LOC = E16 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dqs[2]" LOC = J15 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dqs[1]" LOC = L18 |IOSTANDARD = SSTL18_I;
+#NET "sdram_dqs[0]" LOC = R15 |IOSTANDARD = SSTL18_I;
+#============================================================
+# VGA Out - TI THS8135
+#============================================================
+#NET "vo_clk"  LOC = E10  |IOSTANDARD = LVCMOS33;   # CLK
+
+#NET "vo_vsync"  LOC = D1  |IOSTANDARD = LVCMOS33;  # B2B A[9]
+#NET "vo_hsync"  LOC = C2  |IOSTANDARD = LVCMOS33;  # B2B A[11]
+#NET "vo_blank_" LOC = A8  |IOSTANDARD = LVCMOS33;  # BLANK_
+# SYNC_  = 10k pullup to VDD
+# SYNC_T = 10k R to ?
+# M1 = 10 pulldown to GND
+# M2 = 10 pulldown to GND
+#NET "vo_scl"  LOC = D4  |IOSTANDARD = LVCMOS33 | PULLUP;
+#NET "vo_sda"  LOC = G3  |IOSTANDARD = LVCMOS33 | PULLUP ;
+#NET "vo_r[7]" LOC = D9  |IOSTANDARD = LVCMOS33;    # R9
+#NET "vo_r[6]" LOC = E9  |IOSTANDARD = LVCMOS33;    # R8
+#NET "vo_r[5]" LOC = C9  |IOSTANDARD = LVCMOS33;    # R7
+#NET "vo_r[4]" LOC = F9  |IOSTANDARD = LVCMOS33;    # R6
+#NET "vo_r[3]" LOC = F8  |IOSTANDARD = LVCMOS33;    # R5
+#NET "vo_r[2]" LOC = C7  |IOSTANDARD = LVCMOS33;    # R4
+#NET "vo_r[1]" LOC = E8  |IOSTANDARD = LVCMOS33;    # R3
+#NET "vo_r[0]" LOC = F7  |IOSTANDARD = LVCMOS33;    # R2
+# R1 = GND
+# R0 = GND
+#NET "vo_g[7]" LOC = G9   |IOSTANDARD = LVCMOS33;   # G9
+#NET "vo_g[6]" LOC = D11  |IOSTANDARD = LVCMOS33;   # G8
+#NET "vo_g[5]" LOC = C4   |IOSTANDARD = LVCMOS33;   # G7
+#NET "vo_g[4]" LOC = A7   |IOSTANDARD = LVCMOS33;   # G6
+#NET "vo_g[3]" LOC = A10  |IOSTANDARD = LVCMOS33;   # G5
+#NET "vo_g[2]" LOC = D10  |IOSTANDARD = LVCMOS33;   # G4
+#NET "vo_g[1]" LOC = C11  |IOSTANDARD = LVCMOS33;   # G3
+#NET "vo_g[0]" LOC = B10  |IOSTANDARD = LVCMOS33;   # G2
+# G1 = GND
+# G0 = GND
+#NET "vo_b[7]" LOC = A4  |IOSTANDARD = LVCMOS33;    # B9
+#NET "vo_b[6]" LOC = D6  |IOSTANDARD = LVCMOS33;    # B8
+#NET "vo_b[5]" LOC = C3  |IOSTANDARD = LVCMOS33;    # B7
+#NET "vo_b[4]" LOC = E6  |IOSTANDARD = LVCMOS33;    # B6
+#NET "vo_b[3]" LOC = B4  |IOSTANDARD = LVCMOS33;    # B5
+#NET "vo_b[2]" LOC = C5  |IOSTANDARD = LVCMOS33;    # B4
+#NET "vo_b[1]" LOC = B6  |IOSTANDARD = LVCMOS33;    # B3
+#NET "vo_b[0]" LOC = A6  |IOSTANDARD = LVCMOS33;    # B2
+# B1 = GND
+# B0 = GND
+#============================================================
+# USB Host - ISP1760BE
+#============================================================
+#
+# Pin 106
+#NET "usb_cs_" LOC = R12;
+#NET "usb_cs_" IOSTANDARD = LVCMOS33;
+# Pin 107
+#NET "usb_rd_" LOC = T12;
+#NET "usb_rd_" IOSTANDARD = LVCMOS33;
+# Pin 108
+#NET "usb_wr_" LOC = P12;
+#NET "usb_wr_" IOSTANDARD = LVCMOS33;
+#NET "usb_bat_on_n"  LOC = xx  |IOSTANDARD = LVCMOS33;       # Pin 110. Not connected?
+#NET "usb_irq"       LOC = U14  |IOSTANDARD = LVCMOS33;       # Pin 112
+#NET "usb_dreq"      LOC = xx   |IOSTANDARD = LVCMOS33;      # Pin 114. Not connected.
+#NET "usb_dack"      LOC = xx   |IOSTANDARD = LVCMOS33;      # Pin 116. Not connected. Pulled up to VCC.
+#NET "usb_suspend"   LOC = xx  |IOSTANDARD = LVCMOS33;       # Pin 119. Not connected?
+# Pin 122
+#NET "usb_reset_n" LOC = P11;
+#NET "usb_reset_n" IOSTANDARD = LVCMOS33;
+# Pin 105
+#NET "usb_a[16]" LOC = P9;
+#NET "usb_a[16]" IOSTANDARD = LVCMOS33;
+# Pin 103
+#NET "usb_a[15]" LOC = R11;
+#NET "usb_a[15]" IOSTANDARD = LVCMOS33;
+# Pin 102
+#NET "usb_a[14]" LOC = U6;
+#NET "usb_a[14]" IOSTANDARD = LVCMOS33;
+# Pin 101
+#NET "usb_a[13]" LOC = U13;
+#NET "usb_a[13]" IOSTANDARD = LVCMOS33;
+# Pin 100
+#NET "usb_a[12]" LOC = T5;
+#NET "usb_a[12]" IOSTANDARD = LVCMOS33;
+# Pin 98
+#NET "usb_a[11]" LOC = R5;
+#NET "usb_a[11]" IOSTANDARD = LVCMOS33;
+# Pin 97
+#NET "usb_a[10]" LOC = P6;
+#NET "usb_a[10]" IOSTANDARD = LVCMOS33;
+# Pin 96
+#NET "usb_a[9]" LOC = R6;
+#NET "usb_a[9]" IOSTANDARD = LVCMOS33;
+# Pin 95
+#NET "usb_a[8]" LOC = V5;
+#NET "usb_a[8]" IOSTANDARD = LVCMOS33;
+# Pin 93
+#NET "usb_a[7]" LOC = V7;
+#NET "usb_a[7]" IOSTANDARD = LVCMOS33;
+# Pin 92
+#NET "usb_a[6]" LOC = P7;
+#NET "usb_a[6]" IOSTANDARD = LVCMOS33;
+# Pin 91
+#NET "usb_a[5]" LOC = N7;
+#NET "usb_a[5]" IOSTANDARD = LVCMOS33;
+# Pin 89
+#NET "usb_a[4]" LOC = N8;
+#NET "usb_a[4]" IOSTANDARD = LVCMOS33;
+# Pin 87
+#NET "usb_a[3]" LOC = P8;
+#NET "usb_a[3]" IOSTANDARD = LVCMOS33;
+# Pin 86
+#NET "usb_a[2]" LOC = T8;
+#NET "usb_a[2]" IOSTANDARD = LVCMOS33;
+# Pin 84
+#NET "usb_a[1]" LOC = R8;
+#NET "usb_a[1]" IOSTANDARD = LVCMOS33;
+# Pin 82
+#NET "usb_a[0]" LOC = N11;
+#NET "usb_a[0]" IOSTANDARD = LVCMOS33;
+# usb_d[31:16] not connected.
+# Pin 58
+#NET "usb_d[15]" LOC = V13;
+#NET "usb_d[15]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[15]" DRIVE = 16;
+#NET "usb_d[15]" SLEW = FAST;
+# Pin 57
+#NET "usb_d[14]" LOC = R9;
+#NET "usb_d[14]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[14]" DRIVE = 16;
+#NET "usb_d[14]" SLEW = FAST;
+# Pin 56
+#NET "usb_d[13]" LOC = V11;
+#NET "usb_d[13]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[13]" DRIVE = 16;
+#NET "usb_d[13]" SLEW = FAST;
+# Pin 54
+#NET "usb_d[12]" LOC = U4;
+#NET "usb_d[12]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[12]" DRIVE = 16;
+#NET "usb_d[12]" SLEW = FAST;
+# Pin 52
+#NET "usb_d[11]" LOC = M10;
+#NET "usb_d[11]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[11]" DRIVE = 16;
+#NET "usb_d[11]" SLEW = FAST;
+# Pin 51
+#NET "usb_d[10]" LOC = R13;
+#NET "usb_d[10]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[10]" DRIVE = 16;
+#NET "usb_d[10]" SLEW = FAST;
+# Pin 49
+#NET "usb_d[9]" LOC = P13;
+#NET "usb_d[9]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[9]" DRIVE = 16;
+#NET "usb_d[9]" SLEW = FAST;
+# Pin 47
+#NET "usb_d[8]" LOC = R14;
+#NET "usb_d[8]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[8]" DRIVE = 16;
+#NET "usb_d[8]" SLEW = FAST;
+# Pin 46
+#NET "usb_d[7]" LOC = T14;
+#NET "usb_d[7]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[7]" DRIVE = 16;
+#NET "usb_d[7]" SLEW = FAST;
+# Pin 45
+#NET "usb_d[6]" LOC = T16;
+#NET "usb_d[6]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[6]" DRIVE = 16;
+#NET "usb_d[6]" SLEW = FAST;
+# Pin 43
+#NET "usb_d[5]" LOC = M9;
+#NET "usb_d[5]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[5]" DRIVE = 16;
+#NET "usb_d[5]" SLEW = FAST;
+# Pin 42
+#NET "usb_d[4]" LOC = N9;
+#NET "usb_d[4]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[4]" DRIVE = 16;
+#NET "usb_d[4]" SLEW = FAST;
+# Pin 41
+#NET "usb_d[3]" LOC = V12;
+#NET "usb_d[3]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[3]" DRIVE = 16;
+#NET "usb_d[3]" SLEW = FAST;
+# Pin 39
+#NET "usb_d[2]" LOC = T15;
+#NET "usb_d[2]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[2]" DRIVE = 16;
+#NET "usb_d[2]" SLEW = FAST;
+# Pin 38
+#NET "usb_d[1]" LOC = U5;
+#NET "usb_d[1]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[1]" DRIVE = 16;
+#NET "usb_d[1]" SLEW = FAST;
+# Pin 37
+#NET "usb_d[0]" LOC = V6;
+#NET "usb_d[0]" IOSTANDARD = LVCMOS33;
+#NET "usb_d[0]" DRIVE = 16;
+#NET "usb_d[0]" SLEW = FAST;
+# Pin 13
+#NET "usb_clkin" LOC = K6;
+#NET "usb_clkin" IOSTANDARD = LVCMOS33;
+
+#============================================================
+# USB Hub - USB2513
+#============================================================
+
+#NET "usb_hub_clkin" LOC = L2;
+#NET "usb_hub_clkin" IOSTANDARD = LVCMOS33;
+#NET "usb_hub_scl" LOC = H2 | IOSTANDARD = LVCMOS33;
+#NET "usb_hub_sda" LOC = H3 | IOSTANDARD = LVCMOS33;
+#NET "usb_hub_reset_n" LOC = H4;
+#NET "usb_hub_reset_n" IOSTANDARD = LVCMOS33;
+#NET "hub_hs_ind" LOC = H5 | IOSTANDARD = LVCMOS33;
+
+#============================================================
+# Board to Board Connector
+#============================================================
+#NET "b2b_a[18]"  LOC = E5  | IOSTANDARD = LVCMOS33;          # B2B A[18]
+# B2B A'[8]
+#NET "pano_button" LOC = R7;
+#NET "pano_button" IOSTANDARD = LVCMOS33;
+#NET "b2b_aa[16]" LOC = B7  | IOSTANDARD = LVCMOS33;          # B2B A'[16]
+
+
+# PlanAhead Generated physical constraints 
+
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol01" LOC = RAMB16_X0Y15;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol23" LOC = RAMB16_X0Y1;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol33" LOC = RAMB16_X0Y11;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol12" LOC = RAMB16_X0Y17;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol11" LOC = RAMB16_X1Y15;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol22" LOC = RAMB16_X0Y5;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol04" LOC = RAMB16_X1Y9;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol03" LOC = RAMB16_X0Y8;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol24" LOC = RAMB16_X0Y3;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol02" LOC = RAMB16_X0Y13;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol13" LOC = RAMB16_X0Y16;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol21" LOC = RAMB16_X1Y11;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol32" LOC = RAMB16_X0Y6;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol34" LOC = RAMB16_X0Y7;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol31" LOC = RAMB16_X0Y4;
+#INST "core_u_pano_core/u_cpu_top/u_cpu/ram/Mram_ram_symbol14" LOC = RAMB16_X0Y14;
