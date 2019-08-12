@@ -914,7 +914,7 @@ static int usb_read_capacity(ccb *srb, struct us_data *ss)
 		memset(&srb->cmd[0], 0, 12);
 		srb->cmd[0] = SCSI_RD_CAPAC;
 		srb->datalen = 8;
-		srb->cmdlen = 12;
+      srb->cmdlen = 10;
 		if (ss->transport(srb, ss) == USB_STOR_TRANSPORT_GOOD)
 			return 0;
 	} while (retry--);

@@ -38,7 +38,7 @@ void *memcpy(void *aa, const void *bb, long n)
 void memset(void *s, int c, long n)
 {
     uint8_t *ptr = (uint8_t *)s;
-    while (n--) *ptr = c; 
+    while (n--) *ptr++ = c; 
 }
 
 int isprint(int c) {
