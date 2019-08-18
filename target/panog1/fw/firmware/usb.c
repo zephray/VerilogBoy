@@ -1031,7 +1031,12 @@ static void usb_hub_power_on(struct usb_hub_device *hub)
 		wait_ms(hub->desc.bPwrOn2PwrGood * 2);
 	}
 
-	wait_ms(500);
+// NB: on a normal full system it doesn't mater if an attached device indicates
+// that it has connected yet since if it connects later a hub status change 
+// will be reported to the system via the hub's interrupt pipe.
+// However in a simplified minimal system like this we need to wait for the
+// slowest device to connect here or we'll never see it.
+   wait_ms(1500);
 }
 
 void usb_hub_reset(void)
