@@ -9,6 +9,9 @@ xst/
 top_*
 impact*
 
+# vb_sim binary
+sim/verilator/vb_sim
+
 *.map
 *.obj
 *.rom

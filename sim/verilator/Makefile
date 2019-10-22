@@ -53,7 +53,7 @@ $(OBJDIR)/%.o: $(VINCD)/%.cpp
 
 vb_sim: $(OBJDIR)/vb_sim.o $(OBJS)
 vb_sim: $(VOBJS) $(VOBJDR)/Vboy__ALL.a
-	$(CXX) $(GFXLIBS) $(INCS) $^ $(VOBJDR)/Vboy__ALL.a $(GFXLIBS) -lelf -o $@
+	$(CXX) $(GFXLIBS) $(INCS) $^ $(VOBJDR)/Vboy__ALL.a $(GFXLIBS) -o $@
 
 define	mk-objdir
 	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
