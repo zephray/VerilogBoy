@@ -258,20 +258,22 @@ Note: things that will be removed in the near future may not shown here. Not all
 
 Tested environment: Ubuntu 18.04.2 LTS. 
 
-Dependencies: build-essential, verilator, libsdl2-dev, libelf-dev, wine(for unit test only, for now), rgbds(not available from apt, need build manually)
+Dependencies: build-essential, verilator, libsdl2-dev, wine(for unit test only, for now), rgbds(not available from apt, need build manually).
+
+On Debian/ Ubuntu, do the following:
+
+```
+sudo apt install build-essential verilator libsdl2-dev wine byacc flex pkg-config libpng-dev
+git clone https://github.com/rednex/rgbds
+cd rgbds
+make
+make install
+```
 
 #### Build
 
 At project directory:
 ```
-make rtl
-make sim
-```
-
-Build the boot ROM:
-
-```
-cd roms
 make
 ```
 

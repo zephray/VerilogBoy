@@ -7,7 +7,7 @@
 ##   Top level Makefile.
 ################################################################################
 
-all: rtl sim
+all: rtl sim tools roms
 
 .PHONY: doc
 doc:
@@ -16,11 +16,19 @@ doc:
 .PHONY: rtl
 rtl:
 	cd rtl; $(MAKE) --no-print-directory
-	
+
+.PHONY: roms
+roms:
+	cd roms; $(MAKE) --no-print-directory
+
 .PHONY: sim
 sim: rtl
 	cd sim/verilator; $(MAKE) --no-print-directory
 	
+.PHONY: tools
+tools:
+	cd tools; $(MAKE) --no-print-directory
+
 .PHONY: vbh_mcu
 vbh_mcu:
 	cd target/vbh/mcu/src; $(MAKE) --no-print-directory

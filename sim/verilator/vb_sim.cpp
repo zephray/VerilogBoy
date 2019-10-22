@@ -58,7 +58,7 @@ class TESTBENCH {
 public:
     bool m_done;
     bool m_fault;
-    MEMSIM *m_bootrom;
+    MEMSIM *m_cartrom;
     MEMSIM *m_cartram;
     DISPSIM *m_dispsim;
     MMRPROBE *m_mmrprobe;
@@ -68,7 +68,7 @@ public:
         Verilated::traceEverOn(true);
 
         m_done = false;
-        m_bootrom = new MEMSIM(0x0000, 32768, 0);
+        m_cartrom = new MEMSIM(0x0000, 32768, 0);
         m_cartram = new MEMSIM(0xa000, 8192, 0);
         m_trace = NULL;
 
@@ -90,7 +90,7 @@ public:
         if (verbose) {
             delete m_mmrprobe;
         }
-        delete m_bootrom;
+        delete m_cartrom;
         delete m_cartram;
     }
 
@@ -113,8 +113,8 @@ public:
         m_core -> eval();
     }
 
-    void load_bootrom(const char *fname) {
-        m_bootrom -> load(fname);
+    void load_cartrom(const char *fname) {
+        m_cartrom -> load(fname);
     }
 
     void close(void) {
@@ -136,7 +136,7 @@ public:
     }
 
     virtual void tick(void) {
-        m_bootrom->operator()(
+        m_cartrom->operator()(
             m_core -> dout,
             m_core -> a,
             0,
@@ -199,7 +199,7 @@ public:
         tick();
         m_core -> rst = 0;
         if (noboot) {
-            m_core -> boy__DOT__brom_disable = 1; // Disable internal bootROM
+            m_core -> boy__DOT__brom_disable = 1; // Disable internal boot ROM
         }
     }
 
@@ -297,7 +297,7 @@ int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
 
     tb = new TESTBENCH();
-    tb -> load_bootrom(argv[1]);
+    tb -> load_cartrom(argv[1]);
     tb -> opentrace(trace_file);
     tb -> reset();
 

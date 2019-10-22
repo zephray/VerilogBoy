@@ -12,6 +12,9 @@ impact*
 # vb_sim binary
 sim/verilator/vb_sim
 
+# tools binary
+tools/bin2mif
+
 *.map
 *.obj
 *.rom

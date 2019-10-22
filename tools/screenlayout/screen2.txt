@@ -1,1 +1,0 @@
-A=   BC=     DE=     HL=     SP=     PC=     I=   ZHNC IE=HSTLV IF=HSTLV BP=FFFF

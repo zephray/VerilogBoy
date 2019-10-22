@@ -9,7 +9,7 @@ ROMS = $(SRCS:.s=.gb)
 EXPECTS = $(SRCS:.s=.expected)
 ACTUALS = $(SRCS:.s=.actual)
 
-all: $(ROMS) $(EXPECTS) $(ACTUALS)
+all: bootrom.mif $(ROMS) $(EXPECTS) $(ACTUALS) result
 
 %.actual: %.gb
 	$(VBSIM) $< --testmode
@@ -24,7 +24,12 @@ all: $(ROMS) $(EXPECTS) $(ACTUALS)
 %.obj: %.s
 	$(RGBASM) -o$@ $<
 
+bootrom.mif:
+	cp ../bootrom.mif .
+
+result:
+	./compare.sh
 
 .PHONY: clean
 clean:
-	rm -f *.obj *.gb *.expected *.actual
+	rm -f *.obj *.gb *.expected *.actual *.mif
