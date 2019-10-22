@@ -166,7 +166,7 @@ public:
                 m_core -> boy__DOT__cpu_wr,
                 m_core -> boy__DOT__cpu_rd,
                 m_core -> boy__DOT__cpu_din,
-                m_core -> boy__DOT__cpu__DOT__pc);
+                m_core -> boy__DOT__cpu__DOT__last_pc);
         }
 
         m_tickcount++;
@@ -189,7 +189,7 @@ public:
         m_fault = m_core -> fault;
 
         // Break point
-        if (m_core -> boy__DOT__cpu__DOT__pc == breakpoint) {
+        if (m_core -> boy__DOT__cpu__DOT__last_pc == breakpoint) {
             m_done = 1;
         }
     }
@@ -225,12 +225,12 @@ public:
                     m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[6],
                     m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[7]);
             fprintf(result, "PC %04x\r\n",
-                    m_core -> boy__DOT__cpu__DOT__pc);
+                    m_core -> boy__DOT__cpu__DOT__last_pc);
             //fclose(result);
         }
         // print on screen
         printf("PC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
-            m_core -> boy__DOT__cpu__DOT__pc,
+            m_core -> boy__DOT__cpu__DOT__last_pc,
             ((m_core -> boy__DOT__cpu__DOT__flags) & 0x8) ? 'Z' : '-',
             ((m_core -> boy__DOT__cpu__DOT__flags) & 0x4) ? 'N' : '-',
             ((m_core -> boy__DOT__cpu__DOT__flags) & 0x2) ? 'H' : '-',
