@@ -825,4 +825,92 @@ NoConn ~ 1700 5300
 NoConn ~ 1700 5400
 NoConn ~ 1700 5500
 NoConn ~ 1700 5600
+Text GLabel 1150 4900 0    50   Input ~ 0
+LCD_D0
+Text GLabel 1150 5000 0    50   Input ~ 0
+LCD_D1
+Text GLabel 1150 5100 0    50   Input ~ 0
+LCD_D2
+Text GLabel 1150 5200 0    50   Input ~ 0
+LCD_D3
+Text GLabel 1150 5300 0    50   Input ~ 0
+LCD_D4
+Text GLabel 1150 5400 0    50   Input ~ 0
+LCD_D5
+Text GLabel 1150 5500 0    50   Input ~ 0
+LCD_D6
+Text GLabel 1150 5600 0    50   Input ~ 0
+LCD_D7
+Text GLabel 1150 5700 0    50   Input ~ 0
+LCD_D8
+Text GLabel 1150 5800 0    50   Input ~ 0
+LCD_D9
+Text GLabel 1150 5900 0    50   Input ~ 0
+LCD_D10
+Text GLabel 1150 6000 0    50   Input ~ 0
+LCD_D11
+Text GLabel 1150 6100 0    50   Input ~ 0
+LCD_D12
+Text GLabel 1150 6200 0    50   Input ~ 0
+LCD_D13
+Text GLabel 1150 6300 0    50   Input ~ 0
+LCD_D14
+Text GLabel 1150 6400 0    50   Input ~ 0
+LCD_D15
+Text GLabel 1150 6500 0    50   Input ~ 0
+LCD_D16
+Text GLabel 1150 6600 0    50   Input ~ 0
+LCD_D17
+Text GLabel 1150 7400 0    50   Input ~ 0
+LCD_PCLK
+Text GLabel 1150 7500 0    50   Input ~ 0
+LCD_DE
+Text GLabel 1150 7600 0    50   Input ~ 0
+LCD_VS
+Text GLabel 1150 7700 0    50   Input ~ 0
+LCD_HS
+Wire Wire Line
+	1150 4900 1350 4900
+Wire Wire Line
+	1150 5000 1350 5000
+Wire Wire Line
+	1150 5100 1350 5100
+Wire Wire Line
+	1150 5200 1350 5200
+Wire Wire Line
+	1150 5300 1350 5300
+Wire Wire Line
+	1150 5400 1350 5400
+Wire Wire Line
+	1150 5500 1350 5500
+Wire Wire Line
+	1150 5600 1350 5600
+Wire Wire Line
+	1150 5700 1350 5700
+Wire Wire Line
+	1150 5800 1350 5800
+Wire Wire Line
+	1150 5900 1350 5900
+Wire Wire Line
+	1150 6000 1350 6000
+Wire Wire Line
+	1150 6100 1350 6100
+Wire Wire Line
+	1150 6200 1350 6200
+Wire Wire Line
+	1150 6300 1350 6300
+Wire Wire Line
+	1150 6400 1350 6400
+Wire Wire Line
+	1150 6500 1350 6500
+Wire Wire Line
+	1150 6600 1350 6600
+Wire Wire Line
+	1150 7400 1350 7400
+Wire Wire Line
+	1150 7500 1350 7500
+Wire Wire Line
+	1150 7600 1350 7600
+Wire Wire Line
+	1150 7700 1350 7700
 $EndSCHEMATC
