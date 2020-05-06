@@ -208,7 +208,7 @@ Note: See GB-CTR for more information.
 * 1 (reg)/ 2 (mem) M-cycles to execute
 * No flags shall be altered
 * 8'b01dddsss
-* Use e_ab2 for ddd encoding
+* Use e_ab1 for ddd encoding
 * Use e_ab1 for sss encoding
 * Note that LD (HL), (HL) is impossible, it is replaced by HALT
 
