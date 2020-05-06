@@ -48,6 +48,7 @@ static bool verbose = false;
 static bool trace = false;
 static bool noboot = false;
 static bool nostop = false;
+static bool itrace = false;
 static unsigned short breakpoint = 0xff7f;
 static char result_file[127];
 
@@ -62,6 +63,7 @@ public:
     MEMSIM *m_cartram;
     DISPSIM *m_dispsim;
     MMRPROBE *m_mmrprobe;
+    FILE *it;
 
     TESTBENCH() {
         m_core = new Vboy;
@@ -78,6 +80,13 @@ public:
         if (verbose) {
             m_mmrprobe = new MMRPROBE();
         }
+        if (itrace) {
+            it = fopen("itrace.txt", "w");
+            if (!it) {
+                itrace = false;
+                fprintf(stderr, "Fail to open output file for itrace.\n");
+            }
+        }
     }
 
     ~TESTBENCH() {
@@ -89,6 +98,9 @@ public:
         }
         if (verbose) {
             delete m_mmrprobe;
+        }
+        if (it) {
+            fclose(it);
         }
         delete m_cartrom;
         delete m_cartram;
@@ -188,6 +200,30 @@ public:
         m_done = m_core -> done;
         m_fault = m_core -> fault;
 
+        if (itrace) {
+            if ((m_core -> boy__DOT__cpu__DOT__ct_state == 3) && 
+                (m_core -> boy__DOT__cpu__DOT__next == 0)) {
+                // Instruction just finished executing
+                fprintf(it, "PC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
+                    m_core -> boy__DOT__cpu__DOT__pc,
+                    ((m_core -> boy__DOT__cpu__DOT__flags) & 0x8) ? 'Z' : '-',
+                    ((m_core -> boy__DOT__cpu__DOT__flags) & 0x4) ? 'N' : '-',
+                    ((m_core -> boy__DOT__cpu__DOT__flags) & 0x2) ? 'H' : '-',
+                    ((m_core -> boy__DOT__cpu__DOT__flags) & 0x1) ? 'C' : '-',
+                    m_core -> boy__DOT__cpu__DOT__acc__DOT__data,
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[6],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[7],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[0],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[1],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[2],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[3],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[4],
+                    m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[5]
+                );
+            }
+        }
+        
+
         // Break point
         if (m_core -> boy__DOT__cpu__DOT__last_pc == breakpoint) {
             m_done = 1;
@@ -225,12 +261,12 @@ public:
                     m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[6],
                     m_core -> boy__DOT__cpu__DOT__regfile__DOT__regs[7]);
             fprintf(result, "PC %04x\r\n",
-                    m_core -> boy__DOT__cpu__DOT__last_pc);
+                    m_core -> boy__DOT__cpu__DOT__pc);
             //fclose(result);
         }
         // print on screen
         printf("PC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
-            m_core -> boy__DOT__cpu__DOT__last_pc,
+            m_core -> boy__DOT__cpu__DOT__pc,
             ((m_core -> boy__DOT__cpu__DOT__flags) & 0x8) ? 'Z' : '-',
             ((m_core -> boy__DOT__cpu__DOT__flags) & 0x4) ? 'N' : '-',
             ((m_core -> boy__DOT__cpu__DOT__flags) & 0x2) ? 'H' : '-',
@@ -258,7 +294,7 @@ void vb_kill(int v) {
 
 void usage(void) {
     puts("USAGE: vb_sim <rom.gb> [--testmode] [--verbose] [--trace] [--noboot]"
-            "[--nostop] (verilator paramters...)\n");
+            "[--nostop] [--itrace] (verilator paramters...)\n");
 }
 
 int main(int argc, char **argv) {
@@ -280,17 +316,25 @@ int main(int argc, char **argv) {
             strcpy(location, ".actual");
             noboot = true;
         }
+        // Skip boot ROM
         if (strcmp(argv[i], "--noboot") == 0) {
             noboot = true;
         }
+        // Enable MMR probe
         if (strcmp(argv[i], "--verbose") == 0) {
             verbose = true;
         }
+        // Enable waveform trace
         if (strcmp(argv[i], "--trace") == 0) {
             trace = true;
         }
+        // Does not stop on STOP/HALT
         if (strcmp(argv[i], "--nostop") == 0) {
             nostop = true;
+        }
+        // Enable instruction level trace
+        if (strcmp(argv[i], "--itrace") == 0) {
+            itrace = true;
         }
     }
 
