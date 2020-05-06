@@ -36,6 +36,7 @@ module cpu(
     reg  [7:0]  opcode;
     reg  [7:0]  cb;
     wire [2:0]  m_cycle;
+    reg  [2:0]  m_cycle_early;
     wire [1:0]  alu_src_a;
     wire [2:0]  alu_src_b;
     wire        alu_src_xchg;
@@ -139,7 +140,7 @@ module cpu(
         .opcode_early(opcode),
         .cb(cb),
         .imm(imm_low),
-        .m_cycle(m_cycle),
+        .m_cycle_early(m_cycle_early),
         .ct_state(ct_state),
         .f_z(flags_rd[3]),
         .f_c(flags_rd[0]),
@@ -621,6 +622,7 @@ module cpu(
     always @(posedge clk, posedge rst) begin
         if (rst) begin
             ex_state <= 3'd0;
+            m_cycle_early <= 3'd0;
             alu_carry_out_ex <= 1'b0;
             alu_carry_out_ct <= 1'b0;
         end
@@ -628,6 +630,9 @@ module cpu(
             alu_carry_out_ct <= alu_flags_out[0];
             if (ct_state == 2'b11) begin
                 ex_state <= ex_next_state;
+            end
+            else if (ct_state == 2'b10) begin
+                m_cycle_early <= ex_next_state;
             end
             else if (ct_state == 2'b00) begin
                 // Backup flag output
