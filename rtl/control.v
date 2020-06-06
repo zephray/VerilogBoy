@@ -233,7 +233,7 @@ module control(
             endcase
         end
         else begin
-            if (opcode == 2'b00) begin // NOP
+            if (opcode == 8'h00) begin // NOP
                 // Default behavior is enough
             end
             else if (opcode == 8'h10) begin // STOP
@@ -1105,7 +1105,7 @@ module control(
     end
 
     always @(posedge clk) begin
-        if (ct_state == 2'd3) begin
+        if ((ct_state == 2'd3) || (rst == 1'b1)) begin
             alu_src_a <= comb_alu_src_a;
             alu_src_b <= comb_alu_src_b;
             alu_src_xchg <= comb_alu_src_xchg;
