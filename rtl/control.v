@@ -184,6 +184,9 @@ module control(
         // FPGA works very differently than on ASIC. So here, when comb_halted, CPU
         // would executing NOP in place as if it was comb_halted.
         if (halt_last || stop_last || fault_last) begin
+            // Stop
+            comb_bus_op = `BUS_OP_IDLE;
+            comb_ct_op = `CT_OP_IDLE;
             // Wake up condition
             comb_halt = halt_last;
             comb_stop = stop_last;
