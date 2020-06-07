@@ -70,13 +70,13 @@ Notes: other tests hasn't been tried.
 | call timing2            | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | call cc_timing          | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | call cc_timing2         | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
-| di timing GS            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| di timing GS            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
 | div timing              | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
-| ei sequence             | :+1:       | :+1: | :+1:     | :+1:   | :x:  | :+1:       |
-| ei timing               | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
-| halt ime0 ei            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
-| halt ime0 nointr_timing | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
-| halt ime1 timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| ei sequence             | :+1:       | :+1: | :+1:     | :+1:   | :x:  | :x:        |
+| ei timing               | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| halt ime0 ei            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| halt ime0 nointr_timing | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| halt ime1 timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
 | halt ime1 timing2 GS    | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
 | if ie registers         | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
 | intr timing             | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
@@ -88,11 +88,11 @@ Notes: other tests hasn't been tried.
 | oam dma timing          | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | pop timing              | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | push timing             | :+1:       | :x:  | :x:      | :+1:   | :+1: | :+1:       |
-| rapid di ei             | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| rapid di ei             | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
 | ret timing              | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | ret cc timing           | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | reti timing             | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
-| reti intr timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| reti intr timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
 | rst timing              | :+1:       | :x:  | :x:      | :+1:   | :+1: | :+1:       |
 
 #### Instructions
@@ -119,7 +119,7 @@ Notes: other tests hasn't been tried.
 
 | Test                        | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy |
 | --------------------------- | ---------- | ---- | -------- | ------| ---- |------------|
-| boot sclk align dmgABCmgb   | :x:        | :+1: | :+1:     | :x:   | :x:  | :+1:       |
+| boot sclk align dmgABCmgb   | :x:        | :+1: | :+1:     | :x:   | :x:  | :x:        |
 
 Note: this test only seems to test the time to finish the first transfer. What about the second? (Delta time required to do a transfer and get notified by the interrupt)
 
