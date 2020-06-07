@@ -79,7 +79,7 @@ void MEMSIM::apply(const DBUSW wr_data, const ABUSW address,
     if (delay_count == 0) {
         if ((address >= m_base) && (address < (m_base + m_len))) {
             if (last_wr && !wr_enable) {
-                m_mem[address] = last_data;
+                m_mem[address - m_base] = last_data;
                 delay_count = m_delay;
 #ifdef __DEBUG
             printf("MEMBUS W[%04x] = %02x\n",
@@ -88,7 +88,7 @@ void MEMSIM::apply(const DBUSW wr_data, const ABUSW address,
 #endif
             } 
             else if (!last_rd && rd_enable) {
-                rd_data = m_mem[address];
+                rd_data = m_mem[address - m_base];
                 delay_count = m_delay;
 #ifdef __DEBUG
             printf("MEMBUS R[%04x] = %02x\n",

@@ -35,6 +35,7 @@
 #include "Vboy.h"
 
 #include "memsim.h"
+#include "mbcsim.h"
 #include "dispsim.h"
 #include "mmrprobe.h"
 
@@ -49,6 +50,7 @@ static bool trace = false;
 static bool noboot = false;
 static bool nostop = false;
 static bool itrace = false;
+static bool usembc = false;
 static unsigned short breakpoint = 0xff7f;
 static char result_file[127];
 
@@ -61,6 +63,7 @@ public:
     bool m_fault;
     MEMSIM *m_cartrom;
     MEMSIM *m_cartram;
+    MBCSIM *m_mbc;
     DISPSIM *m_dispsim;
     MMRPROBE *m_mmrprobe;
     FILE *it;
@@ -70,8 +73,13 @@ public:
         Verilated::traceEverOn(true);
 
         m_done = false;
-        m_cartrom = new MEMSIM(0x0000, 32768, 0);
-        m_cartram = new MEMSIM(0xa000, 8192, 0);
+        if (usembc) {
+            m_mbc = new MBCSIM();
+        }
+        else {
+            m_cartrom = new MEMSIM(0x0000, 32768, 0);
+            m_cartram = new MEMSIM(0xa000, 8192, 0);
+        }
         m_trace = NULL;
 
         if (!quiet) {
@@ -126,7 +134,10 @@ public:
     }
 
     void load_cartrom(const char *fname) {
-        m_cartrom -> load(fname);
+        if (usembc)
+            m_mbc -> load(fname);
+        else
+            m_cartrom -> load(fname);
     }
 
     void close(void) {
@@ -148,20 +159,30 @@ public:
     }
 
     virtual void tick(void) {
-        m_cartrom->operator()(
-            m_core -> dout,
-            m_core -> a,
-            0,
-            //m_core -> wr,
-            m_core -> rd,
-            m_core -> din);
+        if (usembc) {
+            m_mbc->operator()(
+                m_core -> dout,
+                m_core -> a,
+                m_core -> wr,
+                m_core -> rd,
+                m_core -> din);
+        }
+        else {
+            m_cartrom->operator()(
+                m_core -> dout,
+                m_core -> a,
+                0,
+                //m_core -> wr,
+                m_core -> rd,
+                m_core -> din);
 
-        m_cartram->operator()(
-            m_core -> dout,
-            m_core -> a,
-            m_core -> wr,
-            m_core -> rd,
-            m_core -> din);
+            m_cartram->operator()(
+                m_core -> dout,
+                m_core -> a,
+                m_core -> wr,
+                m_core -> rd,
+                m_core -> din);
+        }
 
         if (!quiet) {
             m_dispsim->operator()(
@@ -204,7 +225,8 @@ public:
             if ((m_core -> boy__DOT__cpu__DOT__ct_state == 3) && 
                 (m_core -> boy__DOT__cpu__DOT__next == 0)) {
                 // Instruction just finished executing
-                fprintf(it, "PC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
+                fprintf(it, "Time %ld\nPC = %04x, F = %c%c%c%c, A = %02x, SP = %02x%02x\nB = %02x, C = %02x, D = %02x, E = %02x, H = %02x, L = %02x\n",
+                    10*m_tickcount,
                     m_core -> boy__DOT__cpu__DOT__pc,
                     ((m_core -> boy__DOT__cpu__DOT__flags) & 0x8) ? 'Z' : '-',
                     ((m_core -> boy__DOT__cpu__DOT__flags) & 0x4) ? 'N' : '-',
@@ -294,7 +316,7 @@ void vb_kill(int v) {
 
 void usage(void) {
     puts("USAGE: vb_sim <rom.gb> [--testmode] [--verbose] [--trace] [--noboot]"
-            "[--nostop] [--itrace] (verilator paramters...)\n");
+            "[--nostop] [--itrace] [--mbc] (verilator paramters...)\n");
 }
 
 int main(int argc, char **argv) {
@@ -335,6 +357,10 @@ int main(int argc, char **argv) {
         // Enable instruction level trace
         if (strcmp(argv[i], "--itrace") == 0) {
             itrace = true;
+        }
+        // Enable MBC emulation
+        if (strcmp(argv[i], "--mbc") == 0) {
+            usembc = true;
         }
     }
 
