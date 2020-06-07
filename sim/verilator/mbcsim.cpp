@@ -157,7 +157,19 @@ void MBCSIM::apply(const DBUSW wr_data, const ABUSW address,
             }
             else if (address < 0x4000) {
                 // ROM Bank (MBC1/3/5)
-                if (mbc_type == MBC5) {
+                if (mbc_type == MBC1) {
+                    rom_bank &= ~0x1f;
+                    rom_bank = (unsigned int)last_data & 0x1f;
+                    if (last_data == 0)
+                        rom_bank |= 0x01;
+                }
+                else if (mbc_type == MBC3) {
+                    rom_bank &= ~0x7f;
+                    rom_bank = (unsigned int)last_data & 0x7f;
+                    if (last_data == 0)
+                        rom_bank |= 0x01;
+                }
+                else if (mbc_type == MBC5) {
                     if (address < 0x3000) {
                         rom_bank &= ~0xff;
                         rom_bank |= (unsigned int)last_data & 0xff;
@@ -166,12 +178,6 @@ void MBCSIM::apply(const DBUSW wr_data, const ABUSW address,
                         rom_bank &= ~0x100;
                         rom_bank |= ((unsigned int)last_data & 0x01) << 8;
                     }
-                }
-                else {
-                    rom_bank &= ~0x1f;
-                    rom_bank = (unsigned int)last_data & 0x1f;
-                    if (last_data == 0)
-                        rom_bank |= 0x01;
                 }
                 //printf("[MBC] Rom bank %d (%04x=%02x)\n", rom_bank, address, last_data);
             }
