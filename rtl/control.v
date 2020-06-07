@@ -551,9 +551,8 @@ module control(
                         comb_bus_op = `BUS_OP_READ;
                         comb_ab_src = `AB_SRC_REG;
                         // Do not writeback in the first cycle
-                        comb_alu_src_a = `ALU_SRC_A_ACC;
-                        comb_alu_src_b = `ALU_SRC_B_ZERO;
-                        comb_alu_op_src = `ALU_OP_SRC_ADD_FTOR;
+                        comb_alu_dst = `ALU_DST_DB;
+                        comb_flags_we = 1'b0;
                         comb_ct_op = `CT_OP_IDLE;
                         comb_next = 1;
                     end
