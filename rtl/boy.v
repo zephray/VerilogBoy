@@ -368,7 +368,7 @@ module boy(
         else if (cpu_a == 16'hff0f) begin // 0xFF0F - IF
             //reg_if_rd = bus_rd;
             reg_if_wr = cpu_wr;
-            cpu_din = {3'b0, reg_if_dout};
+            cpu_din = {3'b111, reg_if_dout};
         end
         else if (cpu_a == 16'hff00) begin // 0xFF00 - Keypad
             keypad_reg_wr = cpu_wr;
