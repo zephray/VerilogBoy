@@ -454,6 +454,16 @@ module cpu(
             end
             2'b01: begin
                 // Read in progress
+
+                // Interrupt dispatch happens here
+                // Guarenteed if it is at instruction fetch cycle,
+                // It is at instruction boundaries,
+                // and m_cycle will start from 0.
+                if ((!int_dispatch) && (int_flags_masked != 0) && (int_master_en))
+                    int_dispatch <= 1'b1;
+                else if ((int_dispatch) && (int_ack)) begin
+                    int_dispatch <= 1'b0;
+                end
             end
             2'b10: begin
                 if (bus_op == 2'b10) begin
@@ -465,15 +475,6 @@ module cpu(
                     // Instruction Fetch Cycle
                     wr <= 0;
                     opcode <= din;
-                    // Interrupt dispatch happens here
-                    // Guarenteed if it is at instruction fetch cycle,
-                    // It is at instruction boundaries,
-                    // and m_cycle will start from 0.
-                    if ((!int_dispatch) && (int_flags_masked != 0) && (int_master_en))
-                        int_dispatch <= 1'b1;
-                    else if ((int_dispatch) && (int_ack)) begin
-                        int_dispatch <= 1'b0;
-                    end
                 end
                 else if (bus_op == 2'b11) begin
                     // Data Read cycle

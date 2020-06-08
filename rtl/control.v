@@ -74,7 +74,7 @@ module control(
     wire [2:0] m_cycle = m_cycle_early;
 
     always @(posedge clk)
-        if (ct_state == 2'd3)
+        if (ct_state == 2'd2)
             ime_delay_set_ff <= ime_delay_set;
 
     always @(posedge clk, posedge rst) begin
@@ -87,12 +87,6 @@ module control(
         else if (ime_delay_set_ff)
             ime <= 1'b1;
     end
-
-    /*reg int_dispatch_deffered;
-    always @(posedge clk) begin
-        int_dispatch_deffered <= int_dispatch;
-    end*/
-    //wire int_dispatch_deffered = int_dispatch;
 
     reg halt_last;
     reg stop_last;
@@ -107,6 +101,17 @@ module control(
             halt_last <= halt;
             stop_last <= stop;
             fault_last <= fault;
+        end
+    end
+
+    reg wake_by_int;
+    always @(posedge clk, posedge rst) begin
+        if (rst)
+            wake_by_int <= 1'b0;
+        else begin
+            if (int_dispatch && (m_cycle == 0)) begin
+                wake_by_int <= wake;
+            end
         end
     end
 
@@ -184,18 +189,20 @@ module control(
         // FPGA works very differently than on ASIC. So here, when comb_halted, CPU
         // would executing NOP in place as if it was comb_halted.
         if (halt_last || stop_last || fault_last) begin
-            // Stop
-            comb_bus_op = `BUS_OP_IDLE;
-            comb_ct_op = `CT_OP_IDLE;
-            // Wake up condition
-            comb_halt = halt_last;
-            comb_stop = stop_last;
-            comb_fault = fault_last;
             if (wake) begin
                 comb_halt = 1'b0;
                 comb_stop = 1'b0;
                 // Fault could not be waked up 
             end
+            else begin
+                // Keep sleeping
+                comb_bus_op = `BUS_OP_IDLE;
+                comb_ct_op = `CT_OP_IDLE;
+                comb_halt = halt_last;
+                comb_stop = stop_last;
+            end
+            // Fault cannot be waken up
+            comb_fault = fault_last;
         end
         else if (int_dispatch) begin
             // Interrupt dispatch process
@@ -229,13 +236,27 @@ module control(
                 comb_next = 1'b1;
             end
             3: begin
+                // Delay
+                if (wake_by_int) begin
+                    ime_clear = 1'b1;
+                    comb_int_ack = 1'b1;
+                end
+                else begin
+                    comb_bus_op = `BUS_OP_IDLE;
+                    comb_ct_op = `CT_OP_IDLE;
+                    comb_next = 1'b1;
+                end
+            end
+            4: begin
                 // Normal instruction fetch process
                 ime_clear = 1'b1;
                 comb_int_ack = 1'b1;
             end
             endcase
         end
-        else begin
+        //else begin
+        // If waken up
+        if (!comb_halt && !comb_stop && !comb_fault && !int_dispatch) begin
             if (opcode == 8'h00) begin // NOP
                 // Default behavior is enough
             end
