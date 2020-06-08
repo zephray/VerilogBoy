@@ -70,16 +70,16 @@ Notes: other tests hasn't been tried.
 | call timing2            | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | call cc_timing          | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | call cc_timing2         | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
-| di timing GS            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| di timing GS            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
 | div timing              | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
-| ei sequence             | :+1:       | :+1: | :+1:     | :+1:   | :x:  | :x:        |
-| ei timing               | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
-| halt ime0 ei            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| ei sequence             | :+1:       | :+1: | :+1:     | :+1:   | :x:  | :+1:       |
+| ei timing               | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| halt ime0 ei            | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
 | halt ime0 nointr_timing | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
-| halt ime1 timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
-| halt ime1 timing2 GS    | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
-| if ie registers         | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
-| intr timing             | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| halt ime1 timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| halt ime1 timing2 GS    | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| if ie registers         | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
+| intr timing             | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
 | jp timing               | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | jp cc timing            | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | ld hl sp e timing       | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
@@ -88,11 +88,11 @@ Notes: other tests hasn't been tried.
 | oam dma timing          | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | pop timing              | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | push timing             | :+1:       | :x:  | :x:      | :+1:   | :+1: | :+1:       |
-| rapid di ei             | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| rapid di ei             | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
 | ret timing              | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | ret cc timing           | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
 | reti timing             | :+1:       | :x:  | :+1:     | :+1:   | :+1: | :+1:       |
-| reti intr timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :x:        |
+| reti intr timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
 | rst timing              | :+1:       | :x:  | :x:      | :+1:   | :+1: | :+1:       |
 
 #### Instructions
@@ -294,7 +294,7 @@ Please be aware currently tests are broken... (Difference in PC counting)
 
 At project directory:
 ```
-./sim/verilator/vb_sim <path_to_your_rom.gb> --nostop
+./sim/verilator/vb_sim <path_to_your_rom.gb> --mbc --nostop
 ```
 
 Few parameters:
@@ -304,6 +304,7 @@ Few parameters:
 --testmode: Disable internal Boot ROM, headless mode, limit cycles to 32K.
 --noboot: Disable internal Boot ROM, code execution starts at 0x0000 rather than 0x0100.
 --verbose: Enable debug output
+--mbc: Enable MBC1/3/5 emulation for ROMs larger than 32KB
 ```
 
 ### FPGA targets
