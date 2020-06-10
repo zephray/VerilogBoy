@@ -14,17 +14,6 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L FPGA_Xilinx_Spartan6:XC6SLX16-FTG256 U100
-U 1 1 5E7B0C96
-P 3700 4000
-F 0 "U100" H 3700 825 50  0000 C CNN
-F 1 "XC6SLX16-FTG256" H 3700 734 50  0000 C CNN
-F 2 "Package_BGA:Xilinx_FTG256" H 3700 4000 50  0001 C CNN
-F 3 "" H 3700 4000 50  0000 C CNN
-	1    3700 4000
-	1    0    0    -1  
-$EndComp
-$Comp
 L symbols:IS66WVE4M16 U200
 U 1 1 5E7BC404
 P 8500 1600
@@ -368,18 +357,6 @@ Wire Wire Line
 	1600 1000 1600 900 
 Wire Wire Line
 	1600 900  1900 900 
-Connection ~ 2100 900 
-Wire Wire Line
-	2100 900  2200 900 
-Connection ~ 2200 900 
-Wire Wire Line
-	2200 900  2300 900 
-Connection ~ 2300 900 
-Wire Wire Line
-	2300 900  2400 900 
-Connection ~ 2400 900 
-Wire Wire Line
-	2400 900  2500 900 
 $Comp
 L power:+1V8 #PWR048
 U 1 1 5E85A645
@@ -392,8 +369,6 @@ F 3 "" H 1900 900 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Connection ~ 1900 900 
-Wire Wire Line
-	1900 900  2100 900 
 $Comp
 L Device:C C?
 U 1 1 5E863D8E
@@ -474,24 +449,7 @@ Wire Wire Line
 Connection ~ 5800 1000
 Wire Wire Line
 	5800 1000 5800 900 
-Wire Wire Line
-	4800 900  4900 900 
 Connection ~ 5800 900 
-Connection ~ 4900 900 
-Wire Wire Line
-	4900 900  5000 900 
-Connection ~ 5000 900 
-Wire Wire Line
-	5000 900  5100 900 
-Connection ~ 5100 900 
-Wire Wire Line
-	5100 900  5200 900 
-Connection ~ 5200 900 
-Wire Wire Line
-	5200 900  5300 900 
-Connection ~ 5300 900 
-Wire Wire Line
-	5300 900  5500 900 
 $Comp
 L power:+1V8 #PWR049
 U 1 1 5E86EC9E
@@ -610,15 +568,15 @@ Text Label 5800 3400 0    50   ~ 0
 RAM_A4
 Text Label 5800 2500 0    50   ~ 0
 RAM_A5
-Text Label 5800 3300 0    50   ~ 0
-RAM_A6
 Text Label 5800 2600 0    50   ~ 0
+RAM_A6
+Text Label 5800 4000 0    50   ~ 0
 RAM_A7
 Text Label 5800 6500 0    50   ~ 0
 RAM_A8
-Text Label 5800 6900 0    50   ~ 0
-RAM_A9
 Text Label 5800 7000 0    50   ~ 0
+RAM_A9
+Text Label 5800 6900 0    50   ~ 0
 RAM_A10
 Text Label 5800 6200 0    50   ~ 0
 RAM_A11
@@ -632,7 +590,7 @@ Text Label 5800 4700 0    50   ~ 0
 RAM_A15
 Text Label 5800 3900 0    50   ~ 0
 RAM_A16
-Text Label 5800 4000 0    50   ~ 0
+Text Label 5800 3300 0    50   ~ 0
 RAM_A17
 Text Label 5800 5900 0    50   ~ 0
 RAM_A18
@@ -655,15 +613,15 @@ Wire Wire Line
 Wire Wire Line
 	6200 2500 5700 2500
 Wire Wire Line
-	6200 3300 5700 3300
-Wire Wire Line
 	6200 2600 5700 2600
+Wire Wire Line
+	6200 4000 5700 4000
 Wire Wire Line
 	6200 6500 5700 6500
 Wire Wire Line
-	6200 6900 5700 6900
-Wire Wire Line
 	6200 7000 5700 7000
+Wire Wire Line
+	6200 6900 5700 6900
 Wire Wire Line
 	6200 6200 5700 6200
 Wire Wire Line
@@ -677,7 +635,7 @@ Wire Wire Line
 Wire Wire Line
 	6200 3900 5700 3900
 Wire Wire Line
-	6200 4000 5700 4000
+	6200 3300 5700 3300
 Wire Wire Line
 	6200 5900 5700 5900
 Wire Wire Line
@@ -750,167 +708,190 @@ F 3 "" H 1200 1700 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	1300 1700 1200 1700
-Text GLabel 1150 1900 0    50   Output ~ 0
+Text GLabel 1200 2900 0    50   Output ~ 0
 SD_CLK
-Text GLabel 1150 2000 0    50   Output ~ 0
+Text GLabel 1200 3000 0    50   Output ~ 0
 SD_CMD
-Text GLabel 1150 2100 0    50   BiDi ~ 0
-SD_DAT1
-Text GLabel 1150 2200 0    50   BiDi ~ 0
-SD_DAT0
-Text GLabel 1150 2300 0    50   BiDi ~ 0
-SD_DAT2
-Text GLabel 1150 2400 0    50   BiDi ~ 0
-SD_DAT3
-Text GLabel 1150 2700 0    50   Input ~ 0
+Text GLabel 1200 2100 0    50   BiDi ~ 0
+SD_D1
+Text GLabel 1200 2200 0    50   BiDi ~ 0
+SD_D0
+Text GLabel 1200 2700 0    50   BiDi ~ 0
+SD_D2
+Text GLabel 1200 4100 0    50   BiDi ~ 0
+SD_D3
+Text GLabel 1200 4200 0    50   Input ~ 0
 LCD_TE
-Text GLabel 1150 3100 0    50   Output ~ 0
+Text GLabel 2200 7300 0    50   Output ~ 0
 DAC_BCLK
-Text GLabel 1150 3200 0    50   Output ~ 0
+Text GLabel 2200 7400 0    50   Output ~ 0
 DAC_MCLK
-Text GLabel 1150 3300 0    50   Output ~ 0
+Text GLabel 2200 7500 0    50   Output ~ 0
 DAC_DOUT
-Text GLabel 1150 3400 0    50   Output ~ 0
+Text GLabel 2200 7600 0    50   Output ~ 0
 DAC_LRCK
-Text GLabel 1150 4400 0    50   Output ~ 0
-BL_EN
 Wire Wire Line
-	1150 1900 1700 1900
+	2200 7300 2700 7300
 Wire Wire Line
-	1150 2000 1700 2000
+	2200 7400 2700 7400
 Wire Wire Line
-	1150 2100 1700 2100
+	2200 7500 2700 7500
 Wire Wire Line
-	1150 2200 1700 2200
-Wire Wire Line
-	1150 2300 1700 2300
-Wire Wire Line
-	1150 2400 1700 2400
-Wire Wire Line
-	1150 2700 1700 2700
-Wire Wire Line
-	1150 3100 1700 3100
-Wire Wire Line
-	1150 3200 1700 3200
-Wire Wire Line
-	1150 3300 1700 3300
-Wire Wire Line
-	1150 3400 1700 3400
-Wire Wire Line
-	1150 4400 1700 4400
+	2200 7600 2700 7600
 NoConn ~ 1700 1800
 NoConn ~ 1700 2500
 NoConn ~ 1700 2600
-NoConn ~ 1700 2800
-NoConn ~ 1700 2900
-NoConn ~ 1700 3000
-NoConn ~ 1700 3500
-NoConn ~ 1700 3600
 NoConn ~ 1700 3700
 NoConn ~ 1700 3800
 NoConn ~ 1700 3900
-NoConn ~ 1700 4000
-NoConn ~ 1700 4100
-NoConn ~ 1700 4200
-NoConn ~ 1700 4300
-NoConn ~ 1700 4500
-NoConn ~ 1700 4600
-NoConn ~ 1700 4700
-NoConn ~ 1700 4800
-NoConn ~ 1700 4900
-NoConn ~ 1700 5000
 NoConn ~ 1700 5100
 NoConn ~ 1700 5200
-NoConn ~ 1700 5300
-NoConn ~ 1700 5400
-NoConn ~ 1700 5500
-NoConn ~ 1700 5600
-Text GLabel 1150 4900 0    50   Input ~ 0
+Text GLabel 1200 4900 0    50   Output ~ 0
 LCD_D0
-Text GLabel 1150 5000 0    50   Input ~ 0
+Text GLabel 1200 4300 0    50   Output ~ 0
 LCD_D1
-Text GLabel 1150 5100 0    50   Input ~ 0
+Text GLabel 1200 4800 0    50   Output ~ 0
 LCD_D2
-Text GLabel 1150 5200 0    50   Input ~ 0
+Text GLabel 1200 4600 0    50   Output ~ 0
 LCD_D3
-Text GLabel 1150 5300 0    50   Input ~ 0
+Text GLabel 1200 4400 0    50   Output ~ 0
 LCD_D4
-Text GLabel 1150 5400 0    50   Input ~ 0
-LCD_D5
-Text GLabel 1150 5500 0    50   Input ~ 0
+Text GLabel 1200 4000 0    50   Output ~ 0
 LCD_D6
-Text GLabel 1150 5600 0    50   Input ~ 0
+Text GLabel 1200 3600 0    50   Output ~ 0
 LCD_D7
-Text GLabel 1150 5700 0    50   Input ~ 0
+Text GLabel 1200 3500 0    50   Output ~ 0
 LCD_D8
-Text GLabel 1150 5800 0    50   Input ~ 0
+Text GLabel 1200 3400 0    50   Output ~ 0
 LCD_D9
-Text GLabel 1150 5900 0    50   Input ~ 0
+Text GLabel 1200 4500 0    50   Output ~ 0
 LCD_D10
-Text GLabel 1150 6000 0    50   Input ~ 0
+Text GLabel 1200 3200 0    50   Output ~ 0
 LCD_D11
-Text GLabel 1150 6100 0    50   Input ~ 0
+Text GLabel 1200 3100 0    50   Output ~ 0
 LCD_D12
-Text GLabel 1150 6200 0    50   Input ~ 0
+Text GLabel 1200 2800 0    50   Output ~ 0
 LCD_D13
-Text GLabel 1150 6300 0    50   Input ~ 0
+Text GLabel 1200 2300 0    50   Output ~ 0
 LCD_D14
-Text GLabel 1150 6400 0    50   Input ~ 0
+Text GLabel 1200 2400 0    50   Output ~ 0
 LCD_D15
-Text GLabel 1150 6500 0    50   Input ~ 0
+Text GLabel 1200 1900 0    50   Output ~ 0
 LCD_D16
-Text GLabel 1150 6600 0    50   Input ~ 0
+Text GLabel 1200 2000 0    50   Output ~ 0
 LCD_D17
-Text GLabel 1150 7400 0    50   Input ~ 0
+Text GLabel 1200 5000 0    50   Output ~ 0
 LCD_PCLK
-Text GLabel 1150 7500 0    50   Input ~ 0
+Text GLabel 1200 5300 0    50   Output ~ 0
 LCD_DE
-Text GLabel 1150 7600 0    50   Input ~ 0
+Text GLabel 1200 5400 0    50   Output ~ 0
 LCD_VS
-Text GLabel 1150 7700 0    50   Input ~ 0
+Text GLabel 1200 5500 0    50   Output ~ 0
 LCD_HS
+Text GLabel 1200 5600 0    50   Output ~ 0
+LCD_CLK
 Wire Wire Line
-	1150 4900 1350 4900
+	5300 900  5500 900 
+Connection ~ 5300 900 
 Wire Wire Line
-	1150 5000 1350 5000
+	5200 900  5300 900 
+Connection ~ 5200 900 
 Wire Wire Line
-	1150 5100 1350 5100
+	5100 900  5200 900 
+Connection ~ 5100 900 
 Wire Wire Line
-	1150 5200 1350 5200
+	5000 900  5100 900 
+Connection ~ 5000 900 
 Wire Wire Line
-	1150 5300 1350 5300
+	4900 900  5000 900 
 Wire Wire Line
-	1150 5400 1350 5400
+	4800 900  4900 900 
+Connection ~ 4900 900 
 Wire Wire Line
-	1150 5500 1350 5500
+	2400 900  2500 900 
+Connection ~ 2400 900 
 Wire Wire Line
-	1150 5600 1350 5600
+	2300 900  2400 900 
+Connection ~ 2300 900 
 Wire Wire Line
-	1150 5700 1350 5700
+	2200 900  2300 900 
+Connection ~ 2200 900 
 Wire Wire Line
-	1150 5800 1350 5800
+	1900 900  2100 900 
 Wire Wire Line
-	1150 5900 1350 5900
+	2100 900  2200 900 
+Connection ~ 2100 900 
+$Comp
+L FPGA_Xilinx_Spartan6:XC6SLX16-FTG256 U100
+U 1 1 5E7B0C96
+P 3700 4000
+F 0 "U100" H 3700 825 50  0000 C CNN
+F 1 "XC6SLX16-FTG256" H 3700 734 50  0000 C CNN
+F 2 "Package_BGA:Xilinx_FTG256" H 3700 4000 50  0001 C CNN
+F 3 "" H 3700 4000 50  0000 C CNN
+	1    3700 4000
+	1    0    0    -1  
+$EndComp
 Wire Wire Line
-	1150 6000 1350 6000
+	1200 1900 1700 1900
 Wire Wire Line
-	1150 6100 1350 6100
+	1200 2400 1700 2400
 Wire Wire Line
-	1150 6200 1350 6200
+	1200 2100 1700 2100
 Wire Wire Line
-	1150 6300 1350 6300
+	1200 2200 1700 2200
 Wire Wire Line
-	1150 6400 1350 6400
+	1200 4200 1700 4200
 Wire Wire Line
-	1150 6500 1350 6500
+	1200 4100 1700 4100
 Wire Wire Line
-	1150 6600 1350 6600
+	1200 2700 1700 2700
 Wire Wire Line
-	1150 7400 1350 7400
+	1200 2000 1700 2000
 Wire Wire Line
-	1150 7500 1350 7500
+	1200 2900 1700 2900
 Wire Wire Line
-	1150 7600 1350 7600
+	1200 3000 1700 3000
 Wire Wire Line
-	1150 7700 1350 7700
+	1200 2300 1700 2300
+Wire Wire Line
+	1200 2800 1700 2800
+Wire Wire Line
+	1200 3100 1700 3100
+Wire Wire Line
+	1200 3200 1700 3200
+Wire Wire Line
+	1200 4500 1700 4500
+Wire Wire Line
+	1200 3400 1700 3400
+Wire Wire Line
+	1200 3500 1700 3500
+Wire Wire Line
+	1200 3600 1700 3600
+Wire Wire Line
+	1200 4400 1700 4400
+Wire Wire Line
+	1200 4600 1700 4600
+Wire Wire Line
+	1200 4800 1700 4800
+Wire Wire Line
+	1200 4300 1700 4300
+Wire Wire Line
+	1200 4900 1700 4900
+Wire Wire Line
+	1200 5000 1700 5000
+Wire Wire Line
+	1200 5300 1700 5300
+Wire Wire Line
+	1200 5400 1700 5400
+Wire Wire Line
+	1200 5500 1700 5500
+Wire Wire Line
+	1200 5600 1700 5600
+Wire Wire Line
+	1200 4000 1700 4000
+Wire Wire Line
+	1200 4700 1700 4700
+Text GLabel 1200 4700 0    50   Output ~ 0
+LCD_D5
 $EndSCHEMATC

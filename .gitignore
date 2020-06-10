@@ -66,6 +66,8 @@ tools/bin2mif
 # PCB temp files
 *.asc
 *.onl
+*.sch-bak
+*.kicad_pcb-bak
 
 # Test
 *.vcd
