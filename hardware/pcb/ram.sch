@@ -717,10 +717,8 @@ SD_D1
 Text GLabel 1200 2200 0    50   BiDi ~ 0
 SD_D0
 Text GLabel 1200 2700 0    50   BiDi ~ 0
-SD_D2
-Text GLabel 1200 4100 0    50   BiDi ~ 0
 SD_D3
-Text GLabel 1200 4200 0    50   Input ~ 0
+Text GLabel 1200 5400 0    50   Input ~ 0
 LCD_TE
 Text GLabel 2200 7300 0    50   Output ~ 0
 DAC_BCLK
@@ -745,14 +743,14 @@ NoConn ~ 1700 3700
 NoConn ~ 1700 3800
 NoConn ~ 1700 3900
 NoConn ~ 1700 5100
-NoConn ~ 1700 5200
+NoConn ~ 1700 4200
 Text GLabel 1200 4900 0    50   Output ~ 0
 LCD_D0
-Text GLabel 1200 4300 0    50   Output ~ 0
+Text GLabel 1200 5300 0    50   Output ~ 0
 LCD_D1
 Text GLabel 1200 4800 0    50   Output ~ 0
 LCD_D2
-Text GLabel 1200 4600 0    50   Output ~ 0
+Text GLabel 1200 5600 0    50   Output ~ 0
 LCD_D3
 Text GLabel 1200 4400 0    50   Output ~ 0
 LCD_D4
@@ -780,16 +778,12 @@ Text GLabel 1200 1900 0    50   Output ~ 0
 LCD_D16
 Text GLabel 1200 2000 0    50   Output ~ 0
 LCD_D17
-Text GLabel 1200 5000 0    50   Output ~ 0
+Text GLabel 1200 4600 0    50   Output ~ 0
 LCD_PCLK
-Text GLabel 1200 5300 0    50   Output ~ 0
-LCD_DE
-Text GLabel 1200 5400 0    50   Output ~ 0
-LCD_VS
 Text GLabel 1200 5500 0    50   Output ~ 0
+LCD_DE
+Text GLabel 1200 5000 0    50   Output ~ 0
 LCD_HS
-Text GLabel 1200 5600 0    50   Output ~ 0
-LCD_CLK
 Wire Wire Line
 	5300 900  5500 900 
 Connection ~ 5300 900 
@@ -841,9 +835,7 @@ Wire Wire Line
 Wire Wire Line
 	1200 2200 1700 2200
 Wire Wire Line
-	1200 4200 1700 4200
-Wire Wire Line
-	1200 4100 1700 4100
+	1200 5400 1700 5400
 Wire Wire Line
 	1200 2700 1700 2700
 Wire Wire Line
@@ -871,27 +863,35 @@ Wire Wire Line
 Wire Wire Line
 	1200 4400 1700 4400
 Wire Wire Line
-	1200 4600 1700 4600
+	1200 5600 1700 5600
 Wire Wire Line
 	1200 4800 1700 4800
 Wire Wire Line
-	1200 4300 1700 4300
+	1200 5300 1700 5300
 Wire Wire Line
 	1200 4900 1700 4900
 Wire Wire Line
-	1200 5000 1700 5000
-Wire Wire Line
-	1200 5300 1700 5300
-Wire Wire Line
-	1200 5400 1700 5400
+	1200 4600 1700 4600
 Wire Wire Line
 	1200 5500 1700 5500
 Wire Wire Line
-	1200 5600 1700 5600
+	1200 5000 1700 5000
 Wire Wire Line
 	1200 4000 1700 4000
 Wire Wire Line
 	1200 4700 1700 4700
 Text GLabel 1200 4700 0    50   Output ~ 0
 LCD_D5
+Wire Wire Line
+	1200 4300 1700 4300
+Text GLabel 1200 4300 0    50   Output ~ 0
+LCD_CLK
+Text GLabel 1200 5200 0    50   Output ~ 0
+LCD_VS
+Wire Wire Line
+	1200 5200 1700 5200
+Wire Wire Line
+	1200 4100 1700 4100
+Text GLabel 1200 4100 0    50   BiDi ~ 0
+SD_D2
 $EndSCHEMATC
