@@ -219,7 +219,13 @@ module boy(
         .pixel(pixel), // Pixel Data (2bpp)
         .valid(valid),
         .hs(hs), // Horizontal Sync, Low Active
-        .vs(vs)  // Vertical Sync, Low Active
+        .vs(vs),  // Vertical Sync, Low Active
+        // Ignore the debugging interface
+        /* verilator lint_off PINCONNECTEMPTY */
+        .scx(),
+        .scy(),
+        .state()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // Timer
@@ -270,11 +276,14 @@ module boy(
         .rd(cpu_rd),
         .wr(sound_wr),
         .left(left_pre),
-        .right(right_pre)
-        /*.ch1_level(ch1_level),
-        .ch2_level(ch2_level),
-        .ch3_level(ch3_level),
-        .ch4_level(ch4_level)*/
+        .right(right_pre),
+        // Ignore the debugging signals
+        /* verilator lint_off PINCONNECTEMPTY */
+        .ch1_level(),
+        .ch2_level(),
+        .ch3_level(),
+        .ch4_level()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
     
     always @(posedge clk) begin

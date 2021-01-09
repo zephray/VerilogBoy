@@ -28,7 +28,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #include "verilated.h"
 #include "verilated_vcd_c.h"

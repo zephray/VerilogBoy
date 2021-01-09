@@ -1,7 +1,9 @@
+`timescale 1ns / 1ps
 /**
  * Block transfer unit for the GB80 CPU.
  * 
- * Author: Joseph Carlos (jdcarlos1@gmail.com)
+ * Original Author: Joseph Carlos (jdcarlos1@gmail.com)
+ * Modified: Wenting Zhang (zephray@outlook.com)
  */
 
 /**
@@ -21,7 +23,7 @@
  */
 module dma(
     input  wire        clk,
-    input  wire        phi,
+    //input  wire        phi,
     input  wire        rst,
     output reg         dma_rd,
     output reg         dma_wr,

@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 module singleport_ram #(
     parameter integer WORDS = 8192,
     parameter ABITS = 13

@@ -31,9 +31,9 @@ ifeq ($(VERILATOR_ROOT),)
 VERILATOR_ROOT ?= $(shell bash -c 'verilator -V|grep VERILATOR_ROOT | head -1 | sed -e " s/^.*=\s*//"')
 endif
 VROOT   := $(VERILATOR_ROOT)
-GFXFLAGS:= `pkg-config sdl2 --cflags`
-GFXLIBS := `pkg-config sdl2 --cflags --libs`
-FLAGS	:= -Wall -Og -g -faligned-new
+GFXFLAGS:= $(shell pkg-config sdl2 --cflags)
+GFXLIBS := $(shell pkg-config sdl2 --cflags --libs)
+FLAGS	:= -Wall -Og -g -faligned-new -std=c++11
 VINCD   := $(VROOT)/include
 INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I$(VINCD) -I$(VINCD)/vltstd
 OBJS    := $(OBJDIR)/memsim.o $(OBJDIR)/mbcsim.o $(OBJDIR)/dispsim.o $(OBJDIR)/mmrprobe.o
@@ -45,7 +45,7 @@ all:	$(PROGRAMS)
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.cpp
 	$(mk-objdir)
-	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
+	$(CXX) $(FLAGS) $(GFXFLAGS) $(INCS) -c $< -o $@
 
 $(OBJDIR)/%.o: $(VINCD)/%.cpp
 	$(mk-objdir)
