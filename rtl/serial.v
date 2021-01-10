@@ -34,7 +34,7 @@ module serial(
 
     reg [8:0] counter;
     
-    always @(posedge clk, posedge rst)
+    always @(posedge clk)
     begin
         if (rst) begin
             counter <= 9'h72;
@@ -63,7 +63,7 @@ module serial(
     reg [3:0] count;
     reg last_clk;
     
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             //reg_sb <= 8'h00;
             reg_sc_start <= 1'b0;

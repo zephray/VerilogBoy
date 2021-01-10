@@ -294,7 +294,7 @@ module boy(
     // Boot ROM Enable Register
     reg brom_disable;
     reg brom_disable_wr; // actually wire
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst)
             brom_disable <= 1'b0;
         else
@@ -331,7 +331,7 @@ module boy(
     wire [7:0] keypad_reg;
     reg keypad_reg_wr; // actually wire
     reg [1:0] keypad_high;
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst)
             keypad_high <= 2'b11;
         else

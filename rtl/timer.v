@@ -72,7 +72,7 @@ module timer(
         last_clk_tim <= clk_tim;
     end
     
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             //reg_div <= 0;
             reg_tima <= 0;

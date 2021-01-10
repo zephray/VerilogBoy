@@ -254,7 +254,7 @@ module ppu(
     reg [7:0] v_count;
     
     // HV counter
-    always @(posedge clk, posedge rst)
+    always @(posedge clk)
     begin
         if (rst) begin
             h_count <= 0;
@@ -453,7 +453,7 @@ module ppu(
         
     
     // Current mode logic, based on current state
-    always @ (posedge clk, posedge rst)
+    always @ (posedge clk)
     begin
         if (rst) begin
             reg_stat[1:0] <= PPU_MODE_V_BLANK;
@@ -673,7 +673,7 @@ module ppu(
     // Enter Next State
     // and handle object interrupt
     // (sorry but I need to backup next state so I could not handle these in the next state logic)
-    always @(posedge clk, posedge rst)
+    always @(posedge clk)
     begin
         if (rst) begin
             //h_pix_obj <= 8'b0;
@@ -754,14 +754,14 @@ module ppu(
     end
     
     // Interrupt
-    always @(posedge clk, posedge rst)
+    always @(posedge clk)
         if (rst)
             reg_stat[2] <= 0;
         else
             // TODO: what's the timing for this?
             reg_stat[2] <= (reg_ly == reg_lyc) ? 1 : 0;
             
-    always @(posedge clk, posedge rst)
+    always @(posedge clk)
     begin
         if (rst) begin
             int_vblank_req <= 0;
@@ -810,7 +810,7 @@ module ppu(
     end
     
     // Bus RW - Sequential Write
-    always @(posedge clk, posedge rst)
+    always @(posedge clk)
     begin
         if (rst) begin
             reg_lcdc <= 8'h00;

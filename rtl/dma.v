@@ -66,7 +66,7 @@ module dma(
     
     reg [2:0] state;
 
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             dma_start_addr <= 8'h00;
         end
@@ -78,7 +78,7 @@ module dma(
         end
     end
 
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             state <= DMA_IDLE;
             count <= 8'd0;

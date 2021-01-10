@@ -77,7 +77,7 @@ module control(
         if (ct_state == 2'd2)
             ime_delay_set_ff <= ime_delay_set;
 
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst)
             ime <= 1'b0;
         else if (ime_clear)
@@ -91,7 +91,7 @@ module control(
     reg halt_last;
     reg stop_last;
     reg fault_last;
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             halt_last <= 1'b0;
             stop_last <= 1'b0;
@@ -105,7 +105,7 @@ module control(
     end
 
     reg wake_by_int;
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst)
             wake_by_int <= 1'b0;
         else begin

@@ -264,7 +264,7 @@ module cpu(
     assign rf_rdn = rf_rd_sel;
     assign rf_rdwn = rf_rdw_sel;
     assign rf_rd = (!temp_redir) ? (rf_rd_raw) : ((rf_rd_sel[0]) ? (temp_rd[7:0]) : (temp_rd[15:8]));
-    always@(posedge clk, posedge rst) begin
+    always@(posedge clk) begin
         if (rst)
             rf_rd_ex <= 8'b0;
         else
@@ -308,7 +308,7 @@ module cpu(
         )))));
     assign pc_we_l = ((alu_dst == 2'b01) && (pc_b_sel == 1'b0)) ? (1'b1) : (1'b0);
     assign pc_we_h = ((alu_dst == 2'b01) && (pc_b_sel == 1'b1)) ? (1'b1) : (1'b0);
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst)
             pc <= 16'b0;
         else begin
@@ -342,7 +342,7 @@ module cpu(
         .rd(flags_rd)
     );*/
     reg [3:0] flags;
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst)
             flags <= 4'b0;
         else if (flags_we)
@@ -408,7 +408,7 @@ module cpu(
     wire [1:0] ct_next_state;
 
     assign ct_next_state = ct_state + 2'b01;
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst)
             ct_state <= 2'b00;
         else
@@ -424,7 +424,7 @@ module cpu(
     assign imm_abs = (imm_reg[7]) ? (~imm_reg[7:0] + 1'b1) : (imm_reg[7:0]);
 
     // CT - FSM / Bus Operation 
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             a <= 16'b0;
             rd <= 1'b0;
@@ -620,7 +620,7 @@ module cpu(
 
     assign ex_next_state = (next) ? (ex_state + 3'd1) : (3'd0);
 
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             ex_state <= 3'd0;
             m_cycle_early <= 3'd0;
