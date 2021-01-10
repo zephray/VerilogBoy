@@ -95,6 +95,8 @@ public:
                 fprintf(stderr, "Fail to open output file for itrace.\n");
             }
         }
+
+        m_tickcount = 0;
     }
 
     ~TESTBENCH() {
