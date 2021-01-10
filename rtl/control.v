@@ -204,7 +204,7 @@ module control(
             // Fault cannot be waken up
             comb_fault = fault_last;
         end
-        else if (int_dispatch) begin
+        if (int_dispatch) begin
             // Interrupt dispatch process
             case (m_cycle)
             0: begin
