@@ -3,28 +3,21 @@ VerilogBoy
 
 Coding for fun - the hard way. Trying to implement a Game Boy® compatible machine with Verilog.
 
-This project consists of two parts:
+This project is an open source Game Boy® compatible console Verilog RTL implementation.
 
- - An open source Game Boy® compatible console Verilog RTL implementation (the *VerilogBoy Core*)
- - An open source FPGA-based handheld game console hardware (the *VerilogBoy Handheld*, or *vbh* for short.)
-
-Both are hosted in this repository.
-
-# VerilogBoy Core
-
-## System Architecture
+# System Architecture
 
 The main system architecture is designed as follows (outdated):
 
 ![Architecture](https://cdn.hackaday.io/images/6958041523363605244.jpg)
 
-There are three major parts needs to be implemented: the Game Boy CPU (8-bit CISC Processor called SM83, Intel 8080 like), the PPU (Pixel Processing Unit), and the sound unit (sometimes referred as a PSG, Programmable Sound Generator). Several interfacing modules are needed to support the IO capability provided by the specific hardware (FPGA development board or "VerilogBoy Handheld").
+There are three major parts needs to be implemented: the Game Boy CPU (8-bit CISC Processor called SM83, Intel 8080 like), the PPU (Pixel Processing Unit), and the sound unit (sometimes referred as a PSG, Programmable Sound Generator). Several interfacing modules are needed to support the IO capability provided by the hardware (such as an FPGA development board).
 
-## Targets (Ports)
+# Targets (Ports)
 
-Current Pano Logic G1 is the only supported platform. ML505 and VBH support are planned. 
+Current Pano Logic G1 is the only supported platform.
 
-## Progress
+# Progress
 
 Refactoring in progress. Current version could run several commerical games with no noticable glitch on the Pano Logic G1 device. 'Master' branch contains the previous version that runs on the ML505.
 
@@ -43,7 +36,7 @@ Photo of VerilogBoy on Pano G1 running open source GameBoy game [Tobu Tobu Girl]
 
 For progress regarding different ports, view README.md under the specific target folder.
 
-## Accuracy
+# Accuracy
 
 This project is not built to be entirely accurate, but built with accuracy in mind. Most of the CPU timing should follow the original DMG-CPU, and implement a rudimentary 2-stage pipelining just as the original one does. 
 
@@ -53,7 +46,7 @@ PPU implementation is ... wrong: There are two pipelines in the GameBoy PPU, one
 
 Note: Tests which depends on the revision / model of GameBoy are omitted. VerilogBoy only focus on behaviors that are common among all monochrome GameBoys (GS).
 
-### Blargg's tests
+## Blargg's tests
 
 | Test              | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy |
 | ----------------- | ---------- | ---- | -------- | ----- | ---- |------------|
@@ -61,7 +54,7 @@ Note: Tests which depends on the revision / model of GameBoy are omitted. Verilo
 
 Notes: other tests hasn't been tried.
 
-### Mooneye GB acceptance tests
+## Mooneye GB acceptance tests
 
 | Test                    | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
 | ----------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
@@ -95,19 +88,19 @@ Notes: other tests hasn't been tried.
 | reti intr timing        | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
 | rst timing              | :+1:       | :x:  | :x:      | :+1:   | :+1: | :+1:       |
 
-#### Instructions
+### Instructions
 
 | Test                        | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
 | --------------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
 | daa                         | :+1:       | :+1: | :+1:     | :+1:   | :+1: | :+1:       |
 
-#### Interrupt handling
+### Interrupt handling
 
 | Test                        | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
 | --------------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
 | ie push                     | :+1:       | :x:  | :x:      | :x:    | :x:  | :+1:       |
 
-#### OAM DMA
+### OAM DMA
 
 | Test                        | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
 | --------------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
@@ -115,7 +108,7 @@ Notes: other tests hasn't been tried.
 | reg_read                    | :+1:       | :+1: | :+1:     | :x:    | :x:  | :+1:       |
 | sources dmgABCmgbS          | :+1:       | :+1: | :x:      | :x:    | :x:  | :x:        |
 
-#### Serial
+### Serial
 
 | Test                        | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy |
 | --------------------------- | ---------- | ---- | -------- | ------| ---- |------------|
@@ -123,7 +116,7 @@ Notes: other tests hasn't been tried.
 
 Note: this test only seems to test the time to finish the first transfer. What about the second? (Delta time required to do a transfer and get notified by the interrupt)
 
-#### PPU
+### PPU
 
 | Test                        | mooneye-gb | BGB  | Gambatte | Higan | MESS | VerilogBoy |
 | --------------------------- | ---------- | ---- | -------- | ------| ---- |------------|
@@ -140,7 +133,7 @@ Note: this test only seems to test the time to finish the first transfer. What a
 | stat lyc onoff              | :x:        | :+1: | :x:      | :x:   | :x:  | :x:        |
 | vblank stat intr GS         | :+1:       | :+1: | :x:      | :+1:  | :+1: | :x:        |
 
-#### Timer
+### Timer
 
 | Test                 | mooneye-gb | BGB  | Gambatte | Higan  | MESS | VerilogBoy |
 | -------------------- | ---------- | ---- | -------- | ------ | ---- |------------|
@@ -158,7 +151,7 @@ Note: this test only seems to test the time to finish the first transfer. What a
 | tima write reloading | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
 | tma write reloading  | :+1:       | :+1: | :x:      | :x:    | :+1: | :+1:       |
 
-## Directory Structure
+# Directory Structure
 
 Note: things that will be removed in the near future may not shown here. Not all source files are shown here.
 
@@ -168,19 +161,17 @@ Note: things that will be removed in the near future may not shown here. Not all
 │   ├── control_unit.ods           -- CPU control unit LUT
 │   ├── cpu_internal.md            -- CPU internal signal encoding
 │   └── cpu.md                     -- CPU design note
-├── hardware                     -- Hardware source files for VBH
-│   └── 3d_models                  -- 3D Model in SolidWorks
-├── LICENSE                        -- OHDL for VerilogBoy Core
+├── LICENSE                      -- OHDL
 ├── Makefile                     -- Toplevel Makefile
 ├── README.md                    -- This document
 ├── roms                         -- Place for platform independent ROMs
-│   ├── bootrom.s                  -- VBC Boot ROM
+│   ├── bootrom.s                  -- Boot ROM
 │   ├── Makefile                   -- Makefile for building the Boot ROM
 │   └── tests                      -- Unit tests
 │       ├── compare.sh               -- Script for comparing results between VBC and emulator
 │       ├── dmg_emu.exe              -- Reference emulator
 │       └── Makefile                 -- Makefile for running tests
-├── rtl                          -- VBC RTL files
+├── rtl                          -- RTL files
 │   ├── alu.v                      -- ALU
 │   ├── boy.v                      -- VerilogBoy portable top level file
 │   ├── brom.v                     -- Boot ROM
@@ -199,6 +190,7 @@ Note: things that will be removed in the near future may not shown here. Not all
 │   └── verilator                  -- Verilator-based simulator 
 │       ├── dispsim.cpp              -- LCD simulator based on SDL 2.0
 │       ├── Makefile                 -- Makefile for building the simulator
+│       ├── mbcsim.cpp               -- MBC cartridge controller simulator
 │       ├── memsim.cpp               -- Boot ROM or Game ROM simulator
 │       ├── mmrprobe.cpp             -- Unit for dumping memory or MMR accesses
 │       └── vb_sim.cpp               -- Simulator main file
@@ -252,25 +244,36 @@ Note: things that will be removed in the near future may not shown here. Not all
     └── vga_timing.xlsx            -- Tool for calculating VGA timing
 ```
 
-## How to use
+# How to use
 
-### Verilator-based simulator
+## Verilator-based simulator
 
-Tested environment: Ubuntu 18.04.2 LTS. 
+Tested environment: Ubuntu 20.04 LTS, mac OS Big Sur. 
 
-Dependencies: build-essential, verilator, libsdl2-dev, wine(for unit test only, for now), rgbds(not available from apt, need build manually).
+Dependencies: build-essential, verilator, libsdl2-dev, wine(optional, for unit test only, for now), rgbds(not available from apt, need build manually).
 
 On Debian/ Ubuntu, do the following:
 
 ```
 sudo apt install build-essential verilator libsdl2-dev wine byacc flex pkg-config libpng-dev
+```
+
+On macOS, do the following:
+
+```
+brew install verilator sdl2 pkg-config libpng
+```
+
+To install rgbds:
+
+```
 git clone https://github.com/rednex/rgbds
 cd rgbds
 make
 make install
 ```
 
-#### Build
+### Build
 
 At project directory:
 ```
@@ -279,7 +282,7 @@ make
 
 Copy the bootrom.mif to where it is required. (For example, target/panog1)
 
-#### Running unit-tests
+### Running unit-tests
 
 At project directory:
 ```
@@ -288,9 +291,7 @@ make
 ./compare.sh
 ```
 
-Please be aware currently tests are broken... (Difference in PC counting)
-
-#### Running ROMs
+### Running ROMs
 
 At project directory:
 ```
@@ -307,27 +308,9 @@ Few parameters:
 --mbc: Enable MBC1/3/5 emulation for ROMs larger than 32KB
 ```
 
-### FPGA targets
+## FPGA targets
 
 See README inside target directory.
-
-# VerilogBoy Handheld
-
-VerilogBoy Handheld is an open source FPGA-based handheld game console. All design sources of the VerilogBoy Handheld are hosted in this repository.
-
-![Hardware-Architecture](https://github.com/zephray/VerilogBoy/raw/refactor/doc/hardware_arch.png)
-
-Note: the architecture is subject to change.
-
- - FPGA: Xilinx® Spartan®-6 XC6SLX16
- - RAM: Using on-board PSRAM for VRAM/WRAM
- - ROM: Using on-board PSRAM for game cartridge emulation
- - Video output: 1.54" MIPI-DSI 320x320 IPS TFT-LCD
- - Audio output: On-board I2S codec (WM8960)
-
-Photo of the Rev. 0.2 prototype:
-
-![Running-on-VBH](https://github.com/zephray/VerilogBoy/raw/refactor/doc/demo_vbh_r0p2.jpg)
 
 # Acknowledge
 
