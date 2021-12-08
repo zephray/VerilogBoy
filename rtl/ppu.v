@@ -460,7 +460,7 @@ module ppu(
         end
         else begin
             case (r_state)
-            S_IDLE: reg_stat[1:0] <= PPU_MODE_V_BLANK;
+            S_IDLE: reg_stat[1:0] <= (reg_lcd_en) ? (PPU_MODE_V_BLANK) : (PPU_MODE_H_BLANK);
             S_BLANK: reg_stat[1:0] <= (is_in_v_blank) ? (PPU_MODE_V_BLANK) : (PPU_MODE_H_BLANK);
             S_OAMX: reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
             S_OAMY: reg_stat[1:0] <= PPU_MODE_OAM_SEARCH;
