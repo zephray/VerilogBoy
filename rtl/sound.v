@@ -188,32 +188,25 @@ module sound(
         end
     end
     
-    // Clocks
-    wire clk_frame; // 512Hz Base Clock
+    // Clock Enables (not clock)
     wire clk_length_ctr; // 256Hz Length Control Clock
     wire clk_vol_env; // 64Hz Volume Enevelope Clock
     wire clk_sweep; // 128Hz Sweep Clock
-    wire clk_freq_div; // 1048576Hz Frequency Division Clock
-    
-    clk_div #(.WIDTH(15), .DIV(8192)) frame_div(
-        .i(clk),
-        .o(clk_frame)
-    );
-    
-    reg [2:0] sequencer_state = 3'b0;
-    always@(posedge clk_frame)
-    begin
-        sequencer_state <= sequencer_state + 1'b1;
-    end
-    
-    assign clk_length_ctr = (sequencer_state[0]) ? 1'b0 : 1'b1;
-    assign clk_vol_env = (sequencer_state == 3'd7) ? 1'b1 : 1'b0;
-    assign clk_sweep = ((sequencer_state == 3'd2) || (sequencer_state == 3'd6)) ? 1'b1 : 1'b0;
+    wire clk_freq_div; // 2097152Hz Frequency Division Clock
 
-    clk_div #(.WIDTH(2), .DIV(2)) freq_div(
-        .i(clk),
-        .o(clk_freq_div)
-    );
+    reg [15:0] clk_div;
+    always @(posedge clk) begin
+        if (rst) begin
+            clk_div <= 0;
+        end
+        else begin
+            clk_div <= clk_div + 1;
+        end
+    end
+    assign clk_length_ctr = clk_div[13:0] == {14{1'b1}};
+    assign clk_vol_env = clk_div[15:0] == {16{1'b1}};
+    assign clk_sweep = clk_div[14:0] == {15{1'b1}};
+    assign clk_freq_div = clk_div[0] == 1'b1;
 
     // Channels
     wire [3:0] ch1;

@@ -29,9 +29,14 @@ module sound_wave(
     output [3:0] level,
     output enable
     );
-    
+    wire start_posedge;
+    edgedet start_edgedet (
+        .clk(clk),
+        .i(start),
+        .o(start_posedge)
+    );
+
     // Freq = 64kHz / (2048 - frequency)
-    // Why????????
     
     wire [3:0] current_sample;
     
@@ -40,44 +45,29 @@ module sound_wave(
     assign wave_a[3:0] = current_pointer[4:1];
     assign current_sample[3:0] = (current_pointer[0]) ?
         (wave_d[3:0]) : (wave_d[7:4]);
-    
-    wire clk_wave_base = clk; // base clock
-    /*clk_div #(.WIDTH(6), .DIV(32)) freq_div(
-        .i(clk),
-        .o(clk_wave_base)
-    );*/
-    
-    
-    reg clk_pointer_inc = 1'b0; // Clock for pointer to increment
-    reg [10:0] divider = 11'b0;
-    always @(posedge clk_wave_base, posedge start)
+
+    reg [11:0] divider = 12'b0;
+    always @(posedge clk)
     begin
-        if (start) begin
-            divider <= frequency;
+        if (start_posedge) begin
+            divider <= frequency * 2;
+            current_pointer <= 5'd0;
         end
         else begin
-            if (divider == 11'd2047) begin
-                clk_pointer_inc <= ~clk_pointer_inc;
-                divider <= frequency;
+            if (divider == 12'd4095) begin
+                if (on) begin
+                    current_pointer <= current_pointer + 1'b1;
+                end
+                divider <= frequency * 2;
             end
             else begin
                 divider <= divider + 1'b1;
             end
         end
     end
-        
-    always @(posedge clk_pointer_inc, posedge start)
-    begin
-        if (start) begin
-            current_pointer <= 5'b0;
-        end
-        else begin
-            if (on)
-                current_pointer <= current_pointer + 1'b1;
-        end
-    end
     
     sound_length_ctr #(8) sound_length_ctr(
+        .clk(clk),
         .rst(rst),
         .clk_length_ctr(clk_length_ctr),
         .start(start),

@@ -22,7 +22,7 @@
 //   the design I am using here.
 //////////////////////////////////////////////////////////////////////////////////
 module sound_square(
-    input rst, // Async reset
+    input rst, // Sync reset
     input clk, // CPU Clock
     input clk_length_ctr, // Length control clock
     input clk_vol_env, // Volume Envelope clock
@@ -42,6 +42,12 @@ module sound_square(
     output [3:0] level, // Sound output
     output enable // Internal enable flag
     );
+    wire start_posedge;
+    edgedet start_edgedet (
+        .clk(clk),
+        .i(start),
+        .o(start_posedge)
+    );
     
     //Sweep: X(t) = X(t-1) +/- X(t-1)/2^n
     
@@ -52,12 +58,12 @@ module sound_square(
     wire [3:0] target_vol;
     reg [2:0] sweep_left; // Number of sweeps need to be done
 
-    always @(posedge clk_freq_div, posedge start)
+    always @(posedge clk)
     begin
-        if (start) begin
+        if (start_posedge) begin
             divider <= target_freq;
         end
-        else begin
+        else if (clk_freq_div) begin
             if (divider == 11'd2047) begin
                 octo_freq_out <= ~octo_freq_out;
                 divider <= target_freq;
@@ -82,14 +88,14 @@ module sound_square(
            
     // Frequency Sweep
     reg overflow;
-    always @(posedge clk_sweep, posedge start)
+    always @(posedge clk)
     begin
-        if (start) begin
+        if (start_posedge) begin
             target_freq <= frequency;
             sweep_left <= sweep_time;
             overflow <= 0;
         end
-        else begin
+        else if (clk_sweep) begin
             if (sweep_left != 3'b0) begin
                 sweep_left <= sweep_left - 1'b1;
                 if (sweep_decreasing) 
@@ -102,14 +108,11 @@ module sound_square(
             end
         end
     end 
-    /*always@(posedge start)
-    begin
-        target_freq <= frequency;
-    end*/
 
     sound_vol_env sound_vol_env(
+        .clk(clk),
         .clk_vol_env(clk_vol_env),
-        .start(start),
+        .start(start_posedge),
         .initial_volume(initial_volume),
         .envelope_increasing(envelope_increasing),
         .num_envelope_sweeps(num_envelope_sweeps),
@@ -119,9 +122,10 @@ module sound_square(
     wire enable_length;
 
     sound_length_ctr #(6) sound_length_ctr(
+        .clk(clk),
         .rst(rst),
         .clk_length_ctr(clk_length_ctr),
-        .start(start),
+        .start(start_posedge),
         .single(single),
         .length(length),
         .enable(enable_length)

@@ -14,6 +14,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module sound_vol_env(
+    input clk,
     input clk_vol_env,
     input start,
     input [3:0] initial_volume,
@@ -26,13 +27,13 @@ module sound_vol_env(
     wire enve_enabled = (num_envelope_sweeps == 3'd0) ? 0 : 1;
     
     // Volume Envelope
-    always @(posedge clk_vol_env, posedge start)
+    always @(posedge clk)
     begin
         if (start) begin
             target_vol <= initial_volume;
             enve_left <= num_envelope_sweeps;
         end
-        else begin
+        else if (clk_vol_env) begin
             if (enve_left != 3'b0) begin
                 enve_left <= enve_left - 1'b1;
             end
