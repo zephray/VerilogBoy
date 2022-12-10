@@ -349,7 +349,7 @@ The PicoRV32 is free and open hardware licensed under the [ISC license](http://e
 
 Some firmware code of pano-g1 target are released to public domain.
 
-All other software codes are licensed under GNU GPL 2.0.
+All other software codes (including simulation code) are licensed under MIT.
 
 All other HDL codes are licensed under OHDL 1.0.
 
